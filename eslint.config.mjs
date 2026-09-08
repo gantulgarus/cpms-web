@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // mock шалгалтын түр компайл гаралт (tsconfig.verify-mock.json)
+    ".verify-mock/**",
   ]),
 ]);
 

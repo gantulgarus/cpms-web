@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false, "outDir": ".verify-mock", "rootDir": ".",
+    "module": "commonjs", "moduleResolution": "node", "declaration": false
+  },
+  "include": ["lib/mock/**/*", "lib/api/v2/types.ts", "scripts/verify-mock.ts"]
+}
