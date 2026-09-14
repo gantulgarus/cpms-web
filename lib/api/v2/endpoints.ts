@@ -21,6 +21,7 @@ import type {
   Inspection,
   InspectionStage,
   Issue,
+  IssueCategory,
   ChecklistTemplate,
   ListEnvelope,
   Location,
@@ -428,6 +429,23 @@ export const plan = {
  * `ApplyBlockDesign` нь ажлыг ХАРИУЦАГЧГҮЙ үүсгэдэг. Оноохгүй бол гүйцэтгэгч
  * нэвтрээд юу ч харахгүй — тэдний бүхэл функц өгөгдөлгүй болно.
  */
+/**
+ * Хугацаа сунгах — шалтгаан ЗААВАЛ.
+ *
+ * Огноог чимээгүй хойшлуулж болдог бол «хугацаа хэтэрсэн» гэсэн тоо утгагүй
+ * болно. Шалтгаан нь асуудлын бүртгэлд хадгалагдаж, хоцролтын статистикт
+ * ордог.
+ */
+export const schedule = {
+  extend: (
+    workItemId: Uuid,
+    body: { plannedEndDate: string; category: IssueCategory; reason: string },
+  ) =>
+    request<Item<WorkItem>>("POST", `/work-items/${workItemId}/extend`, { body }).then(
+      (r) => r.data,
+    ),
+};
+
 export const assignments = {
   /** Ажлын бүлэг бүр хэнд оноогдсон — "юу онооход үлдсэн бэ". */
   forBlock: (blockId: Uuid) =>
@@ -495,9 +513,23 @@ export const queue = {
     request<Item<QueueCounts>>("GET", `/projects/${projectId}/queue/counts`).then((r) => r.data),
 };
 
+export interface IssueFilter {
+  status?: string;
+  category?: string;
+  severity?: string;
+  blockId?: string;
+}
+
 export const issues = {
-  forProject: (projectId: Uuid, params?: { status?: string; category?: string }) =>
-    request<ListEnvelope<Issue>>("GET", `/projects/${projectId}/issues`, { query: params }),
+  forProject: (projectId: Uuid, params?: IssueFilter) =>
+    request<ListEnvelope<Issue>>("GET", `/projects/${projectId}/issues`, {
+      query: {
+        status: params?.status,
+        category: params?.category,
+        severity: params?.severity,
+        blockId: params?.blockId,
+      },
+    }),
 
   forWorkItem: (workItemId: Uuid) =>
     request<ListEnvelope<Issue>>("GET", `/work-items/${workItemId}/issues`),

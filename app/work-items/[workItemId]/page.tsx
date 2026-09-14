@@ -19,6 +19,7 @@ import {
   ClipboardCheck,
   Pencil,
   RotateCcw,
+  CalendarPlus,
   ImageOff,
   Trash2,
   Undo2,
@@ -33,6 +34,7 @@ import {
   toChecklistPayload,
   type ChecklistAnswers,
 } from "@/components/checklist-form";
+import { ExtendDeadlineDialog } from "@/components/extend-deadline-dialog";
 import { IssuePanel } from "@/components/issue-panel";
 import { PhotoGallery } from "@/components/photo-gallery";
 import { downscale, PhotoPicker, type PickedPhoto } from "@/components/photo-picker";
@@ -53,7 +55,7 @@ import type {
   WorkItem,
 } from "@/lib/api/v2/types";
 import { useMe } from "@/lib/api/v2/use-me";
-import { formatDateTime } from "@/lib/domain";
+import { formatDate, formatDateTime } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
 export default function WorkItemDetailPage() {
@@ -62,6 +64,7 @@ export default function WorkItemDetailPage() {
   const qc = useQueryClient();
   const { me } = useMe();
   const [editingQty, setEditingQty] = useState(false);
+  const [extending, setExtending] = useState(false);
 
   const itemQuery = useQuery({
     queryKey: ["v2-work-item", workItemId],
@@ -134,6 +137,25 @@ export default function WorkItemDetailPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
+          {/* Хугацаа хэтэрсэн бол шалтгааныг нь бүртгүүлж, огноог сунгах
+              зам тэр дор нь өгнө — эс бөгөөс хоцролтын тоо хуримтлагдсаар
+              байгаад утгагүй болно. */}
+          {item.overdueDays > 0 && item.status !== "completed" && me?.canEditPlan && (
+            <Card className="border-amber-500/40">
+              <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
+                <div className="text-sm">
+                  <div className="font-medium">Хугацаа {item.overdueDays} хоногоор хэтэрсэн</div>
+                  <div className="text-muted-foreground text-xs">
+                    Төлөвлөсөн дуусах огноо: {formatDate(item.plannedEndDate)}
+                  </div>
+                </div>
+                <Button variant="outline" onClick={() => setExtending(true)}>
+                  <CalendarPlus className="size-4" /> Хугацаа сунгах
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Буцаагдсан ажил дээр «одоо яах вэ» гэдэг нь хамгийн эхний
               асуулт — тиймээс бүх зүйлийн дээр. */}
           {item.reviewState === "returned" && (
@@ -205,6 +227,18 @@ export default function WorkItemDetailPage() {
           item={item}
           open={editingQty}
           onOpenChange={setEditingQty}
+          onDone={refreshAll}
+        />
+      )}
+
+      {me?.canEditPlan && (
+        <ExtendDeadlineDialog
+          workItemId={item.id}
+          workItemName={item.name}
+          currentEndDate={item.plannedEndDate}
+          overdueDays={item.overdueDays}
+          open={extending}
+          onOpenChange={setExtending}
           onDone={refreshAll}
         />
       )}

@@ -25,12 +25,12 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
-import { DualProgressBar } from "@/components/progress-bar";
+import { ItemLegend, ProgressBar } from "@/components/progress-bar";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/states";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { projectsV2, queue } from "@/lib/api/v2/endpoints";
-import type { DashboardBlock } from "@/lib/api/v2/types";
+import type { DashboardBlock, ItemCounts } from "@/lib/api/v2/types";
 import { useMe } from "@/lib/api/v2/use-me";
 import { useProject } from "@/lib/api/v2/use-project";
 import { cn } from "@/lib/utils";
@@ -65,7 +65,7 @@ export default function DashboardPage() {
               ? // Гүйцэтгэгчид энэ нь ТӨСЛИЙН биш ӨӨРИЙН явц. Үүнийг бичихгүй
                 // бол "төсөл 3% явж байна" гэж андуурна.
                 `${project.name} — доорх бүх тоо таны компанийн ажлынх.`
-              : `${project.name} — ерөнхий байдал. Ажил гүйцэтгэхийн тулд «Дараалал» хэсэг рүү орно уу.`
+              : `${project.name} — анхаарал шаардсан зүйл, дараа нь барилга тус бүрийн явц.`
             : "Ачаалж байна…"
         }
       />
@@ -78,48 +78,15 @@ export default function DashboardPage() {
         <EmptyState title="Өгөгдөл алга" description="Төсөлд блок үүсээгүй байна." />
       ) : (
         <div className="space-y-6">
-          {/* --- Ерөнхий явц --- */}
-          <Card>
-            <CardContent className="space-y-3 pt-6">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-semibold tabular-nums">{d.percentage}%</span>
-                  <span className="text-muted-foreground text-sm">батлагдсан гүйцэтгэл</span>
-                </div>
-                <span className="text-muted-foreground text-sm tabular-nums">
-                  {d.blocks.length} барилга
-                </span>
-              </div>
+          {/* --- Анхаарал шаардсан тоонууд — бүгд дарагдана ---
 
-              <DualProgressBar
-                accepted={d.acceptedQty}
-                reported={d.reportedQty}
-                planned={d.plannedQty || 1}
-                className="h-2.5"
-              />
+              ЯАГААД ЭНЭ НЬ ХАМГИЙН ДЭЭР ВЭ: урьд нь энд төслийн нийт хувь
+              том үсгээр сууж байв. Гэтэл тэр тоо дээр ҮЙЛДЭЛ ГАРГАХ
+              БОЛОМЖГҮЙ — «9%» гэдгийг хараад хийх зүйл алга. Дээрээс нь
+              75 барилгад дундаж нь утгагүй: нэг нь 90%, нөгөө нь 0% байхад
+              45% гэсэн тоо хоёрын алиныг нь ч тодорхойлохгүй.
 
-              {/* Мэдээлэгдсэн ба батлагдсаны зөрүү нь маргааны эх үүсвэр —
-                  тусад нь нэрлэж харуулна. */}
-              <p className="text-muted-foreground text-xs">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="size-2 rounded-full bg-blue-500" />
-                  Батлагдсан {Math.round(d.acceptedQty).toLocaleString("mn-MN")}
-                </span>
-                <span className="mx-3 inline-flex items-center gap-1.5">
-                  <span className="size-2 rounded-full bg-amber-400/60" />
-                  Батлахыг хүлээж буй{" "}
-                  {Math.round(Math.max(0, d.reportedQty - d.acceptedQty)).toLocaleString("mn-MN")}
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="bg-muted size-2 rounded-full" />
-                  Эхлээгүй{" "}
-                  {Math.round(Math.max(0, d.plannedQty - d.reportedQty)).toLocaleString("mn-MN")}
-                </span>
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* --- Анхаарал шаардсан тоонууд — бүгд дарагдана --- */}
+              Эдгээр гурван тоо нь эсрэгээрээ шууд ажил заана. */}
           <div className="grid gap-4 sm:grid-cols-3">
             <AttentionTile
               href="/queue?type=inspection"
@@ -144,6 +111,11 @@ export default function DashboardPage() {
             />
           </div>
 
+          {/* --- Барилгууд ---
+              Явц нь ЗӨВХӨН энд харагдана. Барилга бүр өөрийн хувьтай — нэг
+              тоонд шахаж нэгтгэвэл хаана асуудалтай байгаа нь алга болно. */}
+          <BlockSection blocks={d.blocks} counts={d} />
+
           {/* --- Саатлын шалтгаан --- */}
           {d.openIssues > 0 && (
             <Card>
@@ -152,13 +124,26 @@ export default function DashboardPage() {
                   <AlertOctagon className="size-4" />
                   Нээлттэй саатал
                   <span className="text-muted-foreground tabular-nums">{d.openIssues}</span>
+                  <Link
+                    href="/issues"
+                    className="text-muted-foreground hover:text-foreground ml-auto text-xs font-normal"
+                  >
+                    Бүгдийг харах →
+                  </Link>
                 </div>
 
                 {/* "17 хоцорсон" гэдэг тоо шийдвэр гаргуулахгүй. "Түүний 12 нь
-                    материал дутсанаас" гэдэг нь гаргуулна. */}
+                    материал дутсанаас" гэдэг нь гаргуулна.
+
+                    Багана бүр нь ХОЛБООС: тоо нь асуулт төрүүлдэг («яагаад
+                    12 юм бэ?») тул хариултыг нь нэг дарахад өгөх ёстой. */}
                 <div className="space-y-1.5">
                   {d.issuesByCategory.map((c) => (
-                    <div key={c.category} className="flex items-center gap-3 text-sm">
+                    <Link
+                      key={c.category}
+                      href={`/issues?category=${c.category}`}
+                      className="hover:bg-accent/50 -mx-2 flex items-center gap-3 rounded-md px-2 py-1 text-sm transition-colors"
+                    >
                       <span className="w-40 shrink-0">{c.categoryLabel}</span>
                       <div className="bg-muted h-2 flex-1 overflow-hidden rounded-full">
                         <div
@@ -169,15 +154,12 @@ export default function DashboardPage() {
                       <span className="text-muted-foreground w-8 text-right tabular-nums">
                         {c.count}
                       </span>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </CardContent>
             </Card>
           )}
-
-          {/* --- Барилгууд --- */}
-          <BlockSection blocks={d.blocks} />
         </div>
       )}
     </div>
@@ -206,6 +188,15 @@ const needsAttention = (b: DashboardBlock) => b.overdue > 0 || b.pendingInspecti
 const SEARCH_THRESHOLD = 12;
 
 /**
+ * Хэдэн барилга хүртэл БҮГДИЙГ нь шууд дэлгэх вэ.
+ *
+ * «Хэвийн явж буйг эвхэх» нь 75 барилгад утга учиртай. 2 барилгатай төсөлд
+ * самбарын хагасыг нуух болно — хэрэглэгч «энэ хоёр барилга хаана байна» гэж
+ * гайхна.
+ */
+const AUTO_EXPAND_MAX = 6;
+
+/**
  * Барилгуудын хэсэг.
  *
  * Захиалагчид 75 барилга байгаа. Бүгдийг нь ижил хэмжээний картаар зэрэгцүүлэн
@@ -216,9 +207,9 @@ const SEARCH_THRESHOLD = 12;
  * хэвийн нь эвхэгдсэн нягт мөрөөр. "Хэвийн" гэдгийг ЗӨВХӨН нуухгүй — тоог нь
  * харуулж, дарж дэлгэх боломжтой.
  */
-function BlockSection({ blocks }: { blocks: DashboardBlock[] }) {
+function BlockSection({ blocks, counts }: { blocks: DashboardBlock[]; counts: ItemCounts }) {
   const [search, setSearch] = useState("");
-  const [showAll, setShowAll] = useState(false);
+  const [showAll, setShowAll] = useState(blocks.length <= AUTO_EXPAND_MAX);
 
   const q = search.trim().toLowerCase();
   const matched = q ? blocks.filter((b) => b.name.toLowerCase().includes(q)) : blocks;
@@ -229,12 +220,20 @@ function BlockSection({ blocks }: { blocks: DashboardBlock[] }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-medium">
-          Барилгууд
-          <span className="text-muted-foreground ml-2 font-normal tabular-nums">
-            {blocks.length}
-          </span>
-        </h2>
+        <div>
+          <h2 className="text-sm font-medium">
+            Барилгууд
+            <span className="text-muted-foreground ml-2 font-normal tabular-nums">
+              {blocks.length}
+            </span>
+          </h2>
+          {/* Нийт ажлын тоо нь ХЭМЖЭЭСИЙН мэдээлэл — «5,008 ажлын 100 нь
+              дууссан» гэдэг нь барилгын хувиудыг уншихад хэрэгтэй. Гэхдээ
+              энэ нь самбарын толгойд сууж байхаар чухал зүйл биш. */}
+          <p className="text-muted-foreground mt-0.5 text-xs">
+            Нийт {counts.totalItems.toLocaleString("mn-MN")} ажил
+          </p>
+        </div>
 
         {blocks.length > SEARCH_THRESHOLD && (
           <Input
@@ -245,6 +244,8 @@ function BlockSection({ blocks }: { blocks: DashboardBlock[] }) {
           />
         )}
       </div>
+
+      <ItemLegend counts={counts} />
 
       {matched.length === 0 ? (
         <EmptyState title="Барилга олдсонгүй" description="Хайлтаа өөрчилж үзнэ үү." />
@@ -299,17 +300,21 @@ function BlockCard({ block }: { block: DashboardBlock }) {
       className="hover:bg-accent/50 block rounded-xl border p-4 transition-colors"
     >
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <span className="font-medium">{block.name}</span>
-        <span className="text-muted-foreground text-sm tabular-nums">{block.percentage}%</span>
+        <span className="truncate font-medium">{block.name}</span>
+        <span className="shrink-0 text-lg font-semibold tabular-nums">{block.percentage}%</span>
       </div>
 
-      <DualProgressBar
-        accepted={block.acceptedQty}
-        reported={block.reportedQty}
-        planned={block.plannedQty || 1}
-      />
+      <ProgressBar value={block.percentage} className="h-2" />
 
-      <div className="text-muted-foreground mt-2 flex gap-3 text-xs">
+      {/* Хувь нь ЮУНААС гарсныг барилга тус бүр дээр бас харуулна — «43%»
+          гэсэн тоо ганцаараа шалгагдахгүй. */}
+      <p className="text-muted-foreground mt-2 text-xs tabular-nums">
+        {block.totalItems.toLocaleString("mn-MN")} ажлаас{" "}
+        {block.completedItems.toLocaleString("mn-MN")} дууссан
+        {block.inProgressItems > 0 && `, ${block.inProgressItems.toLocaleString("mn-MN")} явцтай`}
+      </p>
+
+      <div className="mt-2 flex flex-wrap gap-3 text-xs">
         {block.overdue > 0 && (
           <span className="text-destructive flex items-center gap-1">
             <AlertTriangle className="size-3" />
@@ -321,7 +326,9 @@ function BlockCard({ block }: { block: DashboardBlock }) {
             {block.pendingInspections} батлах
           </span>
         )}
-        {block.overdue === 0 && block.pendingInspections === 0 && <span>Хэвийн</span>}
+        {block.overdue === 0 && block.pendingInspections === 0 && (
+          <span className="text-muted-foreground">Хэвийн</span>
+        )}
       </div>
     </Link>
   );

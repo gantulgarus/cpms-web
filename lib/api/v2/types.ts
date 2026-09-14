@@ -308,6 +308,8 @@ export interface Issue {
   workItemId: Uuid;
   workItemName?: string | null;
   locationPath?: string | null;
+  /** Байршлын зам барилгын нэрийг агуулдаггүй — 75 объектод зайлшгүй. */
+  blockName?: string | null;
   category: IssueCategory;
   /** Серверээс ирсэн монгол нэр — шошгыг client тал давхардуулж бичихгүй. */
   categoryLabel: string;
@@ -377,9 +379,26 @@ export interface BlockSummary {
   groups: SummaryGroup[];
 }
 
-export interface DashboardBlock {
+/**
+ * Ажлын мөрийн тоогоор илэрхийлсэн явц.
+ *
+ * ЯАГААД ТОО ХЭМЖЭЭ БИШ ВЭ: м², м³, ширхгийг нэмэх нь утгагүй. «306,970
+ * эхлээгүй» гэсэн тоо ЮУ 306,970 болохыг хэлж чадахгүй. Ажлын тоо нь нэгжгүй
+ * тул нэмэгдэж болно.
+ *
+ * Гурав нь харилцан үл огтлолцоно: completed + inProgress + notStarted = total.
+ */
+export interface ItemCounts {
+  totalItems: number;
+  completedItems: number;
+  inProgressItems: number;
+  notStartedItems: number;
+}
+
+export interface DashboardBlock extends ItemCounts {
   id: Uuid;
   name: string;
+  /** Дууссан ажлын эзлэх хувь. */
   percentage: number;
   plannedQty: number;
   reportedQty: number;
@@ -388,7 +407,8 @@ export interface DashboardBlock {
   overdue: number;
 }
 
-export interface ProjectDashboard {
+export interface ProjectDashboard extends ItemCounts {
+  /** Дууссан ажлын эзлэх хувь — ажлын ТООгоор. */
   percentage: number;
   plannedQty: number;
   reportedQty: number;

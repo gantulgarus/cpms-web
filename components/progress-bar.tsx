@@ -1,3 +1,4 @@
+import type { ItemCounts } from "@/lib/api/v2/types";
 import { cn } from "@/lib/utils";
 
 /**
@@ -67,5 +68,36 @@ export function DualProgressBar({
       />
       <div className="h-full bg-amber-400/60 transition-all" style={{ width: `${pendingPct}%` }} />
     </div>
+  );
+}
+
+/**
+ * Ажлын мөрүүдийн байдал — ГУРВАН тоо, зурвасгүй.
+ *
+ * ЯАГААД ЗУРВАС БИШ ВЭ: дээрх хувь нь мөр бүрийн өөрийн хувийн ДУНДАЖ.
+ * Доор нь «дууссан / явцтай / эхлээгүй» гэсэн өөр зурвас тавибал хоёр өөр
+ * урттай зурвас зэрэгцэж, аль нь юу болох нь мэдэгдэхгүй болно. Тоо нь
+ * тайлбар болж, зурвас нь ганцаараа үлдэнэ.
+ *
+ * Гурав нь харилцан үл огтлолцох тул нийлбэр нь үргэлж нийт тоотой тэнцэнэ.
+ */
+export function ItemLegend({ counts, className }: { counts: ItemCounts; className?: string }) {
+  const n = (v: number) => v.toLocaleString("mn-MN");
+
+  return (
+    <p className={cn("text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs", className)}>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="size-2 rounded-full bg-emerald-500" />
+        Дууссан {n(counts.completedItems)}
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="size-2 rounded-full bg-blue-500" />
+        Хийгдэж буй {n(counts.inProgressItems)}
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="bg-muted size-2 rounded-full" />
+        Эхлээгүй {n(counts.notStartedItems)}
+      </span>
+    </p>
   );
 }

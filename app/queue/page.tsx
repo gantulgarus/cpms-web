@@ -11,8 +11,9 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { AlertTriangle, ChevronRight, RotateCcw, Stamp } from "lucide-react";
+import { AlertTriangle, CalendarPlus, ChevronRight, RotateCcw, Stamp } from "lucide-react";
 
+import { ExtendDeadlineDialog } from "@/components/extend-deadline-dialog";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/states";
 import { ToneBadge } from "@/components/tone-badge";
@@ -27,7 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { queue } from "@/lib/api/v2/endpoints";
-import type { QueueType } from "@/lib/api/v2/types";
+import type { QueueType, WorkItem } from "@/lib/api/v2/types";
 import { useMe } from "@/lib/api/v2/use-me";
 import { useProject } from "@/lib/api/v2/use-project";
 import { cn } from "@/lib/utils";
@@ -77,6 +78,7 @@ function QueueContent() {
     initial === "returned" || initial === "overdue" ? initial : "inspection",
   );
   const [page, setPage] = useState(1);
+  const [extending, setExtending] = useState<WorkItem | null>(null);
 
   const counts = useQuery({
     queryKey: ["v2-queue-counts", project?.id],
@@ -186,9 +188,23 @@ function QueueContent() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Link href={`/work-items/${w.id}`} aria-label={`${w.name} дэлгэрэнгүй`}>
-                        <ChevronRight className="text-muted-foreground size-4" />
-                      </Link>
+                      <div className="flex items-center justify-end gap-1">
+                        {/* Хугацаа хэтэрсэн табад л утгатай — бусад табад
+                            огноо нь хараахан өнгөрөөгүй. */}
+                        {tab === "overdue" && me?.canEditPlan && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setExtending(w)}
+                            title="Хугацаа сунгах"
+                          >
+                            <CalendarPlus className="size-3.5" /> Сунгах
+                          </Button>
+                        )}
+                        <Link href={`/work-items/${w.id}`} aria-label={`${w.name} дэлгэрэнгүй`}>
+                          <ChevronRight className="text-muted-foreground size-4" />
+                        </Link>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -222,6 +238,22 @@ function QueueContent() {
             </div>
           )}
         </>
+      )}
+
+      {/* Хугацаа сунгах — шалтгаан заавал бичигдэнэ. */}
+      {extending && (
+        <ExtendDeadlineDialog
+          workItemId={extending.id}
+          workItemName={extending.name}
+          currentEndDate={extending.plannedEndDate}
+          overdueDays={extending.overdueDays}
+          open
+          onOpenChange={(v) => !v && setExtending(null)}
+          onDone={() => {
+            setExtending(null);
+            list.refetch();
+          }}
+        />
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { ApiLoginScreen } from "@/components/api-login-screen";
 import { AppHeader } from "@/components/app-header";
+import { AppSidebar } from "@/components/app-sidebar";
 import { LoginScreen } from "@/components/login-screen";
 import { request } from "@/lib/api/client";
 import { clearSession, getToken, onUnauthorized } from "@/lib/auth";
@@ -12,9 +13,7 @@ import { useRole } from "@/lib/role";
 
 type Session =
   /** Хараахан шалгаагүй — юу ч харуулахгүй, эс бөгөөс дэлгэц анивчина. */
-  | { state: "checking" }
-  | { state: "signed-out" }
-  | { state: "signed-in" };
+  { state: "checking" } | { state: "signed-out" } | { state: "signed-in" };
 
 /**
  * Апп-ыг нэвтрэлтийн ард хаана.
@@ -61,7 +60,24 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const shell = (
+  /*
+   * v2-д хажуугийн навигац.
+   *
+   * Дээд эгнээ нь долоон цэс багтаахаа больсон бөгөөд тайлан нэмэгдэх тусам
+   * дордох байв. Sidebar нь цэсийг БҮЛЭГЛЭХ боломж өгнө: өдөр тутмын ажил
+   * дээд талд, сард нэг удаа нээдэг тохиргоо доод талд.
+   *
+   * v1 дэлгэцүүд хуучин толгойгоо хэвээр хэрэглэнэ — тэдгээр нь удахгүй
+   * хасагдах тул хоёр удаа шилжүүлэх шаардлагагүй.
+   */
+  const shell = SHOW_V2_UI ? (
+    <div className="flex min-h-svh flex-col md:flex-row">
+      <AppSidebar />
+      <main className="min-w-0 flex-1 px-4 py-6 md:px-6">
+        <div className="mx-auto max-w-6xl">{children}</div>
+      </main>
+    </div>
+  ) : (
     <>
       <AppHeader />
       <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>

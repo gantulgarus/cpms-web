@@ -19,6 +19,7 @@ import {
 import type {
   BlockSummary,
   Inspection,
+  ItemCounts,
   ProgressEntry,
   ProjectDashboard,
   SummaryGroup,
@@ -46,6 +47,7 @@ interface MockSession {
   name: string;
   email: string;
   role: string;
+  roleLabel: string;
   contractorId: string | null;
   canReportProgress: boolean;
   canInspect: boolean;
@@ -60,6 +62,7 @@ const STAFF_SESSION: MockSession = {
   name: "Б.Батбаяр",
   email: "director@cpms.mn",
   role: "director",
+  roleLabel: "Захирал",
   contractorId: null,
   // Ажилтны сессэд хоёуланг нь `true` болгосон — UI хөгжүүлэхэд мэдээлэх ба
   // батлах хоёр самбарыг зэрэг харах шаардлагатай.
@@ -233,6 +236,9 @@ interface MockIssue {
   id: string;
   workItemId: string;
   workItemName: string;
+  /** Backend-тэй ижил: төслийн жагсаалтад барилга, байршил хэрэгтэй. */
+  blockName: string | null;
+  locationPath: string | null;
   category: string;
   categoryLabel: string;
   severity: string;
@@ -241,6 +247,23 @@ interface MockIssue {
   reportedBy: string;
   createdAt: string;
   resolvedAt: string | null;
+}
+
+/**
+ * Асуудалд хавсаргах байршлын мэдээлэл.
+ *
+ * Backend нь `workItem.block`, `workItem.location`-ийг eager load-оор авдаг.
+ * Mock нь энэ хоёрыг орхивол жагсаалт дээр «—» гарч, жинхэнэ сервер дээр
+ * нэр гарна — mock нь худлаа хэлсэн болно.
+ */
+function issuePlace(item: { blockId: string; location?: { path?: string } }): {
+  blockName: string | null;
+  locationPath: string | null;
+} {
+  return {
+    blockName: getDb().blocks.find((b) => b.id === item.blockId)?.name ?? null,
+    locationPath: item.location?.path ?? null,
+  };
 }
 
 const ISSUE_LABELS: Record<string, string> = {
@@ -274,6 +297,7 @@ function contractorSession(id: string, name: string): MockSession {
     name,
     email: `contractor-${id}@cpms.local`,
     role: "contractor",
+    roleLabel: "Туслан гүйцэтгэгч",
     contractorId: id,
     canReportProgress: true,
     // Гүйцэтгэгч өөрийгөө батлахгүй — backend-тэй ижил.
@@ -864,8 +888,40 @@ export function handleMock(
       for (const i of openIssueRows)
         byCategory.set(i.category, (byCategory.get(i.category) ?? 0) + 1);
 
+      /*
+       * Явц нь АЖЛЫН МӨРӨӨР — backend-тэй ижил.
+       *
+       * `status` нь гурван харилцан үл огтлолцох утгатай тул нийлбэр нь
+       * үргэлж нийт тоотой тэнцэнэ. Хэмжээг нэмбэл м², м³, ширхэг холилдоно.
+       */
+      const countItems = (rows: typeof items): ItemCounts => {
+        const completedItems = rows.filter((w) => w.status === "completed").length;
+        const inProgressItems = rows.filter((w) => w.status === "in_progress").length;
+
+        return {
+          totalItems: rows.length,
+          completedItems,
+          inProgressItems,
+          notStartedItems: Math.max(rows.length - completedItems - inProgressItems, 0),
+        };
+      };
+
+      /** Мөр бүрийн өөрийн хувийн дундаж — нэгж хоорондоо хамаарахгүй. */
+      const avgPercentage = (rows: typeof items): number => {
+        if (rows.length === 0) return 0;
+        const sum = rows.reduce(
+          (s, w) => s + (w.plannedQty > 0 ? Math.min(w.acceptedQty / w.plannedQty, 1) : 0),
+          0,
+        );
+
+        return Math.round((sum / rows.length) * 100);
+      };
+
+      const totals = countItems(items);
+
       const dash: ProjectDashboard = {
-        percentage: Math.round((accepted / planned) * 100),
+        ...totals,
+        percentage: avgPercentage(items),
         plannedQty: round(planned),
         reportedQty: round(reported),
         acceptedQty: round(accepted),
@@ -875,10 +931,12 @@ export function handleMock(
             const rows = items.filter((w) => w.blockId === bl.id);
             const p = rows.reduce((s, w) => s + w.plannedQty, 0);
             const acc = rows.reduce((s, w) => s + w.acceptedQty, 0);
+            const c = countItems(rows);
             return {
               id: bl.id,
               name: bl.name,
-              percentage: p > 0 ? Math.round((acc / p) * 100) : 0,
+              ...c,
+              percentage: avgPercentage(rows),
               plannedQty: round(p),
               reportedQty: round(rows.reduce((s, w) => s + w.reportedQty, 0)),
               acceptedQty: round(acc),
@@ -1036,10 +1094,27 @@ export function handleMock(
 
     // --- Асуудал (төслийн хэмжээнд) ---
     if (c === "issues") {
-      const visible = new Set(inScope(db.workItems).map((w) => w.id));
+      // Блокийн шүүлт нь ХАРАХ ЭРХЭЭС өмнө биш, дараа нь тавигдана — эс
+      // бөгөөс гүйцэтгэгч өөр блокийн id өгөөд бусдын саатлыг харна.
+      const blockId = q.get("blockId");
+      const visible = new Set(
+        inScope(db.workItems)
+          .filter((w) => !blockId || w.blockId === blockId)
+          .map((w) => w.id),
+      );
       let rows = [...mockIssues.values()].flat().filter((i) => visible.has(i.workItemId));
-      const status = q.get("status");
-      if (status) rows = rows.filter((i) => i.status === status);
+
+      for (const key of ["status", "category", "severity"] as const) {
+        const value = q.get(key);
+        if (value) rows = rows.filter((i) => i[key] === value);
+      }
+
+      // Нээлттэй нь эхэнд, дараа нь шинэ нь эхэнд — backend-ийн эрэмбэтэй ижил.
+      rows = [...rows].sort(
+        (a, b) =>
+          (a.status === "open" ? 0 : 1) - (b.status === "open" ? 0 : 1) ||
+          b.createdAt.localeCompare(a.createdAt),
+      );
 
       return ok(paginate(rows, q));
     }
@@ -1567,6 +1642,56 @@ export function handleMock(
       });
     }
 
+    // --- Хугацаа сунгах (шалтгаан заавал) ---
+    if (c === "extend" && method === "POST") {
+      if (!session.canEditPlan) {
+        return fail(403, "Forbidden", "Танд төлөвлөгөө засах эрх байхгүй.");
+      }
+
+      const p = body as { plannedEndDate?: string; category?: string; reason?: string };
+      if (!p?.plannedEndDate) return fail(422, "ValidationError", "Шинэ дуусах огноог сонгоно уу.");
+      if (!p?.category || !(p.category in ISSUE_LABELS)) {
+        return fail(422, "ValidationError", "Саатлын шалтгааныг сонгоно уу.");
+      }
+      if (!p?.reason?.trim()) return fail(422, "ValidationError", "Тайлбар бичнэ үү.");
+
+      const current = item.plannedEndDate;
+      // Огноог урагш татах нь сунгах биш — хоцролтыг хиймлээр үүсгэнэ.
+      if (current && p.plannedEndDate <= current) {
+        return fail(
+          422,
+          "ValidationError",
+          `Шинэ огноо одоогийнхоос (${current}) хойш байх ёстой.`,
+        );
+      }
+
+      item.plannedEndDate = p.plannedEndDate;
+      // Хугацаа сунгамагц хоцролт тэглэгдэнэ — шинэ огноо ирээдүйд байгаа.
+      item.overdueDays =
+        p.plannedEndDate < new Date().toISOString().slice(0, 10)
+          ? Math.round((Date.now() - Date.parse(`${p.plannedEndDate}T00:00:00Z`)) / 86_400_000)
+          : 0;
+
+      // Шалтгааныг АСУУДЛЫН бүртгэлд — хоцролтын статистик нэг дороос гарна.
+      const issue: MockIssue = {
+        id: mockId("iss"),
+        workItemId: item.id,
+        workItemName: item.name,
+        ...issuePlace(item),
+        category: p.category,
+        categoryLabel: ISSUE_LABELS[p.category],
+        severity: "medium",
+        status: "open",
+        description: `Хугацаа сунгав: ${current ?? "—"} → ${p.plannedEndDate}. ${p.reason.trim()}`,
+        reportedBy: session.name,
+        createdAt: new Date().toISOString(),
+        resolvedAt: null,
+      };
+      mockIssues.set(item.id, [issue, ...(mockIssues.get(item.id) ?? [])]);
+
+      return ok({ data: item });
+    }
+
     if (c === "contractor" && method === "PATCH") {
       if (!session.canManageContractors) {
         return fail(403, "Forbidden", "Танд гүйцэтгэгч оноох эрх байхгүй.");
@@ -1601,6 +1726,7 @@ export function handleMock(
           id: mockId("iss"),
           workItemId: item.id,
           workItemName: item.name,
+          ...issuePlace(item),
           category: p.category,
           categoryLabel: ISSUE_LABELS[p.category],
           severity: p.severity ?? "medium",

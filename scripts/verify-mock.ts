@@ -458,6 +458,38 @@ t(
   `${issuesBefore} → ${afterCreate}`,
 );
 
+// --- Саатлын жагсаалт: шүүлт ба байршил ---
+interface IssueRow {
+  id: string;
+  status: string;
+  category: string;
+  blockName: string | null;
+  locationPath: string | null;
+  workItemName: string;
+}
+const issueList = (query: string) =>
+  body<{ data: IssueRow[] }>(get("projects/prj-inel-01/issues", query)).data;
+
+const openIssueList = issueList("?status=open");
+// Барилгын нэр байхгүй бол 75 объектын жагсаалтад «3 давхар / 3А» гэсэн мөр
+// аль байшин дээр байгаа нь мэдэгдэхгүй — жагсаалт нь ашиггүй болно.
+t(
+  "Саатлын мөр барилга, байршлаа авчирна",
+  openIssueList.every((i) => i.blockName !== null && i.locationPath !== null),
+  JSON.stringify(openIssueList[0] ?? null),
+);
+t(
+  "Ангиллаар шүүнэ",
+  issueList("?category=material_shortage").every((i) => i.category === "material_shortage") &&
+    issueList("?category=material_shortage").length > 0,
+);
+t("Байхгүй ангилал хоосон буцаана", issueList("?category=accident").length === 0);
+t(
+  "Блокоор шүүнэ",
+  issueList(`?blockId=${issueItem.blockId}`).length > 0 &&
+    issueList("?blockId=байхгүй-блок").length === 0,
+);
+
 const issueId = body<{ data: { id: string } }>(issueRes).data.id;
 const resolved = handleMock("PATCH", ["issues", issueId], "", { status: "resolved" });
 t(
@@ -487,19 +519,27 @@ handleMock("POST", ["auth", "login"], "", { email: "director@cpms.mn", password:
 // ---------------------------------------------------------------------------
 // Хянах самбар ба явцын гурван тоо
 // ---------------------------------------------------------------------------
-interface Dash {
+interface Counts {
+  totalItems: number;
+  completedItems: number;
+  inProgressItems: number;
+  notStartedItems: number;
+}
+
+interface Dash extends Counts {
   percentage: number;
   plannedQty: number;
   reportedQty: number;
   acceptedQty: number;
-  blocks: {
+  blocks: (Counts & {
     id: string;
+    percentage: number;
     plannedQty: number;
     reportedQty: number;
     acceptedQty: number;
     pendingInspections: number;
     overdue: number;
-  }[];
+  })[];
   pendingInspections: number;
   overdueWorkItems: number;
   openIssues: number;
@@ -516,10 +556,59 @@ t(
     dashboard.reportedQty <= dashboard.plannedQty + 0.01,
   `${dashboard.acceptedQty} / ${dashboard.reportedQty} / ${dashboard.plannedQty}`,
 );
+/*
+ * Хувь нь АЖЛЫН ТООгоор бодогдоно.
+ *
+ * Урьд нь тоо хэмжээгээр бодогддог байсан нь м², м³, ширхгийг нийлүүлдэг
+ * байв: «306,970 эхлээгүй» гэсэн тоо ЮУ 306,970 болохыг хэлж чадахгүй.
+ */
+// Дундаж нь БҮРЭН ДУУССАНААС их, ДУУССАН+ЯВЦТАЙгаас бага байх ёстой:
+// дутуу ажил хагас оноо авдаг тул хоёрын хооронд гарна.
+const doneShare = (dashboard.completedItems / dashboard.totalItems) * 100;
+const startedShare =
+  ((dashboard.completedItems + dashboard.inProgressItems) / dashboard.totalItems) * 100;
 t(
-  "Хувь нь батлагдсанаар бодогдоно",
-  Math.abs(dashboard.percentage - (dashboard.acceptedQty / dashboard.plannedQty) * 100) < 1,
-  `${dashboard.percentage}%`,
+  "Дундаж хувь дууссан ба эхэлсний хооронд",
+  dashboard.percentage >= Math.floor(doneShare) && dashboard.percentage <= Math.ceil(startedShare),
+  `${dashboard.percentage}% · дууссан ${Math.round(doneShare)}% · эхэлсэн ${Math.round(startedShare)}%`,
+);
+// Эхлээгүй барилга ЗААВАЛ 0% байх ёстой — дундаж нь хоосон мөрүүд дээр
+// хуваагдаад бага зэрэг эерэг тоо өгвөл "ажил эхэлсэн" гэж андуурагдана.
+t(
+  "Эхлээгүй барилга 0% харагдана",
+  dashboard.blocks.every(
+    (b) => b.completedItems > 0 || b.inProgressItems > 0 || b.percentage === 0,
+  ),
+);
+
+// Гурван бүлэг нь ХАРИЛЦАН ҮЛ ОГТЛОЛЦОХ ёстой — эс бөгөөс зурвасын хэсгүүд
+// 100%-иас хэтэрч, эсвэл дутаж, хэрэглэгч ялгааг нь тайлбарлаж чадахгүй.
+t(
+  "Дууссан + явцтай + эхлээгүй = нийт",
+  dashboard.completedItems + dashboard.inProgressItems + dashboard.notStartedItems ===
+    dashboard.totalItems,
+  `${dashboard.completedItems}+${dashboard.inProgressItems}+${dashboard.notStartedItems} vs ${dashboard.totalItems}`,
+);
+t(
+  "Блок бүрт ч нийлбэр таарна",
+  dashboard.blocks.every(
+    (b) => b.completedItems + b.inProgressItems + b.notStartedItems === b.totalItems,
+  ),
+);
+t(
+  "Блокуудын ажлын тоо төслийн тоотой таарна",
+  dashboard.blocks.reduce((a, b) => a + b.totalItems, 0) === dashboard.totalItems,
+  `${dashboard.blocks.reduce((a, b) => a + b.totalItems, 0)} vs ${dashboard.totalItems}`,
+);
+// Блокуудын жинлэсэн дундаж нь төслийн хувьтай таарах ёстой — эс бөгөөс
+// самбарын том тоо ба барилгын картууд хоорондоо зөрж, аль нь зөв болох нь
+// мэдэгдэхгүй болно.
+const weighted =
+  dashboard.blocks.reduce((a, b) => a + b.percentage * b.totalItems, 0) / dashboard.totalItems;
+t(
+  "Блокуудын жинлэсэн дундаж төслийн хувьтай таарна",
+  Math.abs(weighted - dashboard.percentage) < 1,
+  `${round2(weighted)} vs ${dashboard.percentage}`,
 );
 
 // Блокуудын нийлбэр төслийн дүнтэй таарах ёстой — эс бөгөөс самбар дээрх
@@ -1342,6 +1431,68 @@ t(
   photoUrl({ url: "http://127.0.0.1/api/v1/photos/abc/file" }) ===
     "http://127.0.0.1/api/v1/photos/abc/file",
 );
+
+// --- Хугацаа сунгах ---
+// ЯАГААД ЧУХАЛ: огноог чимээгүй хойшлуулж болдог бол «хугацаа хэтэрсэн»
+// гэсэн тоо утгагүй болно. Шалтгаан заавал бичигдэж, асуудлын бүртгэлд
+// хадгалагдах ёстой.
+{
+  const late = getDb().workItems.find(
+    (w) => w.overdueDays > 0 && w.status !== "completed" && w.blockId === "blk-a-01",
+  )!;
+  const before = late.plannedEndDate;
+  const path = ["work-items", late.id, "extend"];
+  const future = "2030-12-31";
+
+  t("Шалтгаангүй бол 422", handleMock("POST", path, "", { plannedEndDate: future }).status === 422);
+  t(
+    "Тайлбаргүй бол 422",
+    handleMock("POST", path, "", { plannedEndDate: future, category: "weather" }).status === 422,
+  );
+  t(
+    "Огноог урагш татвал 422",
+    handleMock("POST", path, "", {
+      plannedEndDate: "2000-01-01",
+      category: "weather",
+      reason: "x",
+    }).status === 422,
+  );
+
+  const issuesBefore = body<{ data: unknown[] }>(get(`work-items/${late.id}/issues`)).data.length;
+  const res = handleMock("POST", path, "", {
+    plannedEndDate: future,
+    category: "material_shortage",
+    reason: "Цонхны хүргэлт хоцорсон.",
+  });
+
+  t("Сунгалт 200", res.status === 200, String(res.status));
+  t("Огноо шинэчлэгдэв", late.plannedEndDate === future, String(late.plannedEndDate));
+  t("Хоцролт тэглэгдэв", late.overdueDays === 0, String(late.overdueDays));
+
+  const issuesAfter = body<{ data: { description: string; categoryLabel: string }[] }>(
+    get(`work-items/${late.id}/issues`),
+  ).data;
+  t("Шалтгаан асуудлын бүртгэлд орлоо", issuesAfter.length === issuesBefore + 1);
+  t(
+    "Хуучин огноо тайлбарт үлдэв",
+    issuesAfter[0].description.includes(String(before)) &&
+      issuesAfter[0].description.includes(future),
+    issuesAfter[0].description,
+  );
+  t("Ангилал хадгалагдав", issuesAfter[0].categoryLabel === "Материал дутсан");
+
+  // Гүйцэтгэгч төлөвлөгөө засах эрхгүй.
+  login("GOO-2026");
+  t(
+    "Гүйцэтгэгч хугацаа сунгахгүй",
+    handleMock("POST", path, "", {
+      plannedEndDate: "2031-01-01",
+      category: "weather",
+      reason: "x",
+    }).status === 403,
+  );
+  handleMock("POST", ["auth", "login"], "", { email: "director@cpms.mn", password: "x" });
+}
 
 console.log("\nАмжилтгүй: " + fail);
 process.exit(fail ? 1 : 0);

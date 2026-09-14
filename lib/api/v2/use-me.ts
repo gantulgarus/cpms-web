@@ -10,6 +10,8 @@ export interface Me {
   name: string;
   email: string;
   role: string;
+  /** Үүргийн монгол нэр — серверээс ирнэ, дэлгэц давхардуулж бичихгүй. */
+  roleLabel: string;
   contractorId: Uuid | null;
   scopeBlockIds: Uuid[];
   /** Гүйцэтгэл мэдээлэх эрхтэй эсэх — серверээс ирнэ. */
