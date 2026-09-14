@@ -6,10 +6,22 @@
  */
 export const API_BASE = "/api/cpms";
 
-/** Server-side backend origin used by the proxy route handler. */
-export const BACKEND_API_URL = (
-  process.env.CPMS_API_URL ?? "http://103.11.195.81:4000/api/v1"
-).replace(/\/$/, "");
+/**
+ * Backend-ийн хаяг — ЗӨВХӨН серверийн талд, прокси маршрут ашиглана.
+ *
+ * `CPMS_API_URL` орчны хувьсагчаар өгнө. Анхдагч нь localhost — тодорхой
+ * сервер рүү заасан хатуу утга энд байх ЁСГҮЙ: тэр сервер унтрахад бүх
+ * байрлуулалт чимээгүй тэр рүү хандаж, олоход хэцүү алдаа өгнө.
+ */
+const DEFAULT_BACKEND_API_URL = "http://127.0.0.1/api/v1";
+
+export const BACKEND_API_URL = (process.env.CPMS_API_URL ?? DEFAULT_BACKEND_API_URL).replace(
+  /\/$/,
+  "",
+);
+
+/** Орчны хувьсагч өгөөгүй эсэх — прокси алдаанд дурдана. */
+export const BACKEND_API_URL_IS_DEFAULT = !process.env.CPMS_API_URL;
 
 export const DEFAULT_PAGE_SIZE = 50;
 

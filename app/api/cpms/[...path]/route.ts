@@ -8,7 +8,7 @@
  */
 import { NextRequest } from "next/server";
 
-import { BACKEND_API_URL, USE_MOCK } from "@/lib/config";
+import { BACKEND_API_URL, BACKEND_API_URL_IS_DEFAULT, USE_MOCK } from "@/lib/config";
 import { forwardResponseHeaders, responseHasBody } from "@/lib/proxy";
 
 export const dynamic = "force-dynamic";
@@ -52,8 +52,20 @@ async function handler(req: NextRequest, ctx: { params: Promise<{ path: string[]
   try {
     upstream = await fetch(target, init);
   } catch {
+    // Хаягийг мессежид оруулна — «unreachable» гэдэг ганцаараа ямар хаяг
+    // руу оролдсоныг хэлэхгүй тул байрлуулалтын алдаа олоход хэцүү болдог.
+    const origin = new URL(BACKEND_API_URL).origin;
+    const hint = BACKEND_API_URL_IS_DEFAULT
+      ? " CPMS_API_URL орчны хувьсагч тавигдаагүй тул анхдагч хаяг руу хандав."
+      : "";
+
     return Response.json(
-      { error: { name: "NetworkError", message: "CPMS backend unreachable." } },
+      {
+        error: {
+          name: "NetworkError",
+          message: `CPMS backend (${origin}) руу холбогдож чадсангүй.${hint}`,
+        },
+      },
       { status: 502 },
     );
   }
