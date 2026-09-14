@@ -71,7 +71,29 @@ export async function request<T>(
   if (response.status === 204) return undefined as T;
 
   const text = await response.text();
-  const json = text ? (JSON.parse(text) as unknown) : undefined;
+
+  /*
+   * Хариу JSON биш байж БОЛНО.
+   *
+   * Nginx-ийн 404/502 хуудас, Laravel-ийн сүйрлийн хуудас, эсвэл Next-ийн
+   * өөрийн 404 нь бүгд HTML буцаадаг. `JSON.parse` шууд дуудвал
+   * «Unexpected token '<'» гэсэн хэрэглэгчид ямар ч утгагүй мессеж гарч,
+   * жинхэнэ шалтгаан (статус код) нуугдана.
+   */
+  let json: unknown;
+  if (text) {
+    try {
+      json = JSON.parse(text);
+    } catch {
+      const snippet = text.replace(/\s+/g, " ").trim().slice(0, 120);
+      throw new ApiError(
+        response.status,
+        "InvalidResponse",
+        `Сервер JSON биш хариу буцаалаа (${response.status}). ` +
+          `Хаяг эсвэл серверийн тохиргоог шалгана уу. Хариу: ${snippet}`,
+      );
+    }
+  }
 
   if (!response.ok) {
     // Token хүчингүй болсон бол сесс цэвэрлэж, нэвтрэх дэлгэц рүү буцаана.
