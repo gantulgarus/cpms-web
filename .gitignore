@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# .env.production нь НУУЦ БИШ — зөвхөн build-д шаардлагатай нийтийн тугийг
+# агуулна. Git-д байлгаснаар байрлуулах бүрд гараар бичих шаардлагагүй.
+!.env.production
 
 # vercel
 .vercel

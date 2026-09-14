@@ -43,6 +43,19 @@ import type {
 
 export * from "./types";
 
+/**
+ * Зургийн бүтэн хаяг.
+ *
+ * Backend нь ХАРЬЦАНГУЙ зам буцаана (`/photos/{id}/file?…`) — бүтэн хаяг нь
+ * ирж буй хүсэлтийн Host толгойноос үүсдэг тул прокси дамжуулахад
+ * `http://127.0.0.1/...` болж, хэрэглэгчийн хөтөч өөрийнхөө компьютер руу
+ * залгадаг байв. Угтварыг нь энд нэмснээр ямар ч хост, порт, HTTPS дээр
+ * ажиллана.
+ */
+export function photoUrl(photo: Pick<Photo, "url">): string {
+  return `${API_BASE}${photo.url}`;
+}
+
 interface Item<T> {
   data: T;
 }
@@ -203,7 +216,24 @@ export const workItems = {
       { data?: Photo; error?: { message?: string } } | undefined;
 
     if (!response.ok) {
-      throw new Error(json?.error?.message ?? `Зураг илгээх амжилтгүй (${response.status})`);
+      /*
+       * Зураг илгээх нь вэб серверийн ХЭМЖЭЭНИЙ ХЯЗГААРт хамгийн түрүүнд
+       * хүрдэг хүсэлт. Тэр хязгаарыг nginx болон PHP тус тусдаа тавьдаг ба
+       * аль нь ч Laravel хүртэл хүрэхгүй тул JSON алдаа ирэхгүй — зүгээр л
+       * дугаар ирнэ. Тиймээс дугаар бүрийг ойлгомжтой болгож тайлбарлана.
+       */
+      const hint =
+        response.status === 413
+          ? " Файл хэт том байна — серверийн хязгаарыг (nginx `client_max_body_size`, PHP `upload_max_filesize`) нэмэгдүүлнэ үү."
+          : response.status === 419 || response.status === 401
+            ? " Нэвтрэх хугацаа дууссан байж магадгүй — дахин нэвтэрнэ үү."
+            : response.status >= 500
+              ? " Серверийн алдаа — `storage/` фолдерын бичих эрхийг шалгана уу."
+              : "";
+
+      throw new Error(
+        (json?.error?.message ?? `Зураг илгээх амжилтгүй (${response.status})`) + hint,
+      );
     }
 
     return json!.data!;
@@ -251,8 +281,7 @@ export const reports = {
 
     if (!response.ok) {
       const json = (await response.json().catch(() => undefined)) as
-        | { error?: { message?: string } }
-        | undefined;
+        { error?: { message?: string } } | undefined;
       throw new Error(json?.error?.message ?? `Татах амжилтгүй (${response.status})`);
     }
 

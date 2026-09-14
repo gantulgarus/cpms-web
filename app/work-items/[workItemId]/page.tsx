@@ -44,7 +44,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { checklists, plan, workItems } from "@/lib/api/v2/endpoints";
+import { checklists, photoUrl, plan, workItems } from "@/lib/api/v2/endpoints";
 import type {
   Inspection,
   InspectionStage,
@@ -771,10 +771,10 @@ function Timeline({
                         <ul className="mt-2 flex flex-wrap gap-1.5">
                           {e.entry.photos.map((photo) => (
                             <li key={photo.id}>
-                              <a href={photo.url} target="_blank" rel="noreferrer">
+                              <a href={photoUrl(photo)} target="_blank" rel="noreferrer">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
-                                  src={photo.url}
+                                  src={photoUrl(photo)}
                                   alt={photo.type}
                                   loading="lazy"
                                   className="bg-muted size-16 rounded-md object-cover"

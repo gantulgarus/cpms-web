@@ -22,7 +22,7 @@ import { EmptyState } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { downscale, PHOTO_TYPES } from "@/components/photo-picker";
-import { workItems } from "@/lib/api/v2/endpoints";
+import { photoUrl, workItems } from "@/lib/api/v2/endpoints";
 import type { Photo, PhotoType, Uuid } from "@/lib/api/v2/types";
 import { formatDateTime } from "@/lib/domain";
 import { cn } from "@/lib/utils";
@@ -224,7 +224,7 @@ function PhotoGrid({
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={p.url}
+              src={photoUrl(p)}
               alt={`${p.type} — ${formatDateTime(p.takenAt)}`}
               loading="lazy"
               className="bg-muted aspect-square w-full object-cover transition-transform group-hover:scale-105"
@@ -283,7 +283,7 @@ function Lightbox({ photo, onClose }: { photo: Photo; onClose: () => void }) {
 
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={photo.url}
+        src={photoUrl(photo)}
         alt={photo.type}
         className="max-h-full max-w-full rounded-lg object-contain"
         onClick={(e) => e.stopPropagation()}
