@@ -43,18 +43,9 @@ import type {
 
 export * from "./types";
 
-/**
- * Зургийн бүтэн хаяг.
- *
- * Backend нь ХАРЬЦАНГУЙ зам буцаана (`/photos/{id}/file?…`) — бүтэн хаяг нь
- * ирж буй хүсэлтийн Host толгойноос үүсдэг тул прокси дамжуулахад
- * `http://127.0.0.1/...` болж, хэрэглэгчийн хөтөч өөрийнхөө компьютер руу
- * залгадаг байв. Угтварыг нь энд нэмснээр ямар ч хост, порт, HTTPS дээр
- * ажиллана.
- */
-export function photoUrl(photo: Pick<Photo, "url">): string {
-  return `${API_BASE}${photo.url}`;
-}
+// Зургийн хаягийн логик нь `lib/photo-url.ts`-д — шалгалтын скриптэд
+// ачаалагдах боломжтой байхын тулд тусад нь.
+export { photoUrl } from "@/lib/photo-url";
 
 interface Item<T> {
   data: T;

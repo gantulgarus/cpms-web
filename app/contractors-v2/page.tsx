@@ -12,6 +12,8 @@ import { useState } from "react";
 import { Check, Copy, KeyRound, Plus, ShieldOff } from "lucide-react";
 import { toast } from "sonner";
 
+import { copyText } from "@/lib/clipboard";
+
 import { FormDialog, FormField } from "@/components/form-dialog";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/states";
@@ -267,14 +269,21 @@ function AccessCode({ code, expiresAt }: { code: string; expiresAt?: string | nu
     <div className="space-y-0.5">
       <button
         type="button"
-        onClick={() => {
-          navigator.clipboard?.writeText(code).then(
-            () => {
-              setCopied(true);
-              setTimeout(() => setCopied(false), 1500);
-            },
-            () => toast.error("Хуулж чадсангүй"),
-          );
+        onClick={async () => {
+          // `navigator.clipboard` нь HTTP дээр байхгүй тул нөөц замтай
+          // туслахыг ашиглана. Урьд нь `?.writeText(...).then(...)` гэж
+          // бичсэн байсан нь `undefined.then` болж шидэгдээд товч ямар ч
+          // хариу үзүүлэхгүй байв.
+          if (await copyText(code)) {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+
+            return;
+          }
+
+          // Хуулж чадаагүй ч код нь нүдэн дээр байгаа — гараар сонгож
+          // болохыг хэлнэ.
+          toast.error("Хуулж чадсангүй. Кодыг гараар сонгож хуулна уу.");
         }}
         className="hover:bg-accent flex items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono text-sm tracking-wider transition-colors"
         title="Хуулах"

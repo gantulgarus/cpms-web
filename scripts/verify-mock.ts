@@ -1,5 +1,6 @@
 import { handleMock } from "../lib/mock/handler";
 import { forwardResponseHeaders, responseHasBody } from "../lib/proxy";
+import { photoUrl } from "../lib/photo-url";
 import { getDb } from "../lib/mock/store";
 
 let fail = 0;
@@ -1322,6 +1323,25 @@ handleMock("POST", ["auth", "login"], "", { email: "director@cpms.mn", password:
   t("204-д их бие байхгүй", responseHasBody(204) === false);
   t("200-д их бие байна", responseHasBody(200) === true);
 }
+
+// --- Зургийн хаяг ---
+// Frontend ба backend тус тусдаа шинэчлэгддэг тул хоёр хэлбэрийг зэрэг
+// дэмжинэ. Үүнгүйгээр шинэчлэлтийн хооронд хаяг наалдаж зураг эвдэрнэ.
+t(
+  "Харьцангуй хаягт проксигийн угтвар нэмэгдэнэ",
+  photoUrl({ url: "/photos/abc/file?signature=x" }) === "/api/cpms/photos/abc/file?signature=x",
+  photoUrl({ url: "/photos/abc/file?signature=x" }),
+);
+t(
+  "Ташуу зураасгүй байсан ч зөв нийлнэ",
+  photoUrl({ url: "photos/abc/file" }) === "/api/cpms/photos/abc/file",
+  photoUrl({ url: "photos/abc/file" }),
+);
+t(
+  "Бүтэн хаягийг хэвээр үлдээнэ (хуучин backend)",
+  photoUrl({ url: "http://127.0.0.1/api/v1/photos/abc/file" }) ===
+    "http://127.0.0.1/api/v1/photos/abc/file",
+);
 
 console.log("\nАмжилтгүй: " + fail);
 process.exit(fail ? 1 : 0);

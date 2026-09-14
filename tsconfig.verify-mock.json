@@ -4,5 +4,12 @@
     "noEmit": false, "outDir": ".verify-mock", "rootDir": ".",
     "module": "commonjs", "moduleResolution": "node", "declaration": false
   },
-  "include": ["lib/mock/**/*", "lib/api/v2/types.ts", "scripts/verify-mock.ts"]
+  "include": [
+    "lib/mock/**/*",
+    "lib/api/v2/types.ts",
+    "lib/config.ts",
+    "lib/photo-url.ts",
+    "lib/proxy.ts",
+    "scripts/verify-mock.ts"
+  ]
 }
