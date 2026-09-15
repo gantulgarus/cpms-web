@@ -21,7 +21,7 @@ import { PageHeader } from "@/components/page-header";
 import { AddWorkTypeDialog } from "@/components/add-work-type-dialog";
 import { FloorDurationDialog } from "@/components/floor-duration-dialog";
 import { EmptyBlockSetup } from "@/components/empty-block-setup";
-import { DualProgressBar, ProgressBar } from "@/components/progress-bar";
+import { ItemLegend, ProgressBar } from "@/components/progress-bar";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/states";
 import { ReviewStateBadge, ToneBadge } from "@/components/tone-badge";
 import { Button } from "@/components/ui/button";
@@ -42,11 +42,12 @@ import type {
   WorkItemFilters,
 } from "@/lib/api/v2/types";
 import { useMe } from "@/lib/api/v2/use-me";
+import { formatDate, formatQty } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 50;
 /** Бүлгийн хүснэгтийн баганын тоо — задардаг мөр бүхэлд нь дэлгэгдэнэ. */
-const GROUP_COLUMNS = 6;
+const GROUP_COLUMNS = 7;
 
 const GROUP_TABS: { value: SummaryGroupBy; label: string }[] = [
   { value: "floor", label: "Давхраар" },
@@ -299,7 +300,8 @@ export default function BlockProgressPage() {
                         <TableHead className="w-44">Явц</TableHead>
                         <TableHead className="text-right">Ажил</TableHead>
                         <TableHead className="text-right">Хүлээгдэж буй</TableHead>
-                        <TableHead className="text-right">Товлосон</TableHead>
+                        <TableHead className="w-32">Товлосон хугацаа</TableHead>
+                        <TableHead className="text-right">Хоцролт</TableHead>
                         <TableHead className="w-8" />
                       </TableRow>
                     </TableHeader>
@@ -322,15 +324,10 @@ export default function BlockProgressPage() {
                               <TableCell className="font-medium">{g.label}</TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-2">
-                                  {/* Батлагдсан (тод) + батлагдаагүй (шар) — ганц хувь
-                              харуулах нь "би хийсэн / чи батлаагүй" маргааныг
-                              нуудаг. */}
-                                  <DualProgressBar
-                                    accepted={g.acceptedQty}
-                                    reported={g.reportedQty}
-                                    planned={g.plannedQty}
-                                    className="w-20"
-                                  />
+                                  {/* Зурвас нь ХАЖУУГИЙН ХУВИЙГ зурна. Урьд нь
+                              тоо хэмжээний харьцаа байсан тул 3% гэж бичээд
+                              зурвас нь 11%-ийн урттай харагддаг байв. */}
+                                  <ProgressBar value={g.percentage} className="w-20" />
                                   <span className="text-muted-foreground w-9 text-right text-xs tabular-nums">
                                     {g.percentage}%
                                   </span>
@@ -348,13 +345,18 @@ export default function BlockProgressPage() {
                                   "—"
                                 )}
                               </TableCell>
+                              {/* Огноо ба хоцролт ТУСДАА багана. Урьд нь нэг
+                                  нүдэнд ээлжлэн харагддаг байсан тул хоцорсон
+                                  бүлгийн товлосон хугацаа нуугддаг байв — яг
+                                  тэр үед хамгийн их хэрэгтэй мэдээлэл. */}
+                              <TableCell>
+                                <DateWindow from={g.plannedStartDate} to={g.plannedEndDate} />
+                              </TableCell>
                               <TableCell className="text-right text-xs tabular-nums">
                                 {g.overdue ? (
                                   <span className="text-destructive">{g.overdue} хоцорсон</span>
                                 ) : (
-                                  <span className="text-muted-foreground">
-                                    {g.plannedEndDate ?? "—"}
-                                  </span>
+                                  <span className="text-muted-foreground">—</span>
                                 )}
                               </TableCell>
                               <TableCell>
@@ -472,6 +474,7 @@ function GroupDetail({
                 <TableHead className="text-right">Төлөвлөсөн</TableHead>
                 <TableHead className="text-right">Батлагдсан</TableHead>
                 <TableHead className="w-32">Явц</TableHead>
+                <TableHead className="w-32">Товлосон хугацаа</TableHead>
                 <TableHead>Төлөв</TableHead>
               </TableRow>
             </TableHeader>
@@ -485,10 +488,10 @@ function GroupDetail({
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">{w.location.path}</TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {w.plannedQty} {w.unit}
+                    {formatQty(w.plannedQty, w.unit)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {w.acceptedQty} {w.unit}
+                    {formatQty(w.acceptedQty, w.unit)}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -497,6 +500,9 @@ function GroupDetail({
                         {w.percentage}%
                       </span>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <DateWindow from={w.plannedStartDate} to={w.plannedEndDate} />
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5">
@@ -565,26 +571,30 @@ function ProgressSummary({
             <span className="text-3xl font-semibold tabular-nums">
               {loading ? "…" : `${totals?.percentage ?? 0}%`}
             </span>
-            <span className="text-muted-foreground text-sm">батлагдсан</span>
+            <span className="text-muted-foreground text-sm">дундаж гүйцэтгэл</span>
           </div>
           <span className="text-muted-foreground text-sm tabular-nums">
             {totals ? `${totals.workItems.toLocaleString("mn-MN")} ажил` : "—"}
-            {totals?.plannedEndDate ? ` · ${totals.plannedEndDate} хүртэл` : ""}
+            {/* Блок бүхэлдээ хэзээнээс хэзээ хүртэл — давхрын хугацаанаас
+                автоматаар бодогдсон цонх. */}
+            {totals?.plannedStartDate && totals?.plannedEndDate
+              ? ` · ${formatDate(totals.plannedStartDate)} — ${formatDate(totals.plannedEndDate)}`
+              : ""}
           </span>
         </div>
 
-        <DualProgressBar
-          accepted={totals?.acceptedQty ?? 0}
-          reported={totals?.reportedQty ?? 0}
-          planned={totals?.plannedQty ?? 1}
-          className="h-2"
-        />
+        {/* Зурвас нь ДЭЭРХ ТООГ зурна. Урьд нь энд тоо хэмжээний зурвас
+            байсан тул хувь ба зурвасын урт хоорондоо зөрдөг байв. */}
+        <ProgressBar value={totals?.percentage ?? 0} className="h-2" />
 
+        {totals && <ItemLegend counts={totals} />}
+
+        {/* Тоо хэмжээ нь НЭГЖТЭЙГЭЭ утгатай тул нэг мөрөнд тусад нь.
+            Нэгж холилдсон нийлбэр учир хувь бодоход ХЭРЭГЛЭХГҮЙ. */}
         <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
-          <Legend className="bg-blue-500" label="Батлагдсан" value={totals?.acceptedQty} />
-          <Legend className="bg-amber-400/60" label="Батлахыг хүлээж буй" value={pendingQty} />
+          <Legend label="Батлагдсан" value={totals?.acceptedQty} />
+          <Legend label="Батлахыг хүлээж буй" value={pendingQty} />
           <Legend
-            className="bg-muted"
             label="Эхлээгүй"
             value={totals ? Math.max(0, totals.plannedQty - totals.reportedQty) : undefined}
           />
@@ -594,14 +604,32 @@ function ProgressSummary({
   );
 }
 
-function Legend({ className, label, value }: { className: string; label: string; value?: number }) {
+/**
+ * Товлосон хугацааны цонх — "эхлэхээс дуусах".
+ *
+ * ЯАГААД ХОЁУЛАНГ НЬ ВЭ: огноо нь давхрын хугацаагаар АВТОМАТААР бодогддог
+ * тул хэрэглэгч тэднийг өөрөө бичээгүй. Зөвхөн дуусах огноо харуулбал
+ * «энэ давхар хэзээ эхлэх ёстой байсан бэ» гэдгийг мэдэх арга алга — тэр нь
+ * бригад дуудахад хэрэгтэй мэдээлэл.
+ *
+ * Хоёр мөрөнд бичнэ: хүснэгтийн багана нарийн, нэг мөрөнд 21 тэмдэгт багтахгүй.
+ */
+function DateWindow({ from, to }: { from?: string | null; to?: string | null }) {
+  if (!from && !to) return <span className="text-muted-foreground text-xs">—</span>;
+
+  return (
+    <div className="text-muted-foreground text-xs leading-tight tabular-nums">
+      <div>{formatDate(from)}</div>
+      <div>→ {formatDate(to)}</div>
+    </div>
+  );
+}
+
+function Legend({ label, value }: { label: string; value?: number }) {
   return (
     <span className="flex items-center gap-1.5">
-      <span className={cn("size-2 rounded-full", className)} />
       {label}
-      <span className="tabular-nums">
-        {value === undefined ? "—" : Math.round(value).toLocaleString("mn-MN")}
-      </span>
+      <span className="text-foreground tabular-nums">{formatQty(value)}</span>
     </span>
   );
 }

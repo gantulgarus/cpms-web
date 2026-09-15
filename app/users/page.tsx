@@ -8,9 +8,10 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { KeyRound, ShieldOff, UserPlus } from "lucide-react";
+import { KeyRound, Pencil, ShieldCheck, ShieldOff, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
+import { EditUserDialog } from "@/components/edit-user-dialog";
 import { FormDialog, FormField } from "@/components/form-dialog";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/states";
@@ -31,13 +32,20 @@ import type { ManagedUser } from "@/lib/api/v2/types";
 import { useMe } from "@/lib/api/v2/use-me";
 import { useProject } from "@/lib/api/v2/use-project";
 
-const EMPTY = { name: "", email: "", role: "site_engineer", password: "", scopeBlockIds: [] as string[] };
+const EMPTY = {
+  name: "",
+  email: "",
+  role: "site_engineer",
+  password: "",
+  scopeBlockIds: [] as string[],
+};
 
 export default function UsersPage() {
   const qc = useQueryClient();
   const { me } = useMe();
   const { project } = useProject();
   const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<ManagedUser | null>(null);
   const [form, setForm] = useState(EMPTY);
   const [search, setSearch] = useState("");
 
@@ -75,7 +83,9 @@ export default function UsersPage() {
       // Түр нууц үг зөвхөн энэ мөчид харагдана — дахин авах боломжгүй.
       const temp = res.meta?.temporaryPassword;
       toast.success(
-        temp ? `${res.data.name} бүртгэгдлээ. Түр нууц үг: ${temp}` : `${res.data.name} бүртгэгдлээ.`,
+        temp
+          ? `${res.data.name} бүртгэгдлээ. Түр нууц үг: ${temp}`
+          : `${res.data.name} бүртгэгдлээ.`,
         { duration: 20000 },
       );
     },
@@ -84,8 +94,17 @@ export default function UsersPage() {
 
   const reset = useMutation({
     mutationFn: (id: ManagedUser["id"]) => users.resetPassword(id),
-    onSuccess: (password) =>
-      toast.success(`Шинэ түр нууц үг: ${password}`, { duration: 20000 }),
+    onSuccess: (password) => toast.success(`Шинэ түр нууц үг: ${password}`, { duration: 20000 }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Хаасан хэрэглэгчийг эргүүлэн нээх — данс устгах биш, түр хаах загвар.
+  const reactivate = useMutation({
+    mutationFn: (u: ManagedUser) => users.update(u.id, { isActive: true }),
+    onSuccess: () => {
+      toast.success("Хандалт сэргээгдлээ");
+      refresh();
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -175,7 +194,10 @@ export default function UsersPage() {
                       .join(" · ") || "—"}
                   </TableCell>
                   <TableCell>
-                    <div className="flex justify-end gap-2">
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setEditing(u)}>
+                        <Pencil className="size-3.5" /> Засах
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
@@ -186,16 +208,27 @@ export default function UsersPage() {
                       >
                         <KeyRound className="size-3.5" /> Нууц үг
                       </Button>
-                      {u.isActive && (
+                      {u.isActive ? (
                         <Button
                           variant="destructive"
                           size="sm"
-                          disabled={deactivate.isPending}
+                          disabled={deactivate.isPending || u.id === me?.id}
+                          title={u.id === me?.id ? "Өөрийгөө хаах боломжгүй" : undefined}
                           onClick={() => {
-                            if (confirm(`${u.name}-ийн хандалтыг хаах уу?`)) deactivate.mutate(u.id);
+                            if (confirm(`${u.name}-ийн хандалтыг хаах уу?`))
+                              deactivate.mutate(u.id);
                           }}
                         >
                           <ShieldOff className="size-3.5" /> Хаах
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={reactivate.isPending}
+                          onClick={() => reactivate.mutate(u)}
+                        >
+                          <ShieldCheck className="size-3.5" /> Нээх
                         </Button>
                       )}
                     </div>
@@ -294,6 +327,17 @@ export default function UsersPage() {
           />
         </FormField>
       </FormDialog>
+
+      {/* `key` нь чухал: өөр хэрэглэгч сонгоход цонх өөрийн төлөвөө шинээр
+          эхлүүлэх ёстой, эс бөгөөс өмнөх хүний нэр үлдэнэ. */}
+      {editing && (
+        <EditUserDialog
+          key={editing.id}
+          user={editing}
+          open
+          onOpenChange={(v) => !v && setEditing(null)}
+        />
+      )}
     </div>
   );
 }

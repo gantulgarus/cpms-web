@@ -1,4 +1,4 @@
-import type { ItemCounts } from "@/lib/api/v2/types";
+import type { StatusCounts } from "@/lib/api/v2/types";
 import { cn } from "@/lib/utils";
 
 /**
@@ -29,10 +29,14 @@ export function ProgressBar({ value, className }: { value: number; className?: s
 /**
  * Хоёр давхар зурвас: БАТЛАГДСАН (тод) + мэдээлэгдсэн ч БАТЛАГДААГҮЙ (сул).
  *
- * Яагаад чухал: ганц хувь харуулах нь маргаан үүсгэдэг. Гүйцэтгэгч "би 40%
- * хийсэн" гэнэ, програм "12%" гэж бичнэ — хоёулаа зөв, зүгээр л 28% нь
- * батлагдаагүй байгаа юм. Тэр зөрүү харагдахгүй бол хүмүүс програмд итгэхээ
- * болино. Захиалагчийн гол гомдол яг энэ байсан.
+ * АНХААР — зөвхөн НЭГ НЭГЖТЭЙ өгөгдөл дээр хэрэглэнэ (ганц ажлын мөр).
+ * Олон мөрийн нийлбэр дээр хэрэглэвэл м², м³, ширхэг холилдож, зурвасын
+ * урт нь хажуудаа бичигдсэн хувьтайгаа зөрнө. Бүлгийн явцад
+ * `ProgressBar value={percentage}`-ийг хэрэглэ.
+ *
+ * Яагаад ийм зурвас байдаг вэ: ганц хувь харуулах нь маргаан үүсгэдэг.
+ * Гүйцэтгэгч "би 40% хийсэн" гэнэ, програм "12%" гэж бичнэ — хоёулаа зөв,
+ * зүгээр л 28% нь батлагдаагүй байгаа юм.
  */
 export function DualProgressBar({
   accepted,
@@ -81,7 +85,7 @@ export function DualProgressBar({
  *
  * Гурав нь харилцан үл огтлолцох тул нийлбэр нь үргэлж нийт тоотой тэнцэнэ.
  */
-export function ItemLegend({ counts, className }: { counts: ItemCounts; className?: string }) {
+export function ItemLegend({ counts, className }: { counts: StatusCounts; className?: string }) {
   const n = (v: number) => v.toLocaleString("mn-MN");
 
   return (

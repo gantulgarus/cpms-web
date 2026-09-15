@@ -125,7 +125,14 @@ function addDays(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-const round = (n: number) => Math.round(n * 100) / 100;
+/**
+ * Тоо хэмжээг МЯНГАТЫН орон хүртэл — backend-ийн `round(\$x, 3)`-тай ижил.
+ *
+ * Урьд нь энд 2 орон байсан: mock 12.35 гэж хадгалахад жинхэнэ сервер
+ * 12.347 гэж хадгалдаг байв. Дэлгэц mock дээр "ажиллаад" бодит дээр
+ * өөр тоо харуулна — mock-ийн ач холбогдол тэр дор нь үгүй болно.
+ */
+const round = (n: number) => Math.round(n * 1000) / 1000;
 
 /**
  * Давхардахгүй mock id.

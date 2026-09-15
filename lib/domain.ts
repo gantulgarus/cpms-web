@@ -56,6 +56,9 @@ export const DEPENDENCY_TYPE_OPTIONS = Object.keys(DEPENDENCY_TYPE) as Dependenc
  */
 export const PROJECT_TIME_ZONE = "Asia/Ulaanbaatar";
 
+/** Тоог бүлэглэх хэл — мянгатыг таслалаар тусгаарлана. */
+export const PROJECT_LOCALE = "mn-MN";
+
 /** `en-CA` нь YYYY-MM-DD хэлбэрийг өгдөг. */
 const DATE_FORMAT = new Intl.DateTimeFormat("en-CA", {
   timeZone: PROJECT_TIME_ZONE,
@@ -102,6 +105,35 @@ export function formatDateTime(value?: string | null): string {
 export function formatDays(n?: number | null): string {
   if (n === undefined || n === null) return "—";
   return `${n} хоног`;
+}
+
+/**
+ * Тоо хэмжээний формат — МЯНГАТЫН орон хүртэл, түүнээс цааш үгүй.
+ *
+ * ЯАГААД ЯГ ГУРАВ ВЭ: барилгын хэмжилт мянгатаас нарийн гардаггүй. 12.5 м²
+ * бол бодит хэмжилт, 12.500000000000002 м² бол хөвөгч таслалын алдаа.
+ * Хэрэглэгч сүүлийнхийг хараад програмд итгэхээ болино.
+ *
+ * ЯАГААД НЭГ ГАЗАР ВЭ: урьд нь газар бүр өөрөөр бөөрөнхийлдөг байв —
+ * дараалал 2 орон, блокийн хүснэгт огт бөөрөнхийлөхгүй, самбар 0 орон.
+ * Нэг л тоо хоёр дэлгэц дээр өөр харагдвал аль нь зөв болохыг хэн ч
+ * хэлж чадахгүй.
+ *
+ * Хойд тэг харуулахгүй: 12.000 биш 12 гэж бичнэ.
+ */
+const QTY_FORMAT = new Intl.NumberFormat(PROJECT_LOCALE, { maximumFractionDigits: 3 });
+
+/**
+ * @param value Тоо эсвэл Laravel-ийн decimal (мөр хэлбэрээр ирдэг).
+ * @param unit Нэгжийг зэрэг бичих бол — "12.5 м²".
+ */
+export function formatQty(value?: number | string | null, unit?: string | null): string {
+  const n = typeof value === "string" ? Number(value) : value;
+  if (n === undefined || n === null || Number.isNaN(n)) return "—";
+
+  const text = QTY_FORMAT.format(n);
+
+  return unit ? `${text} ${unit}` : text;
 }
 
 /**

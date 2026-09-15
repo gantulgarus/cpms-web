@@ -31,6 +31,7 @@ import { queue } from "@/lib/api/v2/endpoints";
 import type { QueueType, WorkItem } from "@/lib/api/v2/types";
 import { useMe } from "@/lib/api/v2/use-me";
 import { useProject } from "@/lib/api/v2/use-project";
+import { formatQty } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 50;
@@ -176,7 +177,7 @@ function QueueContent() {
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {/* Батлахыг хүлээж буй хэмжээ = мэдээлсэн − батлагдсан */}
-                      {Math.round((w.reportedQty - w.acceptedQty) * 100) / 100} {w.unit}
+                      {formatQty(w.reportedQty - w.acceptedQty, w.unit)}
                     </TableCell>
                     <TableCell className="text-right">
                       {w.overdueDays > 0 ? (

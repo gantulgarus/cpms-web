@@ -55,7 +55,7 @@ import type {
   WorkItem,
 } from "@/lib/api/v2/types";
 import { useMe } from "@/lib/api/v2/use-me";
-import { formatDate, formatDateTime } from "@/lib/domain";
+import { formatDate, formatDateTime, formatQty } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
 export default function WorkItemDetailPage() {
@@ -276,7 +276,7 @@ function QuantityCard({
               <div
                 className={cn("text-xl font-semibold tabular-nums", r.strong && "text-emerald-600")}
               >
-                {r.value}{" "}
+                {formatQty(r.value)}{" "}
                 <span className="text-muted-foreground text-sm font-normal">{item.unit}</span>
               </div>
               <div className="text-muted-foreground text-sm">{r.label}</div>
@@ -297,7 +297,7 @@ function QuantityCard({
           <p className="text-muted-foreground text-xs">
             Татгалзсаны улмаас{" "}
             <strong className="text-foreground tabular-nums">
-              {item.rejectedTotal} {item.unit}
+              {formatQty(item.rejectedTotal, item.unit)}
             </strong>{" "}
             дахин хийгдсэн.
           </p>
@@ -428,8 +428,8 @@ function ReportProgressCard({ item, onDone }: { item: WorkItem; onDone: () => vo
           required
           hint={
             item.reviewState === "returned"
-              ? `Татгалзсан хэмжээ буцаж нэмэгдсэн — оруулах боломжтой ${remaining} ${item.unit}`
-              : `Үлдэгдэл ${remaining} ${item.unit}`
+              ? `Татгалзсан хэмжээ буцаж нэмэгдсэн — оруулах боломжтой ${formatQty(remaining, item.unit)}`
+              : `Үлдэгдэл ${formatQty(remaining, item.unit)}`
           }
         >
           <Input
@@ -562,7 +562,7 @@ function ReturnedNotice({ item, inspections }: { item: WorkItem; inspections?: I
         {rejection && (
           <p className="tabular-nums">
             <span className="text-muted-foreground">Татгалзсан: </span>
-            {rejection.rejectedQty} {item.unit}
+            {formatQty(rejection.rejectedQty, item.unit)}
             {rejection.inspector ? ` · ${rejection.inspector.name}` : ""}
           </p>
         )}
@@ -576,7 +576,7 @@ function ReturnedNotice({ item, inspections }: { item: WorkItem; inspections?: I
         <p className="text-muted-foreground border-t pt-2">
           Татгалзсан хэмжээ үлдэгдэлд эргэж нэмэгдсэн — одоо энэ ажлын үлдэгдэл{" "}
           <strong className="text-foreground tabular-nums">
-            {item.remainingQty} {item.unit}
+            {formatQty(item.remainingQty, item.unit)}
           </strong>
           . Засвараа хийсний дараа гүйцэтгэлээ <strong>энэ хуудсан дээр дахин</strong> бүртгэнэ үү —
           тэр дор нь хяналтын инженерийн дараалалд орно.
@@ -655,7 +655,7 @@ function InspectionCard({
         <p className="text-muted-foreground text-sm">
           Шалгах ажил:{" "}
           <span className="text-foreground font-medium tabular-nums">
-            {pendingQty} {item.unit}
+            {formatQty(pendingQty, item.unit)}
           </span>
         </p>
 
@@ -690,7 +690,7 @@ function InspectionCard({
             min={0}
             max={pendingQty}
             step="0.001"
-            placeholder={String(pendingQty)}
+            placeholder={formatQty(pendingQty)}
             value={acceptedQty}
             onChange={(e) => setAcceptedQty(e.target.value)}
           />
@@ -791,7 +791,7 @@ function Timeline({
                   {e.kind === "progress" ? (
                     <>
                       <div className="text-sm font-medium tabular-nums">
-                        {e.entry.completedQty} мэдээлсэн
+                        {formatQty(e.entry.completedQty)} мэдээлсэн
                         {e.entry.workersCount ? ` · ${e.entry.workersCount} ажилтан` : ""}
                       </div>
                       <div className="text-muted-foreground text-xs">
@@ -828,9 +828,9 @@ function Timeline({
                       <div className="text-sm font-medium tabular-nums">
                         {e.entry.result === "rejected"
                           ? "Буцаагдсан"
-                          : `${e.entry.acceptedQty} батлагдсан`}
+                          : `${formatQty(e.entry.acceptedQty)} батлагдсан`}
                         {e.entry.rejectedQty > 0 && e.entry.result !== "rejected"
-                          ? ` · ${e.entry.rejectedQty} татгалзсан`
+                          ? ` · ${formatQty(e.entry.rejectedQty)} татгалзсан`
                           : ""}
                       </div>
                       <div className="text-muted-foreground text-xs">

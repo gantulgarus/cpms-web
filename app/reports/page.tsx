@@ -34,7 +34,7 @@ import type { AcceptanceParams } from "@/lib/api/v2/endpoints";
 import type { AcceptanceReport, InspectionStage, UnitTotal } from "@/lib/api/v2/types";
 import { useMe } from "@/lib/api/v2/use-me";
 import { useProject } from "@/lib/api/v2/use-project";
-import { formatDate, todayInProjectZone } from "@/lib/domain";
+import { formatDate, formatQty, todayInProjectZone } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
 const STAGES: { value: InspectionStage; label: string; hint: string }[] = [
@@ -203,7 +203,8 @@ export default function AcceptanceReportPage() {
                       <TableCell className="text-muted-foreground">{r.locationPath}</TableCell>
                       <TableCell className="font-medium">{r.workTypeName}</TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {r.acceptedQty} <span className="text-muted-foreground">{r.unit}</span>
+                        {formatQty(r.acceptedQty)}{" "}
+                        <span className="text-muted-foreground">{r.unit}</span>
                       </TableCell>
                       <TableCell className="tabular-nums">{formatDate(r.inspectedAt)}</TableCell>
                       <TableCell className="text-muted-foreground">
@@ -257,7 +258,7 @@ function UnitTotals({ totals, large }: { totals: UnitTotal[]; large?: boolean })
           key={t.unit}
           className={cn("tabular-nums", large ? "text-lg font-semibold" : "text-sm")}
         >
-          {t.qty.toLocaleString("mn-MN")}{" "}
+          {formatQty(t.qty)}{" "}
           <span className="text-muted-foreground text-sm font-normal">{t.unit}</span>
         </span>
       ))}

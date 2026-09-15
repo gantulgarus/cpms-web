@@ -19,6 +19,7 @@ import { FormDialog, FormField } from "@/components/form-dialog";
 import { Input } from "@/components/ui/input";
 import { plan } from "@/lib/api/v2/endpoints";
 import type { WorkItem } from "@/lib/api/v2/types";
+import { formatQty } from "@/lib/domain";
 
 export function PlanQuantityDialog({
   item,
@@ -57,7 +58,7 @@ export function PlanQuantityDialog({
     onSuccess: (res) => {
       toast.success(
         res.affected > 1
-          ? `${res.affected} ажилд ${value} ${item.unit} оруулав.` +
+          ? `${res.affected} ажилд ${formatQty(value, item.unit)} оруулав.` +
               (res.designUpdated ? " Загварт мөн хадгаллаа." : "")
           : "Тоо хэмжээ хадгалагдлаа.",
       );

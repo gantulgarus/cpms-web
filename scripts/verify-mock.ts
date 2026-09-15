@@ -11,6 +11,9 @@ const t = (n: string, c: boolean, e = "") => {
 const get = (p: string, s = "") => handleMock("GET", p.split("/"), s, undefined);
 const body = <T>(r: { body: unknown }) => r.body as T;
 const round2 = (n: number) => Math.round(n * 100) / 100;
+/** Тоо хэмжээ нь МЯНГАТЫН орноор хадгалагддаг — тестийн арифметик мөн адил
+ *  байх ёстой. 2 орноор бөөрөнхийлвөл 800 мөр дээр 0.26 зөрүү хуримтлагдана. */
+const round3 = (n: number) => Math.round(n * 1000) / 1000;
 
 const db = getDb();
 t("WorkItem нийт тоо 3,290", db.workItems.length === 3290, String(db.workItems.length));
@@ -87,7 +90,7 @@ t("Төлөв pending болсон", item.reviewState === "pending", item.review
 // Шалгалт — ХҮЛЭЭГДЭЖ БУЙ бүх хэмжээг батална.
 // Хэсэгчлэн батлавал үлдсэн нь хянагдаагүй тул `pending` хэвээр байх ёстой:
 // «батлав» гэсэн товч дарахад бүх зүйл дуусдаг гэж үзвэл хэмжилт худал болно.
-const pendingBefore = round2(item.reportedQty - item.acceptedQty);
+const pendingBefore = round3(item.reportedQty - item.acceptedQty);
 const insp = handleMock("POST", ["work-items", item.id, "inspections"], "", {
   stage: "client",
   result: "accepted",
@@ -319,7 +322,7 @@ t(
 );
 
 // Ажилтны сесс рүү буцаана — доорх шалгалтууд бүрэн хүрээ хүлээж байгаа.
-handleMock("POST", ["auth", "login"], "", { email: "director@cpms.mn", password: "x" });
+handleMock("POST", ["auth", "login"], "", { email: "director@cpms.test", password: "x" });
 t(
   "Ажилтан бүх ажлыг харна",
   body<{ meta: { total: number } }>(get("blocks/blk-a-01/work-items", "?pageSize=1")).meta.total ===
@@ -367,7 +370,82 @@ t(
   body<{ meta: { total: number } }>(get("users")).meta.total === usersBefore + 1,
 );
 
+// --- Хэрэглэгч засах ---
+interface UserRow {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  roleLabel: string;
+  scopeBlockIds: string[];
+  isActive: boolean;
+  canInspect: boolean;
+  canReportProgress: boolean;
+}
+const patchUser = (payload: Record<string, unknown>) =>
+  handleMock("PATCH", ["users", createdUserId], "", payload);
+
+const renamed = patchUser({ name: "Б.Болд-Эрдэнэ" });
+t("Нэр засагдана", body<{ data: UserRow }>(renamed).data.name === "Б.Болд-Эрдэнэ");
+
+// Хаасан дансыг ЭРГҮҮЛЭН нээх — урьд нь зөвхөн хаах зам байсан.
+t(
+  "Хаасан хэрэглэгчийг сэргээнэ",
+  body<{ data: UserRow }>(patchUser({ isActive: true })).data.isActive === true,
+);
+
+const blockId = getDb().blocks[0].id;
+t(
+  "Хамрах барилга засагдана",
+  body<{ data: UserRow }>(patchUser({ scopeBlockIds: [blockId] })).data.scopeBlockIds.length === 1,
+);
+t(
+  "Хамрах барилгыг хоосон болгоно",
+  body<{ data: UserRow }>(patchUser({ scopeBlockIds: [] })).data.scopeBlockIds.length === 0,
+);
+
+/*
+ * Үүрэг солиход ТҮҮНЭЭС ГАРАХ эрхүүд хамт шинэчлэгдэх ёстой.
+ *
+ * Mock урьд нь `Object.assign` хийдэг байсан тул шошго, эрх нь хуучнаараа
+ * үлдэж «Талбайн инженер · батална» гэсэн боломжгүй хослол үүсдэг байв.
+ */
+const changedRole = body<{ data: UserRow }>(patchUser({ role: "site_engineer" })).data;
+t(
+  "Үүрэг солиход эрх дагаж өөрчлөгдөнө",
+  changedRole.role === "site_engineer" &&
+    changedRole.roleLabel === "Талбайн инженер" &&
+    changedRole.canInspect === false &&
+    changedRole.canReportProgress === true,
+  `${changedRole.roleLabel} · батална=${changedRole.canInspect}`,
+);
+
+t("Танигдахгүй үүрэг 422", patchUser({ role: "хаан" }).status === 422);
+t("Хоосон нэр 422", patchUser({ name: "  " }).status === 422);
+// Өөр хүний имэйл рүү шилжихийг хориглоно; өөрийнхөө хэвээр үлдээхийг зөвшөөрнө.
+const someoneElse = body<{ data: UserRow[] }>(get("users")).data.find(
+  (u) => u.id !== createdUserId,
+)!;
+t("Бусдын имэйл 422", patchUser({ email: someoneElse.email }).status === 422);
+t("Өөрийн имэйл хэвээр 200", patchUser({ email: "bold@cpms.mn" }).status === 200);
+
+// Сүүлчийн админ өөрийгөө буулгавал хэрэглэгч удирдах хаалга бүрмөсөн хаагдана.
+const meId = body<{ data: { id: string } }>(get("me")).data.id;
+t(
+  "Өөрийн эрхээ бууруулахгүй",
+  handleMock("PATCH", ["users", meId], "", { role: "site_engineer" }).status === 422,
+);
+
 t("Үүргийн жагсаалт 8", body<{ data: unknown[] }>(get("users/roles")).data.length === 8);
+t(
+  "Үүрэг бүр хэрэглэгч удирдах эрхээ мэдэгдэнэ",
+  body<{ data: { value: string; canManageUsers: boolean }[] }>(get("users/roles")).data.every(
+    (r) => typeof r.canManageUsers === "boolean",
+  ) &&
+    body<{ data: { value: string; canManageUsers: boolean }[] }>(get("users/roles")).data.find(
+      (r) => r.value === "admin",
+    )!.canManageUsers === true,
+);
 
 // --- Лавлах сан ---
 const groupsRes = body<{ data: { id: string; workTypeCount: number }[] }>(get("work-type-groups"));
@@ -514,7 +592,7 @@ t(
     level: "block",
   }).status === 403,
 );
-handleMock("POST", ["auth", "login"], "", { email: "director@cpms.mn", password: "x" });
+handleMock("POST", ["auth", "login"], "", { email: "director@cpms.test", password: "x" });
 
 // ---------------------------------------------------------------------------
 // Хянах самбар ба явцын гурван тоо
@@ -572,6 +650,25 @@ t(
   dashboard.percentage >= Math.floor(doneShare) && dashboard.percentage <= Math.ceil(startedShare),
   `${dashboard.percentage}% · дууссан ${Math.round(doneShare)}% · эхэлсэн ${Math.round(startedShare)}%`,
 );
+/*
+ * Самбар дээрх блокийн хувь ба блокийн ХУУДАС дээрх хувь ЯГ таарах ёстой.
+ *
+ * Энэ нь бодит алдаа байсан: самбар мөрүүдийн дундажаар, блокийн хуудас
+ * тоо хэмжээгээр бодож, нэг блок 3% ба 11% гэж хоёр өөр харагдаж байв.
+ * Хэрэглэгч алинд нь итгэхээ мэдэхгүй бол хоёулаа хэрэггүй.
+ */
+for (const b of dashboard.blocks) {
+  const page = body<{ data: { totals: { percentage: number; workItems: number } } }>(
+    get(`blocks/${b.id}/summary`),
+  ).data.totals;
+
+  t(
+    `Самбар ба блокийн хуудас таарна (${b.id})`,
+    page.percentage === b.percentage && page.workItems === b.totalItems,
+    `самбар ${b.percentage}% / ${b.totalItems} · хуудас ${page.percentage}% / ${page.workItems}`,
+  );
+}
+
 // Эхлээгүй барилга ЗААВАЛ 0% байх ёстой — дундаж нь хоосон мөрүүд дээр
 // хуваагдаад бага зэрэг эерэг тоо өгвөл "ажил эхэлсэн" гэж андуурагдана.
 t(
@@ -617,7 +714,7 @@ const blockSum = dashboard.blocks.reduce((a, b) => a + b.acceptedQty, 0);
 t(
   "Блокуудын нийлбэр төслийн дүнтэй таарна",
   Math.abs(blockSum - dashboard.acceptedQty) < 0.5,
-  `${round2(blockSum)} vs ${round2(dashboard.acceptedQty)}`,
+  `${round3(blockSum)} vs ${round3(dashboard.acceptedQty)}`,
 );
 t(
   "Блок бүрт батлах хүлээж буй тоо гарна",
@@ -628,14 +725,125 @@ t(
   dashboard.blocks.reduce((a, b) => a + b.pendingInspections, 0) === dashboard.pendingInspections,
 );
 
+// ---------------------------------------------------------------------------
+// Блокийн хамрах хүрээ — талбайн инженер
+// ---------------------------------------------------------------------------
+/*
+ * БОДИТ АЛДАА БАЙСАН: блокийн ЖАГСААЛТ хамрах хүрээгээр шүүгддэг байсан ч
+ * ХЯНАХ САМБАР, ДАРААЛАЛ шүүгддэггүй байв. Нэг барилга хариуцсан инженер
+ * самбар дээр 75 барилгын тоог хараад, карт дээр нь дарахад 403 авна.
+ * Дээрээс нь «таны ажил 3% явлаа» гэсэн тоо огт өөр барилгуудынх байсан.
+ */
+{
+  const allBlocks = getDb().blocks;
+  const mine = allBlocks[0];
+  const scopedEmail = "site_engineer@cpms.test";
+
+  const engineer = body<{ data: { id: string; email: string }[] }>(get("users")).data.find(
+    (u) => u.email === scopedEmail,
+  )!;
+  handleMock("PATCH", ["users", engineer.id], "", { scopeBlockIds: [mine.id] });
+  handleMock("POST", ["auth", "login"], "", { email: scopedEmail, password: "x" });
+
+  t(
+    "Хүрээ нь /me-д ирнэ",
+    body<{ data: { scopeBlockIds: string[] } }>(get("me")).data.scopeBlockIds.length === 1,
+  );
+
+  const blockList = body<{ data: { id: string }[] }>(get("projects/prj-inel-01/blocks")).data;
+  t(
+    "Жагсаалтад зөвхөн өөрийн барилга",
+    blockList.length === 1 && blockList[0].id === mine.id,
+    `${blockList.length} барилга`,
+  );
+
+  const scopedDash = body<{ data: Dash }>(get("projects/prj-inel-01/dashboard")).data;
+  t(
+    "Самбарт зөвхөн өөрийн барилга",
+    scopedDash.blocks.length === 1 && scopedDash.blocks[0].id === mine.id,
+    `${scopedDash.blocks.length} барилга`,
+  );
+  // Ажлын тоо нь тухайн барилгынхтай ЯГ таарна — өөр барилгын мөр гоожвол
+  // энэ тоо өснө.
+  const ownItems = getDb().workItems.filter((w) => w.blockId === mine.id).length;
+  t(
+    "Самбарын ажлын тоо өөрийн барилгынх",
+    scopedDash.totalItems === ownItems,
+    `${scopedDash.totalItems} vs ${ownItems}`,
+  );
+
+  const scopedQueue = body<{ data: { blockId: string }[] }>(
+    get("projects/prj-inel-01/queue", "?type=inspection&pageSize=200"),
+  ).data;
+  t(
+    "Дараалалд бусад барилгын ажил алга",
+    scopedQueue.every((w) => w.blockId === mine.id),
+    `${scopedQueue.filter((w) => w.blockId !== mine.id).length} гадны мөр`,
+  );
+
+  // Хязгаарлалт нь зөвхөн гоо сайхны зүйл болж болохгүй — шууд хаягаар ч
+  // нэвтэрч болохгүй.
+  const other = allBlocks.find((bl) => bl.id !== mine.id)!;
+  t("Гадны блок 403", get(`blocks/${other.id}`).status === 403);
+  t("Өөрийн блок нээгдэнэ", get(`blocks/${mine.id}`).status === 200);
+  t("Гадны блокийн нэгтгэл 403", get(`blocks/${other.id}/summary`).status === 403);
+
+  // Цэвэрлэгээ: хүрээг нь авч, захирлаар буцаж нэвтэрнэ.
+  handleMock("POST", ["auth", "login"], "", { email: "director@cpms.test", password: "x" });
+  handleMock("PATCH", ["users", engineer.id], "", { scopeBlockIds: [] });
+  t(
+    "Хүрээ авахад бүх барилга буцаж ирнэ",
+    body<{ data: unknown[] }>(get("projects/prj-inel-01/blocks")).data.length === allBlocks.length,
+  );
+}
+
 // Блокийн нэгтгэлд товлосон дуусах огноо
-const sumDates = body<{
-  data: { totals: { plannedEndDate: string | null }; groups: { plannedEndDate: string | null }[] };
-}>(get("blocks/blk-a-01/summary", "?groupBy=floor")).data;
+interface DateWindow {
+  plannedStartDate: string | null;
+  plannedEndDate: string | null;
+}
+const sumDates = body<{ data: { totals: DateWindow; groups: (DateWindow & { label: string })[] } }>(
+  get("blocks/blk-a-01/summary", "?groupBy=floor"),
+).data;
 t(
   "Блокийн товлосон огноо гарна",
   Boolean(sumDates.totals.plannedEndDate),
   String(sumDates.totals.plannedEndDate),
+);
+/*
+ * Бүлэг бүр ЭХЛЭХ огноотой байх ёстой.
+ *
+ * Огноог хэрэглэгч бичдэггүй — давхрын хугацаагаар автоматаар бодогддог.
+ * Тиймээс хоосон огноо гарвал хуваарь огт тооцогдоогүй гэсэн үг бөгөөд
+ * хоцролтын бүх тоо утгагүй болно.
+ */
+t(
+  "Бүлэг бүр эхлэх, дуусах огноотой",
+  sumDates.groups.every((g) => Boolean(g.plannedStartDate && g.plannedEndDate)),
+  `${sumDates.groups.filter((g) => !g.plannedStartDate).length} бүлэг огноогүй`,
+);
+t(
+  "Эхлэх огноо дуусахаасаа өмнө",
+  sumDates.groups.every((g) => (g.plannedStartDate ?? "") <= (g.plannedEndDate ?? "")),
+);
+t(
+  "Блокийн эхлэл нь бүлгүүдийн хамгийн эртийнх",
+  sumDates.totals.plannedStartDate ===
+    sumDates.groups
+      .map((g) => g.plannedStartDate)
+      .filter(Boolean)
+      .sort()
+      .at(0),
+  String(sumDates.totals.plannedStartDate),
+);
+// Дээд давхар доод давхраасаа ХОЙШ эхэлнэ — давхрын хугацааны гол зүй тогтол.
+// Энэ зөрчигдвөл «галт тэрэг» урсгал алдагдаж, бүх ажил нэг өдөр эхэлнэ.
+const floor2 = sumDates.groups.find((g) => g.label === "2-р давхар");
+const floor15 = sumDates.groups.find((g) => g.label === "15-р давхар");
+t(
+  "Дээд давхар хожуу эхэлнэ",
+  Boolean(floor2 && floor15 && floor2.plannedStartDate! < floor15.plannedStartDate!),
+  `2-р ${floor2?.plannedStartDate} · 15-р ${floor15?.plannedStartDate}`,
 );
 t(
   "Блокийн огноо нь бүлгүүдийн хамгийн сүүлийнх",
@@ -681,7 +889,7 @@ for (const b of multi.blocks) {
   const own = getDb().workItems.filter((w) => w.blockId === b.id);
   const ownPlanned = own.reduce((a, w) => a + w.plannedQty, 0);
   if (Math.abs(ownPlanned - b.plannedQty) > 0.5)
-    leak = `${b.id}: ${b.plannedQty} vs ${round2(ownPlanned)}`;
+    leak = `${b.id}: ${b.plannedQty} vs ${round3(ownPlanned)}`;
 }
 t("Блок бүр зөвхөн өөрийн тоог харуулна", leak === "", leak);
 
@@ -918,7 +1126,7 @@ t(
   "Гүйцэтгэгч тоо хэмжээ засахгүй",
   handleMock("PATCH", ["work-items", zeroItem.id], "", { plannedQty: 5 }).status === 403,
 );
-handleMock("POST", ["auth", "login"], "", { email: "director@cpms.mn", password: "x" });
+handleMock("POST", ["auth", "login"], "", { email: "director@cpms.test", password: "x" });
 
 // ---------------------------------------------------------------------------
 // Ажилд хариуцагч оноох
@@ -1019,7 +1227,7 @@ t(
     contractorId: goo.id,
   }).status === 403,
 );
-handleMock("POST", ["auth", "login"], "", { email: "director@cpms.mn", password: "x" });
+handleMock("POST", ["auth", "login"], "", { email: "director@cpms.test", password: "x" });
 
 // ---------------------------------------------------------------------------
 // Загваргүй (хоосон) блок
@@ -1242,7 +1450,7 @@ t(
   "Гүйцэтгэгч ажил устгахгүй",
   handleMock("DELETE", ["work-items", someItem.id], "", undefined).status === 403,
 );
-handleMock("POST", ["auth", "login"], "", { email: "director@cpms.mn", password: "x" });
+handleMock("POST", ["auth", "login"], "", { email: "director@cpms.test", password: "x" });
 
 // --- Буцаагдсан ажлыг ДАХИН илгээх ---
 // ЯАГААД ЧУХАЛ: татгалзсан хэмжээ мэдээлсэн дүнгээс хасагдахгүй бол
@@ -1331,7 +1539,7 @@ handleMock("POST", ["auth", "login"], "", { email: "director@cpms.mn", password:
   const perUnit = new Map<string, number>();
   for (const g of wide.groups) {
     for (const row of g.rows) {
-      perUnit.set(row.unit, round2((perUnit.get(row.unit) ?? 0) + row.acceptedQty));
+      perUnit.set(row.unit, round3((perUnit.get(row.unit) ?? 0) + row.acceptedQty));
     }
   }
   const mismatched = wide.totals.filter((x) => Math.abs((perUnit.get(x.unit) ?? 0) - x.qty) > 0.01);
@@ -1383,7 +1591,7 @@ handleMock("POST", ["auth", "login"], "", { email: "director@cpms.mn", password:
   const ids = new Set(mine.groups.flatMap((g) => g.rows).map((r) => r.workItemId));
   const foreign = [...ids].filter((id) => getDb().byId.get(id)?.contractor?.id !== "ctr-5");
   t("Гүйцэтгэгчийн актад бусдын ажил ороогүй", foreign.length === 0, String(foreign.length));
-  handleMock("POST", ["auth", "login"], "", { email: "director@cpms.mn", password: "x" });
+  handleMock("POST", ["auth", "login"], "", { email: "director@cpms.test", password: "x" });
 }
 
 // --- Backend прокси ---
@@ -1491,7 +1699,7 @@ t(
       reason: "x",
     }).status === 403,
   );
-  handleMock("POST", ["auth", "login"], "", { email: "director@cpms.mn", password: "x" });
+  handleMock("POST", ["auth", "login"], "", { email: "director@cpms.test", password: "x" });
 }
 
 console.log("\nАмжилтгүй: " + fail);

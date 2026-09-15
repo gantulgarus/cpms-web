@@ -154,6 +154,8 @@ export interface RoleOption {
   canReportProgress: boolean;
   canInspect: boolean;
   seesAllBlocks: boolean;
+  /** Энэ үүрэг хэрэглэгч удирдах эрхтэй эсэх — өөрийгөө буулгахаас сэргийлнэ. */
+  canManageUsers: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -344,7 +346,7 @@ export interface QueueCounts {
 // ---------------------------------------------------------------------------
 export type SummaryGroupBy = "floor" | "workType" | "workTypeGroup" | "contractor";
 
-export interface SummaryGroup {
+export interface SummaryGroup extends StatusCounts {
   key: string;
   label: string;
   /**
@@ -360,20 +362,23 @@ export interface SummaryGroup {
   percentage: number;
   pendingInspections: number;
   overdue: number;
-  /** Энэ бүлэг хэзээ дуусах ёстой — хамгийн сүүлийн товлосон огноо. */
+  /** Бүлгийн ажлын цонх — хамгийн эрт эхлэх, хамгийн сүүл дуусах огноо. */
+  plannedStartDate?: IsoDate | null;
   plannedEndDate?: IsoDate | null;
 }
 
 export interface BlockSummary {
   block: { id: Uuid; name: string };
-  totals: {
+  totals: StatusCounts & {
     workItems: number;
     plannedQty: number;
     reportedQty: number;
     acceptedQty: number;
+    /** Мөрүүдийн ДУНДАЖ явц — самбар дээрхтэй ижил дүрмээр. */
     percentage: number;
     pendingInspections: number;
     overdue: number;
+    plannedStartDate?: IsoDate | null;
     plannedEndDate?: IsoDate | null;
   };
   groups: SummaryGroup[];
@@ -388,11 +393,14 @@ export interface BlockSummary {
  *
  * Гурав нь харилцан үл огтлолцоно: completed + inProgress + notStarted = total.
  */
-export interface ItemCounts {
-  totalItems: number;
+export interface StatusCounts {
   completedItems: number;
   inProgressItems: number;
   notStartedItems: number;
+}
+
+export interface ItemCounts extends StatusCounts {
+  totalItems: number;
 }
 
 export interface DashboardBlock extends ItemCounts {

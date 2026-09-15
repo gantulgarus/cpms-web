@@ -20,6 +20,7 @@ import type {
   BlockSummary,
   Inspection,
   ItemCounts,
+  StatusCounts,
   ProgressEntry,
   ProjectDashboard,
   SummaryGroup,
@@ -55,12 +56,22 @@ interface MockSession {
   canManageUsers: boolean;
   canManageReferenceData: boolean;
   canEditPlan: boolean;
+  /** Хариуцах блокууд. Хоосон = хязгаарлалтгүй (backend-ийн дүрэм). */
+  scopeBlockIds: string[];
 }
 
+/*
+ * Нэвтэрсэн ажилтан.
+ *
+ * `id` нь `mockUsers`-ийн ЗАХИРЛЫН мөртэй ЯГ таарна. Жинхэнэ backend дээр
+ * `/me` нь `/users` жагсаалтад байдаг мөрийг буцаадаг; mock дээр өөр id
+ * тавибал «өөрийгөө засах» урсгал mock дээр 404 өгөөд бодит систем дээр
+ * ажиллана — яг эсрэгээр нь байх ёстой.
+ */
 const STAFF_SESSION: MockSession = {
-  id: "usr-demo",
+  id: "usr-seed-1",
   name: "Б.Батбаяр",
-  email: "director@cpms.mn",
+  email: "director@cpms.test",
   role: "director",
   roleLabel: "Захирал",
   contractorId: null,
@@ -72,6 +83,7 @@ const STAFF_SESSION: MockSession = {
   canManageUsers: true,
   canManageReferenceData: true,
   canEditPlan: true,
+  scopeBlockIds: [],
 };
 
 let session: MockSession = STAFF_SESSION;
@@ -91,6 +103,8 @@ const MOCK_ROLES = [
 const REPORTER_ROLES = ["site_engineer", "contractor", "project_manager", "machine_operator"];
 const INSPECTOR_ROLES = ["inspector", "general_engineer", "director", "admin"];
 const UNRESTRICTED_ROLES = ["admin", "director", "general_engineer"];
+/** Хэрэглэгч удирдах эрхтэй үүрэг — backend-ийн `USER_MANAGER_ROLES`. */
+const USER_MANAGER_ROLES = ["admin", "director"];
 
 interface MockUser {
   id: string;
@@ -291,6 +305,30 @@ const mockUsers: MockUser[] = ["admin", "director", "inspector", "site_engineer"
   }),
 );
 
+/**
+ * Бүртгэлийн мөрөөс нэвтрэлтийн сесс үүсгэнэ.
+ *
+ * Эрхүүд нь ҮҮРГЭЭС гарна — мөрөн дээрх утгыг хуулахгүй. Ингэснээр үүрэг
+ * солигдоход эрх нь заавал дагаж өөрчлөгдөнө.
+ */
+function sessionFor(user: MockUser): MockSession {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    roleLabel: user.roleLabel,
+    contractorId: user.contractorId,
+    canReportProgress: REPORTER_ROLES.includes(user.role),
+    canInspect: INSPECTOR_ROLES.includes(user.role),
+    canManageContractors: USER_MANAGER_ROLES.includes(user.role),
+    canManageUsers: USER_MANAGER_ROLES.includes(user.role),
+    canManageReferenceData: UNRESTRICTED_ROLES.includes(user.role),
+    canEditPlan: UNRESTRICTED_ROLES.includes(user.role) || user.role === "project_manager",
+    scopeBlockIds: user.scopeBlockIds,
+  };
+}
+
 function contractorSession(id: string, name: string): MockSession {
   return {
     id: `usr-${id}`,
@@ -307,15 +345,34 @@ function contractorSession(id: string, name: string): MockSession {
     canManageReferenceData: false,
     // Гүйцэтгэгч төлөвлөгөө засахгүй — тоо хэмжээ бол гэрээний асуудал.
     canEditPlan: false,
+    // Гүйцэтгэгчийн хүрээ нь БЛОКоор биш ГҮЙЦЭТГЭГЧээр тогтоно.
+    scopeBlockIds: [],
   };
 }
 
 /** Гүйцэтгэгчийн сесс үү? */
 const isRep = () => session.role === "contractor" && session.contractorId !== null;
 
-/** Хамрах хүрээ — жагсаалт, нэгтгэл, dashboard бүгд ҮҮГЭЭР дамжина. */
+/** Бүх блок харах эрхтэй юу — backend-ийн `User::canSeeAllBlocks()`. */
+const seesAllBlocks = () =>
+  !isRep() && (UNRESTRICTED_ROLES.includes(session.role) || session.scopeBlockIds.length === 0);
+
+/**
+ * Хамрах хүрээ — жагсаалт, нэгтгэл, dashboard бүгд ҮҮГЭЭР дамжина.
+ *
+ * ХОЁР ӨӨР хязгаарлалт:
+ *  - Гүйцэтгэгч ГҮЙЦЭТГЭГЧээр (тэр 49 барилгад ажилладаг).
+ *  - Талбайн инженер БЛОКоор (тэр 1–2 барилга хариуцна).
+ *
+ * Урьд нь энд зөвхөн эхнийх нь байсан тул нэг барилга хариуцсан инженер
+ * хянах самбар дээр 75 барилгын тоог хардаг байв — карт дээр нь дарахад
+ * 403 авна.
+ */
 function inScope(items: WorkItem[]): WorkItem[] {
-  return isRep() ? items.filter((w) => w.contractor?.id === session.contractorId) : items;
+  if (isRep()) return items.filter((w) => w.contractor?.id === session.contractorId);
+  if (seesAllBlocks()) return items;
+
+  return items.filter((w) => session.scopeBlockIds.includes(w.blockId));
 }
 
 export interface MockResponse {
@@ -330,7 +387,46 @@ const fail = (status: number, name: string, message: string): MockResponse => ({
   body: { error: { name, message } },
 });
 
-const round = (n: number) => Math.round(n * 100) / 100;
+/**
+ * Тоо хэмжээг МЯНГАТЫН орон хүртэл — backend-ийн `round(\$x, 3)`-тай ижил.
+ *
+ * Урьд нь энд 2 орон байсан: mock 12.35 гэж хадгалахад жинхэнэ сервер
+ * 12.347 гэж хадгалдаг байв. Дэлгэц mock дээр "ажиллаад" бодит дээр
+ * өөр тоо харуулна — mock-ийн ач холбогдол тэр дор нь үгүй болно.
+ */
+const round = (n: number) => Math.round(n * 1000) / 1000;
+
+/**
+ * Мөрүүдийн ДУНДАЖ явц — backend-ийн `WorkItem::progressSql()`-тэй ижил дүрэм.
+ *
+ * ЯАГААД ТОО ХЭМЖЭЭГЭЭР БИШ ВЭ: нэг бүлэгт м², м³, ширхэг зэрэгцэн орж ирдэг.
+ * Тэдгээрийг нэмээд хувь гаргавал ширхгээр хэмжигддэг ажил руу татагдана.
+ *
+ * ЭНЭ ФУНКЦ НЭГ Л УДАА БИЧИГДЭНЭ: самбар, блокийн нэгтгэл, бүлэг бүр
+ * үүнийг дуудна. Урьд нь самбар дундажаар, блокийн хуудас тоо хэмжээгээр
+ * боддог байсан тул нэг блок 3% ба 11% гэж хоёр өөр харагдаж байв.
+ */
+function avgPercentage(rows: { plannedQty: number; acceptedQty: number }[]): number {
+  if (rows.length === 0) return 0;
+  const sum = rows.reduce(
+    (s, w) => s + (w.plannedQty > 0 ? Math.min(w.acceptedQty / w.plannedQty, 1) : 0),
+    0,
+  );
+
+  return Math.round((sum / rows.length) * 100);
+}
+
+/** Төлөвийн тоолол — гурав нь харилцан үл огтлолцоно. */
+function statusCounts(rows: { status: string }[]): StatusCounts {
+  const completedItems = rows.filter((w) => w.status === "completed").length;
+  const inProgressItems = rows.filter((w) => w.status === "in_progress").length;
+
+  return {
+    completedItems,
+    inProgressItems,
+    notStartedItems: Math.max(rows.length - completedItems - inProgressItems, 0),
+  };
+}
 
 /**
  * Төлөвлөгөө өөрчлөгдөхөд хамаарах утгуудыг дахин бодно.
@@ -349,6 +445,16 @@ function applyPlannedQty(item: WorkItem, qty: number): void {
       : item.reportedQty > 0
         ? "in_progress"
         : "not_started";
+}
+
+/** Хамгийн эрт товлосон эхлэх огноо — "хэзээ эхлэх ёстой вэ". */
+function minDate(rows: WorkItem[]): string | null {
+  let min: string | null = null;
+  for (const w of rows) {
+    if (w.plannedStartDate && (min === null || w.plannedStartDate < min)) min = w.plannedStartDate;
+  }
+
+  return min;
 }
 
 /** Хамгийн сүүлийн товлосон дуусах огноо — "хэзээ дуусах ёстой вэ". */
@@ -479,9 +585,11 @@ function summarize(items: WorkItem[], groupBy: SummaryGroupBy): SummaryGroup[] {
         plannedQty: round(plannedQty),
         reportedQty: round(b.rows.reduce((a, w) => a + w.reportedQty, 0)),
         acceptedQty: round(acceptedQty),
-        percentage: plannedQty > 0 ? Math.round((acceptedQty / plannedQty) * 100) : 0,
+        percentage: avgPercentage(b.rows),
+        ...statusCounts(b.rows),
         pendingInspections: b.rows.filter((w) => w.reviewState === "pending").length,
         overdue: b.rows.filter((w) => w.overdueDays > 0).length,
+        plannedStartDate: minDate(b.rows),
         plannedEndDate: maxDate(b.rows),
       };
       return { group, seq: b.seq };
@@ -549,11 +657,20 @@ export function handleMock(
   // --- нэвтрэлт ---
   // AuthGate token-ыг сервер дээр шалгадаг тул mock ч хариулах ёстой.
   if (a === "me") {
-    return ok({ data: { ...session, scopeBlockIds: [] } });
+    return ok({ data: session });
   }
 
   if (a === "auth" && b === "login" && method === "POST") {
-    session = STAFF_SESSION;
+    /*
+     * Имэйлээр нь бүртгэлтэй хэрэглэгчийг олно.
+     *
+     * Урьд нь хэн нэвтэрсэн ч ЗАХИРЛЫН сесс үүсдэг байсан тул хамрах
+     * хүрээтэй инженерийн урсгалыг mock дээр огт туршиж болдоггүй байв.
+     */
+    const email = (body as { email?: string })?.email?.trim();
+    const found = email ? mockUsers.find((u) => u.email === email && u.isActive) : undefined;
+
+    session = found ? sessionFor(found) : STAFF_SESSION;
 
     return ok({
       data: {
@@ -643,13 +760,20 @@ export function handleMock(
           canReportProgress: REPORTER_ROLES.includes(r.value),
           canInspect: INSPECTOR_ROLES.includes(r.value),
           seesAllBlocks: UNRESTRICTED_ROLES.includes(r.value),
+          canManageUsers: USER_MANAGER_ROLES.includes(r.value),
         })),
       });
     }
 
     if (!b) {
       if (method === "POST") {
-        const p = body as { name?: string; email?: string; role?: string; password?: string };
+        const p = body as {
+          name?: string;
+          email?: string;
+          role?: string;
+          password?: string;
+          scopeBlockIds?: string[];
+        };
         if (!p?.name?.trim()) return fail(422, "ValidationError", "Нэр заавал.");
         if (!p?.email?.trim()) return fail(422, "ValidationError", "Имэйл заавал.");
         if (mockUsers.some((u) => u.email === p.email?.trim())) {
@@ -663,7 +787,9 @@ export function handleMock(
           email: p.email.trim(),
           role,
           roleLabel: MOCK_ROLES.find((r) => r.value === role)?.label ?? role,
-          scopeBlockIds: [],
+          // Урьд нь энд хатуу `[]` байсан тул mock дээр хамрах хүрээ огт
+          // хадгалагддаггүй байв — жинхэнэ сервер хадгалдаг.
+          scopeBlockIds: p.scopeBlockIds ?? [],
           contractorId: null,
           isActive: true,
           canReportProgress: REPORTER_ROLES.includes(role),
@@ -693,7 +819,59 @@ export function handleMock(
       return ok({ data: user });
     }
     if (method === "PATCH") {
-      Object.assign(user, body as Partial<MockUser>);
+      const p = body as Partial<{
+        name: string;
+        email: string;
+        role: string;
+        scopeBlockIds: string[];
+        isActive: boolean;
+      }>;
+
+      if (p.name !== undefined && !p.name.trim()) {
+        return fail(422, "ValidationError", "Нэр заавал.");
+      }
+      if (p.email !== undefined) {
+        const email = p.email.trim();
+        if (!email) return fail(422, "ValidationError", "Имэйл заавал.");
+        // Өөрөөсөө БУСАД хүнтэй давхцахыг хориглоно.
+        if (mockUsers.some((u) => u.id !== user.id && u.email === email)) {
+          return fail(422, "ValidationError", "Энэ имэйл бүртгэлтэй байна.");
+        }
+        user.email = email;
+      }
+      if (p.role !== undefined && !MOCK_ROLES.some((r) => r.value === p.role)) {
+        return fail(422, "ValidationError", "Үүрэг буруу байна.");
+      }
+
+      /*
+       * Өөрийн эрхээ бууруулахыг хориглоно — backend-ийн `guardSelfDemotion`.
+       *
+       * Сүүлчийн админ өөрийгөө инженер болговол хэрэглэгч удирдах хаалга
+       * бүрмөсөн хаагдаж, өгөгдлийн сангаас засахаас өөр арга үлдэхгүй.
+       */
+      if (
+        p.role !== undefined &&
+        user.id === session.id &&
+        USER_MANAGER_ROLES.includes(user.role) &&
+        !USER_MANAGER_ROLES.includes(p.role)
+      ) {
+        return fail(422, "ValidationError", "Өөрийн эрхээ бууруулах боломжгүй.");
+      }
+
+      if (p.name !== undefined) user.name = p.name.trim();
+      if (p.scopeBlockIds !== undefined) user.scopeBlockIds = p.scopeBlockIds;
+      if (p.isActive !== undefined) user.isActive = p.isActive;
+
+      if (p.role !== undefined) {
+        // Үүрэг солиход ТҮҮНЭЭС ГАРАХ эрхүүд хамт шинэчлэгдэнэ. Урьд нь
+        // `Object.assign` хийдэг байсан тул шошго, эрх нь хуучнаараа
+        // үлдэж, mock дээр «Захирал · мэдээлнэ» гэсэн боломжгүй хослол
+        // үүсдэг байв.
+        user.role = p.role;
+        user.roleLabel = MOCK_ROLES.find((r) => r.value === p.role)?.label ?? p.role;
+        user.canReportProgress = REPORTER_ROLES.includes(p.role);
+        user.canInspect = INSPECTOR_ROLES.includes(p.role);
+      }
 
       return ok({ data: user });
     }
@@ -864,11 +1042,17 @@ export function handleMock(
 
         return created(block);
       }
-      // Гүйцэтгэгчид ажил байгаа барилга л харагдана — дарахад 403 авах
-      // "хуурамч" мөр жагсаалтад байх ёсгүй.
+      /*
+       * Дарахад 403 авах "хуурамч" мөр жагсаалтад байх ёсгүй.
+       *
+       * Гүйцэтгэгчид ажил байгаа барилга л харагдана. Хамрах хүрээтэй
+       * инженерт зөвхөн оноосон барилга харагдана.
+       */
       const visible = isRep()
         ? db.blocks.filter((bl) => inScope(db.workItems).some((w) => w.blockId === bl.id))
-        : db.blocks;
+        : seesAllBlocks()
+          ? db.blocks
+          : db.blocks.filter((bl) => session.scopeBlockIds.includes(bl.id));
 
       return ok({
         data: visible,
@@ -894,28 +1078,10 @@ export function handleMock(
        * `status` нь гурван харилцан үл огтлолцох утгатай тул нийлбэр нь
        * үргэлж нийт тоотой тэнцэнэ. Хэмжээг нэмбэл м², м³, ширхэг холилдоно.
        */
-      const countItems = (rows: typeof items): ItemCounts => {
-        const completedItems = rows.filter((w) => w.status === "completed").length;
-        const inProgressItems = rows.filter((w) => w.status === "in_progress").length;
-
-        return {
-          totalItems: rows.length,
-          completedItems,
-          inProgressItems,
-          notStartedItems: Math.max(rows.length - completedItems - inProgressItems, 0),
-        };
-      };
-
-      /** Мөр бүрийн өөрийн хувийн дундаж — нэгж хоорондоо хамаарахгүй. */
-      const avgPercentage = (rows: typeof items): number => {
-        if (rows.length === 0) return 0;
-        const sum = rows.reduce(
-          (s, w) => s + (w.plannedQty > 0 ? Math.min(w.acceptedQty / w.plannedQty, 1) : 0),
-          0,
-        );
-
-        return Math.round((sum / rows.length) * 100);
-      };
+      const countItems = (rows: typeof items): ItemCounts => ({
+        totalItems: rows.length,
+        ...statusCounts(rows),
+      });
 
       const totals = countItems(items);
 
@@ -1138,7 +1304,13 @@ export function handleMock(
     // Блокийн доорх өгөгдлийг зөвхөн тухайн блокоор хязгаарлана.
     const blockItems = db.workItems.filter((w) => w.blockId === b);
 
-    if (isRep() && inScope(blockItems).length === 0) {
+    // Жагсаалтад харагдахгүй блокийг шууд хаягаар нээхийг ч хориглоно —
+    // эс бөгөөс хязгаарлалт нь зөвхөн гоо сайхны зүйл болно.
+    const blocked = isRep()
+      ? inScope(blockItems).length === 0
+      : !seesAllBlocks() && !session.scopeBlockIds.includes(b);
+
+    if (blocked) {
       return fail(403, "Forbidden", "Танд энэ блокийг харах эрх байхгүй.");
     }
 
@@ -1475,9 +1647,11 @@ export function handleMock(
           plannedQty: round(plannedQty),
           reportedQty: round(items.reduce((s, w) => s + w.reportedQty, 0)),
           acceptedQty: round(acceptedQty),
-          percentage: plannedQty > 0 ? Math.round((acceptedQty / plannedQty) * 100) : 0,
+          percentage: avgPercentage(items),
+          ...statusCounts(items),
           pendingInspections: items.filter((w) => w.reviewState === "pending").length,
           overdue: items.filter((w) => w.overdueDays > 0).length,
+          plannedStartDate: minDate(items),
           plannedEndDate: maxDate(items),
         },
         groups: summarize(items, groupBy),
