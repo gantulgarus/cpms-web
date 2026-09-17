@@ -73,21 +73,29 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const shell = SHOW_V2_UI ? (
     <div className="flex min-h-svh flex-col md:flex-row">
       <AppSidebar />
-      <main className="min-w-0 flex-1 px-4 py-6 md:px-6">
-        <div className="mx-auto max-w-6xl">{children}</div>
-      </main>
+      {/*
+       * Өргөний хязгаарлалтгүй — дэлгэцийн БҮТЭН өргөнийг эзэлнэ.
+       *
+       * Урьд нь `max-w-6xl` (1152px) байсан нь хорин гаруй баганатай ажлын
+       * нэгжийн хүснэгтийг том дэлгэц дээр ч хэвтээ гүйлгэхэд хүргэж, зөв
+       * талын багана (хугацаа, гүйцэтгэгч, төлөв) харагдахгүй байв. Зайг
+       * хажуугийн цэс өөрөө тогтоож өгнө.
+       */}
+      <main className="min-w-0 flex-1 px-4 py-6 md:px-6">{children}</main>
     </div>
   ) : (
     <>
       <AppHeader />
-      <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+      <main className="px-4 py-6">{children}</main>
     </>
   );
 
   if (SHOW_V2_UI) {
     if (session.state === "checking") return null;
     if (session.state === "signed-out") {
-      return <ApiLoginScreen onSuccess={() => setSession({ state: "signed-in" })} />;
+      return (
+        <ApiLoginScreen onSuccess={() => setSession({ state: "signed-in" })} />
+      );
     }
 
     return shell;

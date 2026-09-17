@@ -20,6 +20,7 @@ import type {
   Job,
   Location,
   LocationLevel,
+  Photo,
   ProgressEntry,
   ReviewState,
   WorkItem,
@@ -109,7 +110,8 @@ export function taktWindow(
   floorNo: number,
   order: number,
 ): { plannedStartDate: string; plannedEndDate: string } {
-  const duration = level === "block" ? taktDays * Math.max(floors, 1) : taktDays;
+  const duration =
+    level === "block" ? taktDays * Math.max(floors, 1) : taktDays;
   const offset = (Math.max(order, 0) + Math.max(floorNo, 0)) * taktDays;
   const plannedStartDate = addWeekdays(startDate, offset);
 
@@ -151,29 +153,41 @@ export function mockId(prefix: string): string {
 // ---------------------------------------------------------------------------
 // Мастер өгөгдөл
 // ---------------------------------------------------------------------------
-const CONTRACTORS: Contractor[] = [
-  { id: "ctr-1", name: "Түшиг Констракшн", tradeSpecialty: "Бетон, угсралт", phone: "9911-2233" },
-  { id: "ctr-2", name: "Мөнх Хишиг ХХК", tradeSpecialty: "Өрлөг, шавардлага", phone: "9922-3344" },
-  { id: "ctr-3", name: "Сүлд Фасад", tradeSpecialty: "Фасад, цонх", phone: "9933-4455" },
-  {
-    id: "ctr-4",
-    name: "Эрчим Инженеринг",
-    tradeSpecialty: "Цахилгаан, сантехник",
-    phone: "9944-5566",
-  },
-  // Нэвтрэх код seed-тэй — mock горимд гүйцэтгэгчийн дэлгэцийг шалгахад
-  // (backend-ийн DemoSeeder дээрх `GOO-2026`-тай ижил).
-  {
-    id: "ctr-5",
-    name: "Гоо Засал ХХК",
-    tradeSpecialty: "Дотор засал",
-    phone: "9955-6677",
-    accessCode: "GOO-2026",
-    accessCodeExpiresAt: "2027-08-17",
-    hasValidAccessCode: true,
-  },
-  { id: "ctr-6", name: "Ногоон Тохижилт", tradeSpecialty: "Гадна ажил", phone: "9966-7788" },
-];
+/** Нэвтрэх кодын дуусах хугацаа — тогтмол, эс бөгөөс өдөр бүр өөр утга гарна. */
+const ACCESS_CODE_EXPIRES = "2027-08-17";
+
+/**
+ * Гүйцэтгэгчид — backend-ийн `DemoSeeder::createContractors`-тэй ИЖИЛ.
+ *
+ * Код нь ЗУРГААУЛАНД нь байна. Урьд нь зөвхөн `GOO-2026` байсан тул mock дээр
+ * гүйцэтгэгчийн дэлгэц ганцхан компаниар л шалгагдаж, хүснэгтийн бусад мөр
+ * кодгүй харагддаг байв — жинхэнэ сервер дээр бүгд кодтой байхад mock худлаа
+ * хэлж байсан хэрэг.
+ */
+const CONTRACTORS: Contractor[] = (
+  [
+    ["ctr-1", "Түшиг Констракшн", "Бетон, угсралт", "9911-2233", "TSH-2026"],
+    ["ctr-2", "Мөнх Хишиг ХХК", "Өрлөг, шавардлага", "9922-3344", "MNH-2026"],
+    ["ctr-3", "Сүлд Фасад", "Фасад, цонх", "9933-4455", "SLD-2026"],
+    [
+      "ctr-4",
+      "Эрчим Инженеринг",
+      "Цахилгаан, сантехник",
+      "9944-5566",
+      "ERH-2026",
+    ],
+    ["ctr-5", "Гоо Засал ХХК", "Дотор засал", "9955-6677", "GOO-2026"],
+    ["ctr-6", "Ногоон Тохижилт", "Гадна ажил", "9966-7788", "NGN-2026"],
+  ] as const
+).map(([id, name, tradeSpecialty, phone, accessCode]) => ({
+  id,
+  name,
+  tradeSpecialty,
+  phone,
+  accessCode,
+  accessCodeExpiresAt: ACCESS_CODE_EXPIRES,
+  hasValidAccessCode: true,
+}));
 
 /** Ажлын бүлэг → гүйцэтгэгч. Оноогдоогүй бүлэг null болно. */
 const GROUP_CONTRACTOR: Record<string, string | null> = {
@@ -251,6 +265,46 @@ const DESIGN_SPECS: DesignSpec[] = [
   },
 ];
 
+/**
+ * Нэмэлт demo блокууд.
+ *
+ * Төсөл нь «75 барилгын цогцолбор» нэртэй атлаа ганц блоктой байсан тул
+ * блокуудын жагсаалт, хянах самбарын харьцуулалт ганц мөр харуулж, тэр хоёр
+ * дэлгэц юу хийдгээ огт илэрхийлдэггүй байв.
+ *
+ * `front` нь явцын фронт: блок бүр өөр шатанд байна — дуусах шатандаа, дунд,
+ * дөнгөж эхэлсэн. Бүгд ижил хувьтай бол харьцуулалт утгагүй.
+ */
+const EXTRA_BLOCKS: {
+  id: string;
+  buildingNo: string;
+  name: string;
+  designId: string;
+  front: number;
+}[] = [
+  {
+    id: "blk-b-02",
+    buildingNo: "19",
+    name: "Б блок — 12 давхар орон сууц",
+    designId: "dsg-12-6",
+    front: 104,
+  },
+  {
+    id: "blk-c-03",
+    buildingNo: "20",
+    name: "В блок — 12 давхар орон сууц",
+    designId: "dsg-12-6",
+    front: 34,
+  },
+  {
+    id: "blk-s-04",
+    buildingNo: "21",
+    name: "Үйлчилгээний барилга — 4 давхар",
+    designId: "dsg-4-svc",
+    front: 70,
+  },
+];
+
 // ---------------------------------------------------------------------------
 // Үүсгэлт
 // ---------------------------------------------------------------------------
@@ -325,7 +379,12 @@ function buildLocations(
   return out;
 }
 
-function deriveState(planned: number, reported: number, accepted: number, returned: boolean) {
+function deriveState(
+  planned: number,
+  reported: number,
+  accepted: number,
+  returned: boolean,
+) {
   let reviewState: ReviewState = "none";
   if (returned) reviewState = "returned";
   else if (reported <= 0) reviewState = "none";
@@ -352,8 +411,11 @@ function generateWorkItems(
   raw: RawWorkType[],
   startDate: string,
   simulateProgress: boolean,
+  /** Явцын фронт — блок бүр өөр шатанд байхын тулд. Хоосон бол анхдагч. */
+  progressFront: number = PROGRESS_FRONT,
 ): WorkItem[] {
-  const byLevel = (lv: LocationLevel) => locations.filter((l) => l.level === lv);
+  const byLevel = (lv: LocationLevel) =>
+    locations.filter((l) => l.level === lv);
   const today = new Date().toISOString().slice(0, 10);
   const out: WorkItem[] = [];
 
@@ -376,7 +438,9 @@ function generateWorkItems(
      * оноолт нь тусдаа алхам (`/work-items/assign`). Mock энд автоматаар
      * оноовол тэр алхам байхгүй байгааг нуух тул анхны demo блокт л ононо.
      */
-    const contractorId = simulateProgress ? (GROUP_CONTRACTOR[wt.groupName] ?? null) : null;
+    const contractorId = simulateProgress
+      ? (GROUP_CONTRACTOR[wt.groupName] ?? null)
+      : null;
 
     for (const loc of targets) {
       const id = `wi-${blockId}-${wt.id}-${loc.id}`;
@@ -388,10 +452,11 @@ function generateWorkItems(
       let ratio = 0;
       if (simulateProgress) {
         const position = order * 12 + floorNo;
-        if (position <= PROGRESS_FRONT - PROGRESS_BAND) ratio = 1;
-        else if (position >= PROGRESS_FRONT + PROGRESS_BAND) ratio = 0;
+        if (position <= progressFront - PROGRESS_BAND) ratio = 1;
+        else if (position >= progressFront + PROGRESS_BAND) ratio = 0;
         else {
-          const t = (PROGRESS_FRONT + PROGRESS_BAND - position) / (2 * PROGRESS_BAND);
+          const t =
+            (progressFront + PROGRESS_BAND - position) / (2 * PROGRESS_BAND);
           ratio = Math.max(0, Math.min(1, t * (0.75 + r() * 0.5)));
         }
       }
@@ -400,16 +465,30 @@ function generateWorkItems(
       const reportedQty = round(plannedQty * ratio);
       // Мэдээлсэн ажлын 2/3 нь бүрэн батлагдсан, үлдсэн нь хяналт хүлээж байна.
       const acceptedQty =
-        reportedQty <= 0 ? 0 : r() < 0.66 ? reportedQty : round(reportedQty * (0.7 + r() * 0.25));
+        reportedQty <= 0
+          ? 0
+          : r() < 0.66
+            ? reportedQty
+            : round(reportedQty * (0.7 + r() * 0.25));
       const returned = reportedQty > 0 && r() < 0.05;
-      const { reviewState, status } = deriveState(plannedQty, reportedQty, acceptedQty, returned);
+      const { reviewState, status } = deriveState(
+        plannedQty,
+        reportedQty,
+        acceptedQty,
+        returned,
+      );
 
       const startOffset = order * 26 + floorNo * 11;
       const plannedStartDate = addDays(startDate, startOffset);
-      const plannedEndDate = addDays(startDate, startOffset + 12 + Math.floor(r() * 10));
+      const plannedEndDate = addDays(
+        startDate,
+        startOffset + 12 + Math.floor(r() * 10),
+      );
       const overdueDays =
         status !== "completed" && plannedEndDate < today
-          ? Math.round((Date.parse(today) - Date.parse(plannedEndDate)) / 86400000)
+          ? Math.round(
+              (Date.parse(today) - Date.parse(plannedEndDate)) / 86400000,
+            )
           : 0;
 
       out.push({
@@ -423,7 +502,8 @@ function generateWorkItems(
         reportedQty,
         acceptedQty,
         remainingQty: round(Math.max(plannedQty - acceptedQty, 0)),
-        percentage: plannedQty > 0 ? Math.round((acceptedQty / plannedQty) * 100) : 0,
+        percentage:
+          plannedQty > 0 ? Math.round((acceptedQty / plannedQty) * 100) : 0,
         plannedStartDate,
         plannedEndDate,
         status,
@@ -455,7 +535,8 @@ function rebuildDescendants(locations: Location[]): Map<string, Set<string>> {
     const cached = descendants.get(id);
     if (cached) return cached;
     const set = new Set<string>([id]);
-    for (const c of children.get(id) ?? []) for (const d of collect(c)) set.add(d);
+    for (const c of children.get(id) ?? [])
+      for (const d of collect(c)) set.add(d);
     descendants.set(id, set);
     return set;
   };
@@ -501,10 +582,13 @@ function build(): MockDb {
     purpose: s.purpose,
     floors: s.floors,
     unitsPerFloor: s.unitsPerFloor,
-    workTypeCount: raw.filter((w) => !s.excludeLevels?.includes(w.level as LocationLevel)).length,
+    workTypeCount: raw.filter(
+      (w) => !s.excludeLevels?.includes(w.level as LocationLevel),
+    ).length,
     estimatedItems: countItems(s, raw),
     missingQuantities: raw.filter(
-      (w) => w.estimated && !s.excludeLevels?.includes(w.level as LocationLevel),
+      (w) =>
+        w.estimated && !s.excludeLevels?.includes(w.level as LocationLevel),
     ).length,
   }));
 
@@ -538,17 +622,54 @@ function build(): MockDb {
     status: "in_progress",
   };
 
+  const blocks: Block[] = [block];
+  const allLocations = [...locations];
+  const allItems = [...workItems];
+
+  for (const extra of EXTRA_BLOCKS) {
+    const spec = DESIGN_SPECS.find((d) => d.id === extra.designId)!;
+    const locs = buildLocations(
+      extra.id,
+      extra.name,
+      spec.floors,
+      spec.unitsPerFloor,
+    );
+    const items = generateWorkItems(
+      extra.id,
+      locs,
+      workTypes,
+      raw,
+      PROJECT_START,
+      true,
+      extra.front,
+    );
+
+    blocks.push({
+      id: extra.id,
+      projectId: PROJECT_ID,
+      buildingNo: extra.buildingNo,
+      name: extra.name,
+      purpose: spec.purpose,
+      floors: spec.floors,
+      unitCount: spec.floors * spec.unitsPerFloor,
+      designId: spec.id,
+      status: "in_progress",
+    });
+    allLocations.push(...locs);
+    allItems.push(...items);
+  }
+
   return {
-    blocks: [block],
+    blocks,
     designs,
-    locations,
+    locations: allLocations,
     groups,
     workTypes,
-    workItems,
+    workItems: allItems,
     contractors: CONTRACTORS,
     jobs: new Map(),
-    byId: new Map(workItems.map((w) => [w.id, w])),
-    descendants: rebuildDescendants(locations),
+    byId: new Map(allItems.map((w) => [w.id, w])),
+    descendants: rebuildDescendants(allLocations),
   };
 }
 
@@ -584,7 +705,9 @@ export interface CreateBlockInput {
  */
 export function createBlock(input: CreateBlockInput): Block | null {
   const store = getDb();
-  const spec = input.designId ? DESIGN_SPECS.find((d) => d.id === input.designId) : null;
+  const spec = input.designId
+    ? DESIGN_SPECS.find((d) => d.id === input.designId)
+    : null;
 
   // Загвар заасан ч олдохгүй бол алдаа — дуугүй өнгөрөх ёсгүй.
   if (input.designId && !spec) return null;
@@ -611,7 +734,12 @@ export function createBlock(input: CreateBlockInput): Block | null {
 
   // Загваргүй блокт байршил тэр дор нь үүснэ.
   if (!spec) {
-    const locations = buildLocations(block.id, block.name, floors, unitsPerFloor);
+    const locations = buildLocations(
+      block.id,
+      block.name,
+      floors,
+      unitsPerFloor,
+    );
     store.locations.push(...locations);
     store.descendants = rebuildDescendants(store.locations);
   }
@@ -626,7 +754,11 @@ export function createBlock(input: CreateBlockInput): Block | null {
  * Mock мөн адил ажилладаг: `jobId` буцаагаад, `GET /jobs/:id` дуудагдах бүрд
  * хэсэгчлэн үүсгэнэ. Ингэснээр дэлгэцийн poll хийх зам нь жинхэнээр шалгагдана.
  */
-export function startApplyJob(blockId: string, startDate: string, designId?: string): Job | null {
+export function startApplyJob(
+  blockId: string,
+  startDate: string,
+  designId?: string,
+): Job | null {
   const store = getDb();
   const block = store.blocks.find((b) => b.id === blockId);
 
@@ -651,7 +783,12 @@ export function startApplyJob(blockId: string, startDate: string, designId?: str
   let locations = store.locations.filter((l) => l.blockId === blockId);
 
   if (locations.length === 0) {
-    locations = buildLocations(blockId, block.name, spec.floors, spec.unitsPerFloor);
+    locations = buildLocations(
+      blockId,
+      block.name,
+      spec.floors,
+      spec.unitsPerFloor,
+    );
     store.locations.push(...locations);
     store.descendants = rebuildDescendants(store.locations);
     block.designId = spec.id;
@@ -662,8 +799,12 @@ export function startApplyJob(blockId: string, startDate: string, designId?: str
     block.designId ??= spec.id;
   }
 
-  const allowed = store.workTypes.filter((w) => !spec.excludeLevels?.includes(w.level));
-  const allowedRaw = raw.filter((w) => !spec.excludeLevels?.includes(w.level as LocationLevel));
+  const allowed = store.workTypes.filter(
+    (w) => !spec.excludeLevels?.includes(w.level),
+  );
+  const allowedRaw = raw.filter(
+    (w) => !spec.excludeLevels?.includes(w.level as LocationLevel),
+  );
   pendingWork.set(job.id, {
     blockId,
     locations,
@@ -729,7 +870,7 @@ export function progressFor(item: WorkItem): ProgressEntry[] {
   const sum = weights.reduce((a, b) => a + b, 0);
 
   const start = Date.parse(`${item.plannedStartDate}T00:00:00Z`);
-  return weights
+  const entries: ProgressEntry[] = weights
     .map((w, i) => ({
       id: `pe-${item.id}-${i}`,
       workItemId: item.id,
@@ -742,12 +883,45 @@ export function progressFor(item: WorkItem): ProgressEntry[] {
         name: "Б.Тамир",
         role: "Талбайн инженер",
       },
-      // Mock горимд файл хадгалдаггүй тул зураг хоосон. Гол нь БҮТЭЦ нь
-      // жинхэнэ backend-тэй ижил — гүйцэтгэл бүр өөрийн зурагтай.
       photos: [],
       photoCount: 0,
     }))
     .reverse(); // шинэ → хуучин
+
+  /*
+   * Зураг — нотолгоо нь энэ системийн гол утга учраас mock-д ЗААВАЛ байна.
+   *
+   * Урьд нь хоосон байсан тул явцын түүхийн мөр бүр «Зураггүй» гэж гарч,
+   * гүйцэтгэлийг зургаар нотлох урсгал огт харагддаггүй байв.
+   *
+   * Файлыг прокси өөрөө өгнө (`app/api/cpms/[...path]`) — mock нь JSON-оос
+   * өөр юм буцаадаггүй тул зөвхөн БҮРТГЭЛийг нь энд үүсгэнэ.
+   */
+  for (const entry of entries) {
+    const pr = rng(hash(`${entry.id}:photos`));
+    const count = 1 + Math.floor(pr() * 3);
+    entry.photos = Array.from({ length: count }, (_, j): Photo => {
+      const type = (["before", "progress", "after"] as const)[j % 3];
+
+      return {
+        id: `ph-${entry.id}-${j}`,
+        workItemId: item.id,
+        progressEntryId: entry.id,
+        type,
+        // Backend-ийн хэлбэртэй ИЖИЛ харьцангуй зам — `photoUrl()` нь үүн дээр
+        // проксигийн угтвар нэмнэ.
+        url: `/photos/ph-${entry.id}-${j}/file`,
+        takenAt: entry.recordedAt,
+        uploadedAt: entry.recordedAt,
+        uploadedBy: entry.reportedBy.name,
+        // Шалгалт хийгдсэн ажлын зураг түгжигдэнэ — устгах боломжгүй.
+        locked: item.acceptedQty > 0,
+      };
+    });
+    entry.photoCount = entry.photos.length;
+  }
+
+  return entries;
 }
 
 export function inspectionsFor(item: WorkItem): Inspection[] {
@@ -761,19 +935,29 @@ export function inspectionsFor(item: WorkItem): Inspection[] {
 
   for (const [i, stage] of stages.entries()) {
     if (i === 1 && r() < 0.4) break; // захиалагчийн хяналт хараахан ороогүй
-    const isReturned = item.reviewState === "returned" && i === stages.length - 1;
+    const isReturned =
+      item.reviewState === "returned" && i === stages.length - 1;
     out.push({
       id: `insp-${item.id}-${stage}`,
       workItemId: item.id,
       stage,
-      result: isReturned ? "rejected" : rejectedQty > 0.01 ? "partial" : "accepted",
+      result: isReturned
+        ? "rejected"
+        : rejectedQty > 0.01
+          ? "partial"
+          : "accepted",
       acceptedQty: isReturned ? 0 : item.acceptedQty,
       rejectedQty: isReturned ? item.reportedQty : rejectedQty,
-      reason: isReturned ? "Гадаргуугийн тэгш байдал зөрсөн — дахин хийх" : undefined,
+      reason: isReturned
+        ? "Гадаргуугийн тэгш байдал зөрсөн — дахин хийх"
+        : undefined,
       inspectedAt: new Date(base + i * 2 * 86400000).toISOString(),
       inspector: {
         id: stage === "client" ? "usr-insp-cl" : "usr-insp-gc",
-        name: stage === "client" ? "Д.Хулан (захиалагч)" : "С.Ганбат (ерөнхий гүйцэтгэгч)",
+        name:
+          stage === "client"
+            ? "Д.Хулан (захиалагч)"
+            : "С.Ганбат (ерөнхий гүйцэтгэгч)",
       },
     });
   }

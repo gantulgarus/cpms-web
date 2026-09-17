@@ -36,7 +36,11 @@ import { useProject } from "@/lib/api/v2/use-project";
 import { cn } from "@/lib/utils";
 
 export default function DashboardPage() {
-  const { project, isLoading: projectLoading, error: projectError } = useProject();
+  const {
+    project,
+    isLoading: projectLoading,
+    error: projectError,
+  } = useProject();
   const { me } = useMe();
   const isRep = me?.role === "contractor";
 
@@ -53,7 +57,8 @@ export default function DashboardPage() {
 
   const d = dash.data;
 
-  if (projectError) return <ErrorState message={(projectError as Error).message} />;
+  if (projectError)
+    return <ErrorState message={(projectError as Error).message} />;
 
   return (
     <div>
@@ -73,9 +78,15 @@ export default function DashboardPage() {
       {projectLoading || dash.isLoading ? (
         <LoadingRows rows={4} />
       ) : dash.error ? (
-        <ErrorState message={(dash.error as Error).message} onRetry={() => dash.refetch()} />
+        <ErrorState
+          message={(dash.error as Error).message}
+          onRetry={() => dash.refetch()}
+        />
       ) : !d ? (
-        <EmptyState title="Өгөгдөл алга" description="Төсөлд блок үүсээгүй байна." />
+        <EmptyState
+          title="Өгөгдөл алга"
+          description="Төсөлд блок үүсээгүй байна."
+        />
       ) : (
         <div className="space-y-6">
           {/* --- Анхаарал шаардсан тоонууд — бүгд дарагдана ---
@@ -123,7 +134,9 @@ export default function DashboardPage() {
                 <div className="mb-3 flex items-center gap-2 text-sm font-medium">
                   <AlertOctagon className="size-4" />
                   Нээлттэй саатал
-                  <span className="text-muted-foreground tabular-nums">{d.openIssues}</span>
+                  <span className="text-muted-foreground tabular-nums">
+                    {d.openIssues}
+                  </span>
                   <Link
                     href="/issues"
                     className="text-muted-foreground hover:text-foreground ml-auto text-xs font-normal"
@@ -148,7 +161,9 @@ export default function DashboardPage() {
                       <div className="bg-muted h-2 flex-1 overflow-hidden rounded-full">
                         <div
                           className="h-full rounded-full bg-red-400"
-                          style={{ width: `${(c.count / d.openIssues) * 100}%` }}
+                          style={{
+                            width: `${(c.count / d.openIssues) * 100}%`,
+                          }}
                         />
                       </div>
                       <span className="text-muted-foreground w-8 text-right tabular-nums">
@@ -182,7 +197,8 @@ function sortByAttention(blocks: DashboardBlock[]): DashboardBlock[] {
 }
 
 /** Анхаарал шаардаж байна уу — хоцорсон эсвэл батлах хүлээж буй ажилтай. */
-const needsAttention = (b: DashboardBlock) => b.overdue > 0 || b.pendingInspections > 0;
+const needsAttention = (b: DashboardBlock) =>
+  b.overdue > 0 || b.pendingInspections > 0;
 
 /** Хэдэн барилгаас эхлээд хайлт харуулах вэ. */
 const SEARCH_THRESHOLD = 12;
@@ -207,12 +223,20 @@ const AUTO_EXPAND_MAX = 6;
  * хэвийн нь эвхэгдсэн нягт мөрөөр. "Хэвийн" гэдгийг ЗӨВХӨН нуухгүй — тоог нь
  * харуулж, дарж дэлгэх боломжтой.
  */
-function BlockSection({ blocks, counts }: { blocks: DashboardBlock[]; counts: ItemCounts }) {
+function BlockSection({
+  blocks,
+  counts,
+}: {
+  blocks: DashboardBlock[];
+  counts: ItemCounts;
+}) {
   const [search, setSearch] = useState("");
   const [showAll, setShowAll] = useState(blocks.length <= AUTO_EXPAND_MAX);
 
   const q = search.trim().toLowerCase();
-  const matched = q ? blocks.filter((b) => b.name.toLowerCase().includes(q)) : blocks;
+  const matched = q
+    ? blocks.filter((b) => b.name.toLowerCase().includes(q))
+    : blocks;
 
   const attention = sortByAttention(matched.filter(needsAttention));
   const calm = sortByAttention(matched.filter((b) => !needsAttention(b)));
@@ -248,11 +272,14 @@ function BlockSection({ blocks, counts }: { blocks: DashboardBlock[]; counts: It
       <ItemLegend counts={counts} />
 
       {matched.length === 0 ? (
-        <EmptyState title="Барилга олдсонгүй" description="Хайлтаа өөрчилж үзнэ үү." />
+        <EmptyState
+          title="Барилга олдсонгүй"
+          description="Хайлтаа өөрчилж үзнэ үү."
+        />
       ) : (
         <>
           {attention.length > 0 && (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {attention.map((b) => (
                 <BlockCard key={b.id} block={b} />
               ))}
@@ -267,13 +294,16 @@ function BlockSection({ blocks, counts }: { blocks: DashboardBlock[]; counts: It
                 className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-sm"
               >
                 <ChevronRight
-                  className={cn("size-4 transition-transform", showAll && "rotate-90")}
+                  className={cn(
+                    "size-4 transition-transform",
+                    showAll && "rotate-90",
+                  )}
                 />
                 Хэвийн явж буй {calm.length} барилга
               </button>
 
               {showAll && (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {calm.map((b) => (
                     <BlockCard key={b.id} block={b} />
                   ))}
@@ -301,7 +331,9 @@ function BlockCard({ block }: { block: DashboardBlock }) {
     >
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <span className="truncate font-medium">{block.name}</span>
-        <span className="shrink-0 text-lg font-semibold tabular-nums">{block.percentage}%</span>
+        <span className="shrink-0 text-lg font-semibold tabular-nums">
+          {block.percentage}%
+        </span>
       </div>
 
       <ProgressBar value={block.percentage} className="h-2" />
@@ -311,7 +343,8 @@ function BlockCard({ block }: { block: DashboardBlock }) {
       <p className="text-muted-foreground mt-2 text-xs tabular-nums">
         {block.totalItems.toLocaleString("mn-MN")} ажлаас{" "}
         {block.completedItems.toLocaleString("mn-MN")} дууссан
-        {block.inProgressItems > 0 && `, ${block.inProgressItems.toLocaleString("mn-MN")} явцтай`}
+        {block.inProgressItems > 0 &&
+          `, ${block.inProgressItems.toLocaleString("mn-MN")} явцтай`}
       </p>
 
       <div className="mt-2 flex flex-wrap gap-3 text-xs">

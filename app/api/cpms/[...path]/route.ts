@@ -8,17 +8,30 @@
  */
 import { NextRequest } from "next/server";
 
-import { BACKEND_API_URL, BACKEND_API_URL_IS_DEFAULT, USE_MOCK } from "@/lib/config";
+import {
+  BACKEND_API_URL,
+  BACKEND_API_URL_IS_DEFAULT,
+  USE_MOCK,
+} from "@/lib/config";
 import { forwardResponseHeaders, responseHasBody } from "@/lib/proxy";
 
 export const dynamic = "force-dynamic";
 
-async function handler(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
+async function handler(
+  req: NextRequest,
+  ctx: { params: Promise<{ path: string[] }> },
+) {
   const { path } = await ctx.params;
 
   // CPMS_MOCK=1 үед API v2-ыг санах ой дээрх өгөгдлөөс хариулна. Динамик
   // импорт — жинхэнэ backend руу ажиллаж байгаа үед mock багц ачаалагдахгүй.
   if (USE_MOCK) {
+    // Зураг бол хоёртын биет — mock нь JSON-оос өөрийг буцаадаггүй тул
+    // статик жишээ зураг руу шилжүүлнэ.
+    const { mockPhotoPath } = await import("@/lib/mock/photo-file");
+    const photo = mockPhotoPath(path);
+    if (photo) return Response.redirect(new URL(photo, req.url), 302);
+
     const { handleMock } = await import("@/lib/mock/handler");
     const body =
       req.method === "GET" || req.method === "HEAD"
@@ -44,7 +57,8 @@ async function handler(req: NextRequest, ctx: { params: Promise<{ path: string[]
     const body = await req.arrayBuffer();
     if (body.byteLength > 0) {
       init.body = body;
-      forwarded["Content-Type"] = req.headers.get("content-type") ?? "application/json";
+      forwarded["Content-Type"] =
+        req.headers.get("content-type") ?? "application/json";
     }
   }
 

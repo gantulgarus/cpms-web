@@ -32,9 +32,17 @@ export function AppHeader() {
         },
         // Дараалал бол өдөр тутмын ажлын эхлэл цэг — блокоос ч түрүүлж
         // харагдах ёстой, гэхдээ бүтэц нь блокоос гардаг тул хоёр дахьд.
-        { href: "/queue", label: "Дараалал", match: (p: string) => p.startsWith("/queue") },
+        {
+          href: "/queue",
+          label: "Дараалал",
+          match: (p: string) => p.startsWith("/queue"),
+        },
         // Акт нь гүйцэтгэгчид ч хэрэгтэй — өөрийн хийсэн ажлын баримт.
-        { href: "/reports", label: "Тайлан", match: (p: string) => p.startsWith("/reports") },
+        {
+          href: "/reports",
+          label: "Тайлан",
+          match: (p: string) => p.startsWith("/reports"),
+        },
         // Гүйцэтгэгчийн жагсаалтад бусад компанийн мэдээлэл, нэвтрэх код
         // байдаг. Сервер 403 буцаадаг ч цэсэнд харуулах нь утгагүй.
         ...(me?.canManageContractors
@@ -56,7 +64,13 @@ export function AppHeader() {
             ]
           : []),
         ...(me?.canManageUsers
-          ? [{ href: "/users", label: "Хэрэглэгчид", match: (p: string) => p.startsWith("/users") }]
+          ? [
+              {
+                href: "/users",
+                label: "Хэрэглэгчид",
+                match: (p: string) => p.startsWith("/users"),
+              },
+            ]
           : []),
       ]
     : [
@@ -83,9 +97,10 @@ export function AppHeader() {
 
   return (
     <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4">
+      <div className="flex h-14 items-center gap-6 px-4">
         <Link href="/" className="font-semibold tracking-tight">
-          CPMS <span className="text-muted-foreground font-normal">· Хяналт</span>
+          CPMS{" "}
+          <span className="text-muted-foreground font-normal">· Хяналт</span>
         </Link>
 
         <nav className="flex items-center gap-1">
@@ -109,9 +124,15 @@ export function AppHeader() {
           {/* v2-д хэн нэвтэрснийг серверээс уншина — гүйцэтгэгчийн хувьд
               компанийн нэр гарах нь тэр өөрийн эрхээ таних гол шинж. */}
           {SHOW_V2_UI
-            ? me && <span className="text-muted-foreground hidden sm:inline">{me.name}</span>
+            ? me && (
+                <span className="text-muted-foreground hidden sm:inline">
+                  {me.name}
+                </span>
+              )
             : role && (
-                <span className="text-muted-foreground hidden sm:inline">{ROLE_LABEL[role]}</span>
+                <span className="text-muted-foreground hidden sm:inline">
+                  {ROLE_LABEL[role]}
+                </span>
               )}
           <Button
             variant="outline"

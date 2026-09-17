@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 
 import { AuthGate } from "@/components/auth-gate";
 import { Providers } from "./providers";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
+// Монгол кирилл (Ө, Ү, ө, ү) нь Google Fonts-ийн cyrillic-ext subset-д багтдаг тул
+// cyrillic болон cyrillic-ext хоёуланг нь ачаална.
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin", "cyrillic", "cyrillic-ext"],
+});
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -21,7 +26,7 @@ export default function RootLayout({
     // өмнө attribute нэмдэг тул тухайн элемент дээр зөрүүг үл тоомсорлоно.
     <html
       lang="mn"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="bg-background min-h-full">
