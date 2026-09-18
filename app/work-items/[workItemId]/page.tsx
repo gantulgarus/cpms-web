@@ -37,7 +37,11 @@ import {
 import { ExtendDeadlineDialog } from "@/components/extend-deadline-dialog";
 import { IssuePanel } from "@/components/issue-panel";
 import { PhotoGallery } from "@/components/photo-gallery";
-import { downscale, PhotoPicker, type PickedPhoto } from "@/components/photo-picker";
+import {
+  downscale,
+  PhotoPicker,
+  type PickedPhoto,
+} from "@/components/photo-picker";
 import { PlanQuantityDialog } from "@/components/plan-quantity-dialog";
 import { ProgressBar } from "@/components/progress-bar";
 import { ErrorState, LoadingRows } from "@/components/states";
@@ -123,7 +127,9 @@ export default function WorkItemDetailPage() {
             {item.workType.name}
             <ReviewStateBadge state={item.reviewState} />
             {item.overdueDays > 0 && (
-              <ToneBadge tone="red">{item.overdueDays} хоног хоцорсон</ToneBadge>
+              <ToneBadge tone="red">
+                {item.overdueDays} хоног хоцорсон
+              </ToneBadge>
             )}
           </span>
         }
@@ -140,26 +146,33 @@ export default function WorkItemDetailPage() {
           {/* Хугацаа хэтэрсэн бол шалтгааныг нь бүртгүүлж, огноог сунгах
               зам тэр дор нь өгнө — эс бөгөөс хоцролтын тоо хуримтлагдсаар
               байгаад утгагүй болно. */}
-          {item.overdueDays > 0 && item.status !== "completed" && me?.canEditPlan && (
-            <Card className="border-amber-500/40">
-              <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
-                <div className="text-sm">
-                  <div className="font-medium">Хугацаа {item.overdueDays} хоногоор хэтэрсэн</div>
-                  <div className="text-muted-foreground text-xs">
-                    Төлөвлөсөн дуусах огноо: {formatDate(item.plannedEndDate)}
+          {item.overdueDays > 0 &&
+            item.status !== "completed" &&
+            me?.canEditPlan && (
+              <Card className="border-amber-500/40">
+                <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
+                  <div className="text-sm">
+                    <div className="font-medium">
+                      Хугацаа {item.overdueDays} хоногоор хэтэрсэн
+                    </div>
+                    <div className="text-muted-foreground text-xs">
+                      Төлөвлөсөн дуусах огноо: {formatDate(item.plannedEndDate)}
+                    </div>
                   </div>
-                </div>
-                <Button variant="outline" onClick={() => setExtending(true)}>
-                  <CalendarPlus className="size-4" /> Хугацаа сунгах
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+                  <Button variant="outline" onClick={() => setExtending(true)}>
+                    <CalendarPlus className="size-4" /> Хугацаа сунгах
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
           {/* Буцаагдсан ажил дээр «одоо яах вэ» гэдэг нь хамгийн эхний
               асуулт — тиймээс бүх зүйлийн дээр. */}
           {item.reviewState === "returned" && (
-            <ReturnedNotice item={item} inspections={inspectionsQuery.data?.data} />
+            <ReturnedNotice
+              item={item}
+              inspections={inspectionsQuery.data?.data}
+            />
           )}
 
           <QuantityCard
@@ -176,14 +189,23 @@ export default function WorkItemDetailPage() {
             onChange={refreshAll}
           />
 
-          <Timeline progress={progressQuery.data?.data} inspections={inspectionsQuery.data?.data} />
+          <Timeline
+            progress={progressQuery.data?.data}
+            inspections={inspectionsQuery.data?.data}
+          />
         </div>
 
         <aside className="space-y-4">
-          {me?.canReportProgress && <ReportProgressCard item={item} onDone={refreshAll} />}
+          {me?.canReportProgress && (
+            <ReportProgressCard item={item} onDone={refreshAll} />
+          )}
 
           {me?.canInspect && (
-            <InspectionCard item={item} pendingQty={pendingQty} onDone={refreshAll} />
+            <InspectionCard
+              item={item}
+              pendingQty={pendingQty}
+              onDone={refreshAll}
+            />
           )}
 
           {/* Саатлын шалтгаан — хэн ч бүртгэж болно. Хязгаарлавал хүмүүс
@@ -196,14 +218,16 @@ export default function WorkItemDetailPage() {
             <Card>
               <CardContent className="space-y-2 pt-6">
                 <p className="text-muted-foreground text-sm">
-                  Энэ ажил буруу нэмэгдсэн эсвэл энэ барилгад хамаарахгүй бол устгаж болно.
+                  Энэ ажил буруу нэмэгдсэн эсвэл энэ барилгад хамаарахгүй бол
+                  устгаж болно.
                 </p>
                 <Button
                   variant="destructive"
                   size="sm"
                   disabled={remove.isPending}
                   onClick={() => {
-                    if (confirm(`«${item.name}» ажлыг устгах уу?`)) remove.mutate();
+                    if (confirm(`«${item.name}» ажлыг устгах уу?`))
+                      remove.mutate();
                   }}
                 >
                   <Trash2 className="size-3.5" /> Ажлыг устгах
@@ -274,10 +298,15 @@ function QuantityCard({
           {rows.map((r) => (
             <div key={r.label}>
               <div
-                className={cn("text-xl font-semibold tabular-nums", r.strong && "text-emerald-600")}
+                className={cn(
+                  "text-xl font-semibold tabular-nums",
+                  r.strong && "text-emerald-600",
+                )}
               >
                 {formatQty(r.value)}{" "}
-                <span className="text-muted-foreground text-sm font-normal">{item.unit}</span>
+                <span className="text-muted-foreground text-sm font-normal">
+                  {item.unit}
+                </span>
               </div>
               <div className="text-muted-foreground text-sm">{r.label}</div>
             </div>
@@ -309,15 +338,17 @@ function QuantityCard({
           <div className="bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-200 flex flex-wrap items-start gap-2 rounded-lg p-3 text-xs">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" />
             <span className="min-w-0 flex-1">
-              Энэ ажилд төлөвлөгөөт тоо хэмжээ оруулаагүй байна. Тоо хэмжээгүй бол үлдэгдэл 0 тул{" "}
-              <strong>гүйцэтгэл бүртгэх боломжгүй</strong>.
+              Энэ ажилд төлөвлөгөөт тоо хэмжээ оруулаагүй байна. Тоо хэмжээгүй
+              бол үлдэгдэл 0 тул <strong>гүйцэтгэл бүртгэх боломжгүй</strong>.
             </span>
             {canEditPlan ? (
               <Button size="sm" variant="outline" onClick={onEditQty}>
                 <Pencil className="size-3.5" /> Тоо хэмжээ оруулах
               </Button>
             ) : (
-              <span className="w-full">Ерөнхий инженер эсвэл төслийн менежерт хандана уу.</span>
+              <span className="w-full">
+                Ерөнхий инженер эсвэл төслийн менежерт хандана уу.
+              </span>
             )}
           </div>
         )}
@@ -325,7 +356,10 @@ function QuantityCard({
         <dl className="text-muted-foreground grid grid-cols-2 gap-x-8 gap-y-2 border-t pt-4 text-sm">
           <Detail label="Байршил" value={item.location.path} />
           <Detail label="Ажлын бүлэг" value={item.workType.groupName ?? "—"} />
-          <Detail label="Гүйцэтгэгч" value={item.contractor?.name ?? "Хариуцагчгүй"} />
+          <Detail
+            label="Гүйцэтгэгч"
+            value={item.contractor?.name ?? "Хариуцагчгүй"}
+          />
           <Detail
             label="Хугацаа"
             value={`${item.plannedStartDate ?? "—"} — ${item.plannedEndDate ?? "—"}`}
@@ -347,7 +381,13 @@ function Detail({ label, value }: { label: string; value: string }) {
 
 // ---------------------------------------------------------------------------
 
-function ReportProgressCard({ item, onDone }: { item: WorkItem; onDone: () => void }) {
+function ReportProgressCard({
+  item,
+  onDone,
+}: {
+  item: WorkItem;
+  onDone: () => void;
+}) {
   const [qty, setQty] = useState("");
   const [workers, setWorkers] = useState("");
   const [remarks, setRemarks] = useState("");
@@ -356,9 +396,12 @@ function ReportProgressCard({ item, onDone }: { item: WorkItem; onDone: () => vo
   const [confirmedNoPhoto, setConfirmedNoPhoto] = useState(false);
 
   // Урьдчилан харах хаягууд нь хөтчийн санах ойд үлддэг — салахдаа чөлөөлнө.
-  useEffect(() => () => picked.forEach((p) => URL.revokeObjectURL(p.previewUrl)), [picked]);
+  useEffect(
+    () => () => picked.forEach((p) => URL.revokeObjectURL(p.previewUrl)),
+    [picked],
+  );
 
-  const remaining = Math.max(item.plannedQty - item.reportedQty, 0);
+  const remaining = reportableQty(item);
 
   const reset = () => {
     setQty("");
@@ -391,7 +434,12 @@ function ReportProgressCard({ item, onDone }: { item: WorkItem; onDone: () => vo
       let failed = 0;
       for (const p of picked) {
         try {
-          await workItems.addPhoto(item.id, await downscale(p.file), photoType, entry.id);
+          await workItems.addPhoto(
+            item.id,
+            await downscale(p.file),
+            photoType,
+            entry.id,
+          );
         } catch {
           failed++;
         }
@@ -400,8 +448,14 @@ function ReportProgressCard({ item, onDone }: { item: WorkItem; onDone: () => vo
       return { count: picked.length - failed, failed };
     },
     onSuccess: ({ count, failed }) => {
-      toast.success("Гүйцэтгэл бүртгэгдлээ" + (count > 0 ? ` · ${count} зураг хавсаргав` : ""));
-      if (failed > 0) toast.error(`${failed} зураг илгээгдсэнгүй. Галерейгаас дахин нэмнэ үү.`);
+      toast.success(
+        "Гүйцэтгэл бүртгэгдлээ" +
+          (count > 0 ? ` · ${count} зураг хавсаргав` : ""),
+      );
+      if (failed > 0)
+        toast.error(
+          `${failed} зураг илгээгдсэнгүй. Галерейгаас дахин нэмнэ үү.`,
+        );
       reset();
       onDone();
     },
@@ -410,7 +464,8 @@ function ReportProgressCard({ item, onDone }: { item: WorkItem; onDone: () => vo
 
   const value = Number(qty);
   const invalid =
-    qty !== "" && (!Number.isFinite(value) || value <= 0 || value > remaining + 0.001);
+    qty !== "" &&
+    (!Number.isFinite(value) || value <= 0 || value > remaining + 0.001);
   // Тоо хэмжээ бичсэн атлаа зураг сонгоогүй үед л анхааруулна — хоосон
   // маягт дээр анхааруулга гаргах нь зүгээр л шуугиан.
   const needsPhotoWarning = Boolean(qty) && !invalid && picked.length === 0;
@@ -428,8 +483,8 @@ function ReportProgressCard({ item, onDone }: { item: WorkItem; onDone: () => vo
           required
           hint={
             item.reviewState === "returned"
-              ? `Татгалзсан хэмжээ буцаж нэмэгдсэн — оруулах боломжтой ${formatQty(remaining, item.unit)}`
-              : `Үлдэгдэл ${formatQty(remaining, item.unit)}`
+              ? `Татгалзсан хэмжээ буцаж нэмэгдсэн — мэдээлэх боломжтой ${formatQty(remaining, item.unit)}`
+              : `Мэдээлэх боломжтой ${formatQty(remaining, item.unit)}`
           }
         >
           <Input
@@ -439,14 +494,36 @@ function ReportProgressCard({ item, onDone }: { item: WorkItem; onDone: () => vo
             max={remaining}
             step="0.001"
             value={qty}
-            onChange={(e) => setQty(e.target.value)}
+            /*
+             * Хязгаараас давсан утгыг ХҮЛЭЭЖ АВАХГҮЙ.
+             *
+             * `max` атрибут нь зөвхөн сумтай товч ба маягтын валидацид үйлчилдэг
+             * тул гараар бичихэд ямар ч тоо ордог байв: хэрэглэгч 500 бичээд
+             * «Илгээх» дараад л сервер 422 буцаадаг.
+             *
+             * Бутархайд саад болохгүй: тоо нь оронгоор өсдөг тул «459.» → 459,
+             * «459.1» → 459.1 гэж үе шаттай шалгагдана. Давсан алхмыг л
+             * буцаана — бичсэн зүйлийг ЧИМЭЭГҮЙ ӨӨРЧЛӨХГҮЙ, зүгээр л оруулахгүй.
+             */
+            onChange={(e) => {
+              const raw = e.target.value;
+              const next = Number(raw);
+              if (
+                raw !== "" &&
+                Number.isFinite(next) &&
+                next > remaining + 0.001
+              )
+                return;
+              setQty(raw);
+            }}
             aria-invalid={invalid || undefined}
           />
         </FormField>
 
         {invalid && (
           <p className="text-destructive text-xs" role="alert">
-            0-ээс их, үлдэгдлээс бага байх ёстой.
+            0-ээс их, хамгийн ихдээ {formatQty(remaining, item.unit)} байх
+            ёстой.
           </p>
         )}
 
@@ -460,7 +537,11 @@ function ReportProgressCard({ item, onDone }: { item: WorkItem; onDone: () => vo
         </FormField>
 
         <FormField label="Тайлбар">
-          <Textarea rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} />
+          <Textarea
+            rows={2}
+            value={remarks}
+            onChange={(e) => setRemarks(e.target.value)}
+          />
         </FormField>
 
         <PhotoPicker
@@ -471,7 +552,10 @@ function ReportProgressCard({ item, onDone }: { item: WorkItem; onDone: () => vo
           onPick={(files) =>
             setPicked((prev) => [
               ...prev,
-              ...files.map((file) => ({ file, previewUrl: URL.createObjectURL(file) })),
+              ...files.map((file) => ({
+                file,
+                previewUrl: URL.createObjectURL(file),
+              })),
             ])
           }
           onRemove={(i) =>
@@ -490,8 +574,8 @@ function ReportProgressCard({ item, onDone }: { item: WorkItem; onDone: () => vo
             <p className="flex gap-1.5 text-xs">
               <ImageOff className="mt-0.5 size-3.5 shrink-0 text-amber-600" />
               <span>
-                Зураггүй гүйцэтгэлийг хяналтын инженер батлахад хүндрэлтэй — нотолгоо байхгүй тул
-                талбай дээр очиж шалгах шаардлагатай болно.
+                Зураггүй гүйцэтгэлийг хяналтын инженер батлахад хүндрэлтэй —
+                нотолгоо байхгүй тул талбай дээр очиж шалгах шаардлагатай болно.
               </span>
             </p>
             <label className="flex items-center gap-2 text-xs">
@@ -525,9 +609,10 @@ function ReportProgressCard({ item, onDone }: { item: WorkItem; onDone: () => vo
               // Буцаагдсан атлаа үлдэгдэл 0 гэдэг нь тооцоо хуучирсны шинж —
               // хэрэглэгчийг «яагаад ч юм болохгүй байна» гэж орхиж болохгүй.
               <>
-                Энэ ажил буцаагдсан ч үлдэгдэл 0 харагдаж байна. Тооцоо хуучирсан байж болзошгүй —
-                админд хандаж <code>php artisan cpms:recalculate</code> ажиллуулахыг хүсэх, эсвэл
-                хуудсыг дахин ачаална уу.
+                Энэ ажил буцаагдсан ч мэдээлэх зай 0 харагдаж байна. Тооцоо
+                хуучирсан байж болзошгүй — админд хандаж{" "}
+                <code>php artisan cpms:recalculate</code> ажиллуулахыг хүсэх,
+                эсвэл хуудсыг дахин ачаална уу.
               </>
             ) : (
               <>Энэ ажлын нийт тоо хэмжээ мэдээлэгдсэн байна.</>
@@ -542,13 +627,38 @@ function ReportProgressCard({ item, onDone }: { item: WorkItem; onDone: () => vo
 // ---------------------------------------------------------------------------
 
 /**
+ * Дахин мэдээлэх боломжит хэмжээ — МЭДЭЭЛСЭНЭЭС хасна, батлагдсанаас БИШ.
+ *
+ * Энэ нь «Тоо хэмжээ» хэсгийн `item.remainingQty`-гаас ЗОРИУДААР өөр:
+ *   remainingQty    = төлөвлөсөн − БАТЛАГДСАН   («хийж дуусгах ажил»)
+ *   reportableQty   = төлөвлөсөн − МЭДЭЭЛСЭН    («мэдээлэх зай»)
+ *
+ * Хоёулаа «үлдэгдэл» гэж нэрлэгдэж болохгүй: мэдээлчихсэн атлаа хараахан
+ * батлагдаагүй хэсгийг дахин мэдээлбэл тоо давхардана. Томьёо нь backend-ийн
+ * `StoreProgressRequest::after()`-тэй ЯГ ИЖИЛ — өөрчилвөл дэлгэц зөвшөөрсөн
+ * утгыг сервер 422-оор татгалзаж, хэрэглэгч гацна.
+ *
+ * НЭГ ГАЗАР байх учир нь: урьд нь энэ томьёо формд, `remainingQty` нь
+ * зааварт тавигдаж, нэг ажил дээр хоёр өөр «үлдэгдэл» харагддаг байв.
+ */
+function reportableQty(item: WorkItem): number {
+  return Math.max(item.plannedQty - item.reportedQty, 0);
+}
+
+/**
  * Буцаагдсан ажил дээрх заавар.
  *
  * ГОЛ САНАА: татгалзсан хэмжээ нь мэдээлсэн дүнгээс ХАСАГДДАГ тул ажлын
  * үлдэгдэл эргэж бүтэн болно. Гүйцэтгэгч засвараа ЯГ ЭНЭ МӨРӨН дээр дахин
  * мэдээлнэ — тусдаа «дахин хийх» ажил хайх шаардлагагүй.
  */
-function ReturnedNotice({ item, inspections }: { item: WorkItem; inspections?: Inspection[] }) {
+function ReturnedNotice({
+  item,
+  inspections,
+}: {
+  item: WorkItem;
+  inspections?: Inspection[];
+}) {
   const rejection = (inspections ?? []).find((i) => i.rejectedQty > 0);
 
   return (
@@ -574,12 +684,13 @@ function ReturnedNotice({ item, inspections }: { item: WorkItem; inspections?: I
         )}
 
         <p className="text-muted-foreground border-t pt-2">
-          Татгалзсан хэмжээ үлдэгдэлд эргэж нэмэгдсэн — одоо энэ ажлын үлдэгдэл{" "}
+          Татгалзсан хэмжээ буцаж нэмэгдсэн — одоо дахин мэдээлэх боломжтой{" "}
           <strong className="text-foreground tabular-nums">
-            {formatQty(item.remainingQty, item.unit)}
+            {formatQty(reportableQty(item), item.unit)}
           </strong>
-          . Засвараа хийсний дараа гүйцэтгэлээ <strong>энэ хуудсан дээр дахин</strong> бүртгэнэ үү —
-          тэр дор нь хяналтын инженерийн дараалалд орно.
+          . Засвараа хийсний дараа гүйцэтгэлээ{" "}
+          <strong>энэ хуудсан дээр дахин</strong> бүртгэнэ үү — тэр дор нь
+          хяналтын инженерийн дараалалд орно.
         </p>
       </CardContent>
     </Card>
@@ -616,12 +727,17 @@ function InspectionCard({
       workItems.addInspection(item.id, {
         stage,
         result,
-        acceptedQty: result === "rejected" ? 0 : Number(acceptedQty || pendingQty),
+        acceptedQty:
+          result === "rejected" ? 0 : Number(acceptedQty || pendingQty),
         reason: reason.trim() || undefined,
         checklist: template ? toChecklistPayload(answers) : undefined,
       }),
     onSuccess: (_data, result) => {
-      toast.success(result === "rejected" ? "Буцаагдлаа — дахин хийх ажил үүслээ" : "Батлагдлаа");
+      toast.success(
+        result === "rejected"
+          ? "Буцаагдлаа — дахин хийх ажил үүслээ"
+          : "Батлагдлаа",
+      );
       setAcceptedQty("");
       setReason("");
       setAnswers({});
@@ -684,7 +800,10 @@ function InspectionCard({
           </div>
         </FormField>
 
-        <FormField label={`Батлах тоо хэмжээ (${item.unit})`} hint="Хоосон бол бүгдийг батална.">
+        <FormField
+          label={`Батлах тоо хэмжээ (${item.unit})`}
+          hint="Хоосон бол бүгдийг батална."
+        >
           <Input
             type="number"
             min={0}
@@ -697,19 +816,35 @@ function InspectionCard({
         </FormField>
 
         {/* Чанарын хуудас — зөвхөн зурагт үндэслэн батлахыг хориглоно. */}
-        {template && <ChecklistForm template={template} answers={answers} onChange={setAnswers} />}
+        {template && (
+          <ChecklistForm
+            template={template}
+            answers={answers}
+            onChange={setAnswers}
+          />
+        )}
 
-        <FormField label="Тайлбар" hint="Буцаах эсвэл хэсэгчлэн батлахад заавал.">
-          <Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
+        <FormField
+          label="Тайлбар"
+          hint="Буцаах эсвэл хэсэгчлэн батлахад заавал."
+        >
+          <Textarea
+            rows={2}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+          />
         </FormField>
 
         <div className="flex gap-2">
           <Button
             className="flex-1"
-            disabled={act.isPending || (partial && !reason.trim()) || Boolean(blocker)}
+            disabled={
+              act.isPending || (partial && !reason.trim()) || Boolean(blocker)
+            }
             onClick={() => act.mutate(partial ? "partial" : "accepted")}
           >
-            <Check className="size-4" /> {partial ? "Хэсэгчлэн батлах" : "Батлах"}
+            <Check className="size-4" />{" "}
+            {partial ? "Хэсэгчлэн батлах" : "Батлах"}
           </Button>
           {/* Буцаахад checklist хаалт хамаарахгүй — тэнцээгүй зүйл байгаа
               нь яг буцаах шалтгаан. */}
@@ -729,7 +864,8 @@ function InspectionCard({
           <p className="text-destructive text-xs">{blocker}</p>
         ) : (
           <p className="text-muted-foreground text-xs">
-            Буцаахад дахин хийх ажил автоматаар үүсэж, зардал нь тусад нь бүртгэгдэнэ.
+            Буцаахад дахин хийх ажил автоматаар үүсэж, зардал нь тусад нь
+            бүртгэгдэнэ.
           </p>
         )}
       </CardContent>
@@ -752,7 +888,11 @@ function Timeline({
 }) {
   const events = useMemo<TimelineEvent[]>(() => {
     const merged: TimelineEvent[] = [
-      ...(progress ?? []).map((e) => ({ kind: "progress" as const, at: e.recordedAt, entry: e })),
+      ...(progress ?? []).map((e) => ({
+        kind: "progress" as const,
+        at: e.recordedAt,
+        entry: e,
+      })),
       ...(inspections ?? []).map((e) => ({
         kind: "inspection" as const,
         at: e.inspectedAt,
@@ -792,12 +932,17 @@ function Timeline({
                     <>
                       <div className="text-sm font-medium tabular-nums">
                         {formatQty(e.entry.completedQty)} мэдээлсэн
-                        {e.entry.workersCount ? ` · ${e.entry.workersCount} ажилтан` : ""}
+                        {e.entry.workersCount
+                          ? ` · ${e.entry.workersCount} ажилтан`
+                          : ""}
                       </div>
                       <div className="text-muted-foreground text-xs">
-                        {e.entry.reportedBy?.name ?? "—"} · {formatDateTime(e.at)}
+                        {e.entry.reportedBy?.name ?? "—"} ·{" "}
+                        {formatDateTime(e.at)}
                       </div>
-                      {e.entry.remarks && <p className="mt-1 text-sm">{e.entry.remarks}</p>}
+                      {e.entry.remarks && (
+                        <p className="mt-1 text-sm">{e.entry.remarks}</p>
+                      )}
 
                       {/* ЯГ ЭНЭ мэдээллийн нотолгоо. Урьд нь бүх зураг нэг
                           овоо болж, аль нь алиныхыг ялгах арга байгаагүй. */}
@@ -805,7 +950,11 @@ function Timeline({
                         <ul className="mt-2 flex flex-wrap gap-1.5">
                           {e.entry.photos.map((photo) => (
                             <li key={photo.id}>
-                              <a href={photoUrl(photo)} target="_blank" rel="noreferrer">
+                              <a
+                                href={photoUrl(photo)}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={photoUrl(photo)}
@@ -829,7 +978,8 @@ function Timeline({
                         {e.entry.result === "rejected"
                           ? "Буцаагдсан"
                           : `${formatQty(e.entry.acceptedQty)} батлагдсан`}
-                        {e.entry.rejectedQty > 0 && e.entry.result !== "rejected"
+                        {e.entry.rejectedQty > 0 &&
+                        e.entry.result !== "rejected"
                           ? ` · ${formatQty(e.entry.rejectedQty)} татгалзсан`
                           : ""}
                       </div>
@@ -837,11 +987,15 @@ function Timeline({
                         {e.entry.stage === "client"
                           ? "Захиалагчийн хяналт"
                           : "Ерөнхий гүйцэтгэгчийн хяналт"}
-                        {e.entry.inspector ? ` · ${e.entry.inspector.name}` : ""} ·{" "}
-                        {formatDateTime(e.at)}
+                        {e.entry.inspector
+                          ? ` · ${e.entry.inspector.name}`
+                          : ""}{" "}
+                        · {formatDateTime(e.at)}
                       </div>
                       {e.entry.reason && (
-                        <p className="text-destructive mt-1 text-sm">{e.entry.reason}</p>
+                        <p className="text-destructive mt-1 text-sm">
+                          {e.entry.reason}
+                        </p>
                       )}
                     </>
                   )}

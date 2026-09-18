@@ -15,12 +15,21 @@ import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Fragment, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, CalendarClock, ChevronRight, Plus, Users } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  CalendarClock,
+  ChevronRight,
+  Plus,
+  Ruler,
+  Users,
+} from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
 import { AddWorkTypeDialog } from "@/components/add-work-type-dialog";
 import { FloorDurationDialog } from "@/components/floor-duration-dialog";
 import { EmptyBlockSetup } from "@/components/empty-block-setup";
+import { MissingQuantitiesDialog } from "@/components/missing-quantities-dialog";
 import { ItemLegend, ProgressBar } from "@/components/progress-bar";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/states";
 import { ReviewStateBadge, ToneBadge } from "@/components/tone-badge";
@@ -89,6 +98,7 @@ export default function BlockProgressPage() {
   const [focus, setFocus] = useState<Selection | null>(null);
   const [addingWork, setAddingWork] = useState(false);
   const [editingDuration, setEditingDuration] = useState(false);
+  const [fixingQuantities, setFixingQuantities] = useState(false);
 
   const blockQuery = useQuery({
     queryKey: ["v2-block", blockId],
@@ -152,6 +162,19 @@ export default function BlockProgressPage() {
 
   const summary = summaryQuery.data;
   const totals = summary?.totals;
+
+  /*
+   * «Тоо хэмжээ нөхөх» товч харагдах уу.
+   *
+   * `unmeasuredItems` нь СЕРВЕРЭЭС ирнэ. Веб нь API-аас түрүүлж deploy
+   * хийгдвэл тэр талбар ирэхгүй бөгөөд `?? 0` гэж уншвал товч ХЭЗЭЭ Ч
+   * гарахгүй — веб шинэчлэгдсэн ч функц алга болсон мэт харагдана.
+   *
+   * Тиймээс «мэдэгдэхгүй» ба «тэг» хоёрыг ялгана: мэдэгдэхгүй бол товчийг
+   * үзүүлээд, цонх нь өөрөө «бүгд бүртгэгдсэн» гэж хэлнэ.
+   */
+  const unmeasured = totals?.unmeasuredItems;
+  const showFixQuantities = totals !== undefined && (unmeasured === undefined || unmeasured > 0);
   const meta = itemsQuery.data?.meta;
 
   if (blockQuery.error)
@@ -186,6 +209,17 @@ export default function BlockProgressPage() {
             {me?.canEditPlan && (
               <Button variant="outline" onClick={() => setEditingDuration(true)}>
                 <CalendarClock className="size-4" /> Хуваарь
+              </Button>
+            )}
+            {/* Тоо хэмжээгүй ажил байхад л гарна — байхгүй бол шуугиан. */}
+            {me?.canEditPlan && showFixQuantities && (
+              <Button variant="outline" onClick={() => setFixingQuantities(true)}>
+                <Ruler className="size-4" /> Тоо хэмжээ нөхөх
+                {unmeasured !== undefined && (
+                  <span className="tabular-nums opacity-70">
+                    {unmeasured.toLocaleString("mn-MN")}
+                  </span>
+                )}
               </Button>
             )}
             {/* Хариуцагч оноохгүй бол гүйцэтгэгч нэвтрээд юу ч харахгүй. */}
@@ -406,6 +440,11 @@ export default function BlockProgressPage() {
             open={addingWork}
             onOpenChange={setAddingWork}
             onDone={() => summaryQuery.refetch()}
+          />
+          <MissingQuantitiesDialog
+            blockId={blockId}
+            open={fixingQuantities}
+            onOpenChange={setFixingQuantities}
           />
           <FloorDurationDialog
             // Блокийн өгөгдөл дараа ирвэл талбарын анхны утга хуучирна —

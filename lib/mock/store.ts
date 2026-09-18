@@ -110,8 +110,7 @@ export function taktWindow(
   floorNo: number,
   order: number,
 ): { plannedStartDate: string; plannedEndDate: string } {
-  const duration =
-    level === "block" ? taktDays * Math.max(floors, 1) : taktDays;
+  const duration = level === "block" ? taktDays * Math.max(floors, 1) : taktDays;
   const offset = (Math.max(order, 0) + Math.max(floorNo, 0)) * taktDays;
   const plannedStartDate = addWeekdays(startDate, offset);
 
@@ -169,13 +168,7 @@ const CONTRACTORS: Contractor[] = (
     ["ctr-1", "Түшиг Констракшн", "Бетон, угсралт", "9911-2233", "TSH-2026"],
     ["ctr-2", "Мөнх Хишиг ХХК", "Өрлөг, шавардлага", "9922-3344", "MNH-2026"],
     ["ctr-3", "Сүлд Фасад", "Фасад, цонх", "9933-4455", "SLD-2026"],
-    [
-      "ctr-4",
-      "Эрчим Инженеринг",
-      "Цахилгаан, сантехник",
-      "9944-5566",
-      "ERH-2026",
-    ],
+    ["ctr-4", "Эрчим Инженеринг", "Цахилгаан, сантехник", "9944-5566", "ERH-2026"],
     ["ctr-5", "Гоо Засал ХХК", "Дотор засал", "9955-6677", "GOO-2026"],
     ["ctr-6", "Ногоон Тохижилт", "Гадна ажил", "9966-7788", "NGN-2026"],
   ] as const
@@ -379,20 +372,22 @@ function buildLocations(
   return out;
 }
 
-function deriveState(
-  planned: number,
-  reported: number,
-  accepted: number,
-  returned: boolean,
-) {
+function deriveState(planned: number, reported: number, accepted: number, returned: boolean) {
   let reviewState: ReviewState = "none";
   if (returned) reviewState = "returned";
   else if (reported <= 0) reviewState = "none";
   else if (accepted < reported) reviewState = "pending";
   else reviewState = "approved";
 
+  /*
+   * `planned > 0` нь ЗААВАЛ — backend-ийн `WorkItem::recalculate()`-тай ижил.
+   *
+   * Тоо хэмжээ нь бүртгэгдээгүй мөр дээр `accepted (0) >= planned (0)` үнэн
+   * болох тул энэ хамгаалалтгүй бол ХИЙГДЭЭГҮЙ ажил «дууссан» гэж тоологдоно.
+   * Нэг блокийн ~1,900 мөр ингэж худал дуусна.
+   */
   let status: WorkStatus = "not_started";
-  if (accepted >= planned) status = "completed";
+  if (planned > 0 && accepted >= planned) status = "completed";
   else if (reported > 0) status = "in_progress";
 
   return { reviewState, status };
@@ -414,8 +409,7 @@ function generateWorkItems(
   /** Явцын фронт — блок бүр өөр шатанд байхын тулд. Хоосон бол анхдагч. */
   progressFront: number = PROGRESS_FRONT,
 ): WorkItem[] {
-  const byLevel = (lv: LocationLevel) =>
-    locations.filter((l) => l.level === lv);
+  const byLevel = (lv: LocationLevel) => locations.filter((l) => l.level === lv);
   const today = new Date().toISOString().slice(0, 10);
   const out: WorkItem[] = [];
 
@@ -438,9 +432,7 @@ function generateWorkItems(
      * оноолт нь тусдаа алхам (`/work-items/assign`). Mock энд автоматаар
      * оноовол тэр алхам байхгүй байгааг нуух тул анхны demo блокт л ононо.
      */
-    const contractorId = simulateProgress
-      ? (GROUP_CONTRACTOR[wt.groupName] ?? null)
-      : null;
+    const contractorId = simulateProgress ? (GROUP_CONTRACTOR[wt.groupName] ?? null) : null;
 
     for (const loc of targets) {
       const id = `wi-${blockId}-${wt.id}-${loc.id}`;
@@ -455,40 +447,32 @@ function generateWorkItems(
         if (position <= progressFront - PROGRESS_BAND) ratio = 1;
         else if (position >= progressFront + PROGRESS_BAND) ratio = 0;
         else {
-          const t =
-            (progressFront + PROGRESS_BAND - position) / (2 * PROGRESS_BAND);
+          const t = (progressFront + PROGRESS_BAND - position) / (2 * PROGRESS_BAND);
           ratio = Math.max(0, Math.min(1, t * (0.75 + r() * 0.5)));
         }
       }
 
+      /*
+       * Мөр бүр тоо хэмжээтэй — backend-ийн seeder-тэй ижил.
+       *
+       * `estimated: true` мөрүүдийн тоо нь хэмжилт биш, төсөвчний ойролцоо
+       * тоо. Гэхдээ 0 үлдээвэл тэдгээрт гүйцэтгэл ОРУУЛАХ БОЛОМЖГҮЙ мухардмал
+       * мөр болно — ойролцоо тоотой байх нь дээр.
+       */
       const plannedQty = round(spec.plannedQty);
       const reportedQty = round(plannedQty * ratio);
       // Мэдээлсэн ажлын 2/3 нь бүрэн батлагдсан, үлдсэн нь хяналт хүлээж байна.
       const acceptedQty =
-        reportedQty <= 0
-          ? 0
-          : r() < 0.66
-            ? reportedQty
-            : round(reportedQty * (0.7 + r() * 0.25));
+        reportedQty <= 0 ? 0 : r() < 0.66 ? reportedQty : round(reportedQty * (0.7 + r() * 0.25));
       const returned = reportedQty > 0 && r() < 0.05;
-      const { reviewState, status } = deriveState(
-        plannedQty,
-        reportedQty,
-        acceptedQty,
-        returned,
-      );
+      const { reviewState, status } = deriveState(plannedQty, reportedQty, acceptedQty, returned);
 
       const startOffset = order * 26 + floorNo * 11;
       const plannedStartDate = addDays(startDate, startOffset);
-      const plannedEndDate = addDays(
-        startDate,
-        startOffset + 12 + Math.floor(r() * 10),
-      );
+      const plannedEndDate = addDays(startDate, startOffset + 12 + Math.floor(r() * 10));
       const overdueDays =
         status !== "completed" && plannedEndDate < today
-          ? Math.round(
-              (Date.parse(today) - Date.parse(plannedEndDate)) / 86400000,
-            )
+          ? Math.round((Date.parse(today) - Date.parse(plannedEndDate)) / 86400000)
           : 0;
 
       out.push({
@@ -502,8 +486,7 @@ function generateWorkItems(
         reportedQty,
         acceptedQty,
         remainingQty: round(Math.max(plannedQty - acceptedQty, 0)),
-        percentage:
-          plannedQty > 0 ? Math.round((acceptedQty / plannedQty) * 100) : 0,
+        percentage: plannedQty > 0 ? Math.round((acceptedQty / plannedQty) * 100) : 0,
         plannedStartDate,
         plannedEndDate,
         status,
@@ -535,8 +518,7 @@ function rebuildDescendants(locations: Location[]): Map<string, Set<string>> {
     const cached = descendants.get(id);
     if (cached) return cached;
     const set = new Set<string>([id]);
-    for (const c of children.get(id) ?? [])
-      for (const d of collect(c)) set.add(d);
+    for (const c of children.get(id) ?? []) for (const d of collect(c)) set.add(d);
     descendants.set(id, set);
     return set;
   };
@@ -582,13 +564,10 @@ function build(): MockDb {
     purpose: s.purpose,
     floors: s.floors,
     unitsPerFloor: s.unitsPerFloor,
-    workTypeCount: raw.filter(
-      (w) => !s.excludeLevels?.includes(w.level as LocationLevel),
-    ).length,
+    workTypeCount: raw.filter((w) => !s.excludeLevels?.includes(w.level as LocationLevel)).length,
     estimatedItems: countItems(s, raw),
     missingQuantities: raw.filter(
-      (w) =>
-        w.estimated && !s.excludeLevels?.includes(w.level as LocationLevel),
+      (w) => w.estimated && !s.excludeLevels?.includes(w.level as LocationLevel),
     ).length,
   }));
 
@@ -628,12 +607,7 @@ function build(): MockDb {
 
   for (const extra of EXTRA_BLOCKS) {
     const spec = DESIGN_SPECS.find((d) => d.id === extra.designId)!;
-    const locs = buildLocations(
-      extra.id,
-      extra.name,
-      spec.floors,
-      spec.unitsPerFloor,
-    );
+    const locs = buildLocations(extra.id, extra.name, spec.floors, spec.unitsPerFloor);
     const items = generateWorkItems(
       extra.id,
       locs,
@@ -705,9 +679,7 @@ export interface CreateBlockInput {
  */
 export function createBlock(input: CreateBlockInput): Block | null {
   const store = getDb();
-  const spec = input.designId
-    ? DESIGN_SPECS.find((d) => d.id === input.designId)
-    : null;
+  const spec = input.designId ? DESIGN_SPECS.find((d) => d.id === input.designId) : null;
 
   // Загвар заасан ч олдохгүй бол алдаа — дуугүй өнгөрөх ёсгүй.
   if (input.designId && !spec) return null;
@@ -734,12 +706,7 @@ export function createBlock(input: CreateBlockInput): Block | null {
 
   // Загваргүй блокт байршил тэр дор нь үүснэ.
   if (!spec) {
-    const locations = buildLocations(
-      block.id,
-      block.name,
-      floors,
-      unitsPerFloor,
-    );
+    const locations = buildLocations(block.id, block.name, floors, unitsPerFloor);
     store.locations.push(...locations);
     store.descendants = rebuildDescendants(store.locations);
   }
@@ -754,11 +721,7 @@ export function createBlock(input: CreateBlockInput): Block | null {
  * Mock мөн адил ажилладаг: `jobId` буцаагаад, `GET /jobs/:id` дуудагдах бүрд
  * хэсэгчлэн үүсгэнэ. Ингэснээр дэлгэцийн poll хийх зам нь жинхэнээр шалгагдана.
  */
-export function startApplyJob(
-  blockId: string,
-  startDate: string,
-  designId?: string,
-): Job | null {
+export function startApplyJob(blockId: string, startDate: string, designId?: string): Job | null {
   const store = getDb();
   const block = store.blocks.find((b) => b.id === blockId);
 
@@ -783,12 +746,7 @@ export function startApplyJob(
   let locations = store.locations.filter((l) => l.blockId === blockId);
 
   if (locations.length === 0) {
-    locations = buildLocations(
-      blockId,
-      block.name,
-      spec.floors,
-      spec.unitsPerFloor,
-    );
+    locations = buildLocations(blockId, block.name, spec.floors, spec.unitsPerFloor);
     store.locations.push(...locations);
     store.descendants = rebuildDescendants(store.locations);
     block.designId = spec.id;
@@ -799,12 +757,8 @@ export function startApplyJob(
     block.designId ??= spec.id;
   }
 
-  const allowed = store.workTypes.filter(
-    (w) => !spec.excludeLevels?.includes(w.level),
-  );
-  const allowedRaw = raw.filter(
-    (w) => !spec.excludeLevels?.includes(w.level as LocationLevel),
-  );
+  const allowed = store.workTypes.filter((w) => !spec.excludeLevels?.includes(w.level));
+  const allowedRaw = raw.filter((w) => !spec.excludeLevels?.includes(w.level as LocationLevel));
   pendingWork.set(job.id, {
     blockId,
     locations,
@@ -935,29 +889,19 @@ export function inspectionsFor(item: WorkItem): Inspection[] {
 
   for (const [i, stage] of stages.entries()) {
     if (i === 1 && r() < 0.4) break; // захиалагчийн хяналт хараахан ороогүй
-    const isReturned =
-      item.reviewState === "returned" && i === stages.length - 1;
+    const isReturned = item.reviewState === "returned" && i === stages.length - 1;
     out.push({
       id: `insp-${item.id}-${stage}`,
       workItemId: item.id,
       stage,
-      result: isReturned
-        ? "rejected"
-        : rejectedQty > 0.01
-          ? "partial"
-          : "accepted",
+      result: isReturned ? "rejected" : rejectedQty > 0.01 ? "partial" : "accepted",
       acceptedQty: isReturned ? 0 : item.acceptedQty,
       rejectedQty: isReturned ? item.reportedQty : rejectedQty,
-      reason: isReturned
-        ? "Гадаргуугийн тэгш байдал зөрсөн — дахин хийх"
-        : undefined,
+      reason: isReturned ? "Гадаргуугийн тэгш байдал зөрсөн — дахин хийх" : undefined,
       inspectedAt: new Date(base + i * 2 * 86400000).toISOString(),
       inspector: {
         id: stage === "client" ? "usr-insp-cl" : "usr-insp-gc",
-        name:
-          stage === "client"
-            ? "Д.Хулан (захиалагч)"
-            : "С.Ганбат (ерөнхий гүйцэтгэгч)",
+        name: stage === "client" ? "Д.Хулан (захиалагч)" : "С.Ганбат (ерөнхий гүйцэтгэгч)",
       },
     });
   }

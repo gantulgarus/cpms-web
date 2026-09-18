@@ -100,12 +100,7 @@ const MOCK_ROLES = [
   { value: "contractor", label: "Туслан гүйцэтгэгч" },
 ];
 
-const REPORTER_ROLES = [
-  "site_engineer",
-  "contractor",
-  "project_manager",
-  "machine_operator",
-];
+const REPORTER_ROLES = ["site_engineer", "contractor", "project_manager", "machine_operator"];
 const INSPECTOR_ROLES = ["inspector", "general_engineer", "director", "admin"];
 const UNRESTRICTED_ROLES = ["admin", "director", "general_engineer"];
 /** Хэрэглэгч удирдах эрхтэй үүрэг — backend-ийн `USER_MANAGER_ROLES`. */
@@ -196,29 +191,27 @@ function getChecklistTemplates(): MockChecklistTemplate[] {
   if (checklistTemplates) return checklistTemplates;
 
   const db = getDb();
-  checklistTemplates = Object.entries(CHECKLIST_SEED).flatMap(
-    ([groupName, items]) => {
-      const group = db.groups.find((g) => g.name === groupName);
-      if (!group) return [];
+  checklistTemplates = Object.entries(CHECKLIST_SEED).flatMap(([groupName, items]) => {
+    const group = db.groups.find((g) => g.name === groupName);
+    if (!group) return [];
 
-      return [
-        {
-          id: `clt-${group.id}`,
-          name: `${groupName} — чанарын шалгалт`,
-          workTypeId: null,
-          groupId: group.id,
-          groupName,
-          isActive: true,
-          items: items.map(([text, isRequired], i) => ({
-            id: `cli-${group.id}-${i}`,
-            sequenceNumber: i,
-            text,
-            isRequired,
-          })),
-        },
-      ];
-    },
-  );
+    return [
+      {
+        id: `clt-${group.id}`,
+        name: `${groupName} — чанарын шалгалт`,
+        workTypeId: null,
+        groupId: group.id,
+        groupName,
+        isActive: true,
+        items: items.map(([text, isRequired], i) => ({
+          id: `cli-${group.id}-${i}`,
+          sequenceNumber: i,
+          text,
+          isRequired,
+        })),
+      },
+    ];
+  });
 
   return checklistTemplates;
 }
@@ -229,10 +222,7 @@ function resolveChecklist(item: WorkItem): MockChecklistTemplate | null {
   const group = db.groups.find((g) => g.name === item.workType.groupName);
   if (!group) return null;
 
-  return (
-    getChecklistTemplates().find((t) => t.isActive && t.groupId === group.id) ??
-    null
-  );
+  return getChecklistTemplates().find((t) => t.isActive && t.groupId === group.id) ?? null;
 }
 
 /**
@@ -393,22 +383,8 @@ const ISSUE_SEED: [string, string, number, number | null, string, string][] = [
     "Шаварчлагын гипс дутуу, хоёр давхрын ажил хүлээгдэж байна.",
     "Д.Хулан",
   ],
-  [
-    "material_shortage",
-    "low",
-    7,
-    2,
-    "Сантехникийн фитинг дутуу ирсэн.",
-    "Б.Тамир",
-  ],
-  [
-    "material_shortage",
-    "low",
-    5,
-    null,
-    "Хаалганы бэхэлгээний хэрэгсэл ирээгүй.",
-    "Б.Тамир",
-  ],
+  ["material_shortage", "low", 7, 2, "Сантехникийн фитинг дутуу ирсэн.", "Б.Тамир"],
+  ["material_shortage", "low", 5, null, "Хаалганы бэхэлгээний хэрэгсэл ирээгүй.", "Б.Тамир"],
   // --- Гүйцэтгэгч хоцорсон ---
   [
     "contractor_late",
@@ -434,14 +410,7 @@ const ISSUE_SEED: [string, string, number, number | null, string, string][] = [
     "Өмнөх давхрын ажил дуусаагүй тул эхлэл хойшлов.",
     "Б.Тамир",
   ],
-  [
-    "contractor_late",
-    "low",
-    15,
-    6,
-    "Ээлжийн ажилчид оройтож ирсэн.",
-    "Д.Хулан",
-  ],
+  ["contractor_late", "low", 15, 6, "Ээлжийн ажилчид оройтож ирсэн.", "Д.Хулан"],
   [
     "contractor_late",
     "medium",
@@ -458,104 +427,20 @@ const ISSUE_SEED: [string, string, number, number | null, string, string][] = [
     "Хоёр дахь удаагаа хуваарь алдсан — сануулга өгөв.",
     "Б.Батбаяр",
   ],
-  [
-    "contractor_late",
-    "low",
-    8,
-    3,
-    "Баг өглөөний ээлжид бүрэн бүрэлдэхүүнээр ирээгүй.",
-    "Б.Тамир",
-  ],
-  [
-    "contractor_late",
-    "medium",
-    6,
-    null,
-    "Угсралтын баг өөр объект дээр саатсан.",
-    "Б.Тамир",
-  ],
+  ["contractor_late", "low", 8, 3, "Баг өглөөний ээлжид бүрэн бүрэлдэхүүнээр ирээгүй.", "Б.Тамир"],
+  ["contractor_late", "medium", 6, null, "Угсралтын баг өөр объект дээр саатсан.", "Б.Тамир"],
   // --- Цаг агаар ---
-  [
-    "weather",
-    "medium",
-    23,
-    19,
-    "Хүчтэй салхины улмаас өндөрлөг дэх ажил зогссон.",
-    "Б.Тамир",
-  ],
-  [
-    "weather",
-    "high",
-    19,
-    null,
-    "Хасах 28 хэмд бетон цутгалт хойшлов.",
-    "Д.Хулан",
-  ],
-  [
-    "weather",
-    "medium",
-    15,
-    12,
-    "Бороо орсон тул фасадны будгийн ажил зогсов.",
-    "Б.Тамир",
-  ],
-  [
-    "weather",
-    "low",
-    12,
-    10,
-    "Цасны улмаас гадна талбайн ажил хагас өдөр зогссон.",
-    "Б.Тамир",
-  ],
-  [
-    "weather",
-    "medium",
-    8,
-    null,
-    "Шороон шуурганы улмаас гадна ажил түр зогслоо.",
-    "Д.Хулан",
-  ],
-  [
-    "weather",
-    "low",
-    4,
-    null,
-    "Шөнийн хүйтрэлтээс зуурмагийн чанар унасан.",
-    "Д.Хулан",
-  ],
+  ["weather", "medium", 23, 19, "Хүчтэй салхины улмаас өндөрлөг дэх ажил зогссон.", "Б.Тамир"],
+  ["weather", "high", 19, null, "Хасах 28 хэмд бетон цутгалт хойшлов.", "Д.Хулан"],
+  ["weather", "medium", 15, 12, "Бороо орсон тул фасадны будгийн ажил зогсов.", "Б.Тамир"],
+  ["weather", "low", 12, 10, "Цасны улмаас гадна талбайн ажил хагас өдөр зогссон.", "Б.Тамир"],
+  ["weather", "medium", 8, null, "Шороон шуурганы улмаас гадна ажил түр зогслоо.", "Д.Хулан"],
+  ["weather", "low", 4, null, "Шөнийн хүйтрэлтээс зуурмагийн чанар унасан.", "Д.Хулан"],
   // --- Техник эвдэрсэн ---
-  [
-    "equipment_failure",
-    "high",
-    22,
-    15,
-    "Цамхаг кран эвдэрч, засварт 2 хоног зогсов.",
-    "Б.Тамир",
-  ],
-  [
-    "equipment_failure",
-    "medium",
-    18,
-    null,
-    "Барилгын өргөгч шат ажиллахгүй болов.",
-    "Б.Тамир",
-  ],
-  [
-    "equipment_failure",
-    "medium",
-    14,
-    null,
-    "Бетон шахуургын хоолой гэмтсэн.",
-    "Б.Тамир",
-  ],
-  [
-    "equipment_failure",
-    "low",
-    9,
-    5,
-    "Гагнуурын аппарат тасалдсан — нөөцөөр сольсон.",
-    "Д.Хулан",
-  ],
+  ["equipment_failure", "high", 22, 15, "Цамхаг кран эвдэрч, засварт 2 хоног зогсов.", "Б.Тамир"],
+  ["equipment_failure", "medium", 18, null, "Барилгын өргөгч шат ажиллахгүй болов.", "Б.Тамир"],
+  ["equipment_failure", "medium", 14, null, "Бетон шахуургын хоолой гэмтсэн.", "Б.Тамир"],
+  ["equipment_failure", "low", 9, 5, "Гагнуурын аппарат тасалдсан — нөөцөөр сольсон.", "Д.Хулан"],
   [
     "equipment_failure",
     "high",
@@ -565,14 +450,7 @@ const ISSUE_SEED: [string, string, number, number | null, string, string][] = [
     "Б.Батбаяр",
   ],
   // --- Гүйцэтгэгч ирээгүй ---
-  [
-    "no_contractor",
-    "high",
-    20,
-    null,
-    "Товлосон өдөр баг талбайд огт ирээгүй.",
-    "Б.Батбаяр",
-  ],
+  ["no_contractor", "high", 20, null, "Товлосон өдөр баг талбайд огт ирээгүй.", "Б.Батбаяр"],
   [
     "no_contractor",
     "medium",
@@ -581,30 +459,9 @@ const ISSUE_SEED: [string, string, number, number | null, string, string][] = [
     "Хариуцагч солигдож, хүлээлцэх хугацаа шаардагдсан.",
     "Б.Батбаяр",
   ],
-  [
-    "no_contractor",
-    "medium",
-    12,
-    null,
-    "Энэ ажилд гүйцэтгэгч оноогдоогүй байна.",
-    "Б.Тамир",
-  ],
-  [
-    "no_contractor",
-    "low",
-    7,
-    null,
-    "Туслан гүйцэтгэгч холбоо барихгүй байна.",
-    "Б.Тамир",
-  ],
-  [
-    "no_contractor",
-    "high",
-    3,
-    null,
-    "Гэрээ цуцлагдаж, шинэ гүйцэтгэгч сонгогдоогүй.",
-    "Б.Батбаяр",
-  ],
+  ["no_contractor", "medium", 12, null, "Энэ ажилд гүйцэтгэгч оноогдоогүй байна.", "Б.Тамир"],
+  ["no_contractor", "low", 7, null, "Туслан гүйцэтгэгч холбоо барихгүй байна.", "Б.Тамир"],
+  ["no_contractor", "high", 3, null, "Гэрээ цуцлагдаж, шинэ гүйцэтгэгч сонгогдоогүй.", "Б.Батбаяр"],
   // --- Гомдол ---
   [
     "complaint",
@@ -614,14 +471,7 @@ const ISSUE_SEED: [string, string, number, number | null, string, string][] = [
     "Оршин суугчаас шөнийн дуу чимээний талаар гомдол ирсэн.",
     "Б.Батбаяр",
   ],
-  [
-    "complaint",
-    "low",
-    11,
-    null,
-    "Барилгын хог зам хаасан тухай гомдол.",
-    "Б.Тамир",
-  ],
+  ["complaint", "low", 11, null, "Барилгын хог зам хаасан тухай гомдол.", "Б.Тамир"],
   [
     "complaint",
     "medium",
@@ -634,8 +484,7 @@ const ISSUE_SEED: [string, string, number, number | null, string, string][] = [
 
 let issuesSeeded = false;
 
-const daysAgoIso = (days: number): string =>
-  new Date(Date.now() - days * 86_400_000).toISOString();
+const daysAgoIso = (days: number): string => new Date(Date.now() - days * 86_400_000).toISOString();
 
 /**
  * `ISSUE_SEED`-ийг бодит ажлын мөрүүд дээр буулгана.
@@ -654,27 +503,24 @@ function seedIssues(): void {
     .sort((a, b) => a.id.localeCompare(b.id));
   if (candidates.length === 0) return;
 
-  ISSUE_SEED.forEach(
-    ([category, severity, days, resolvedDays, description, reportedBy], i) => {
-      const item =
-        candidates[Math.floor((i * candidates.length) / ISSUE_SEED.length)];
-      const issue: MockIssue = {
-        id: `iss-seed-${i}`,
-        workItemId: item.id,
-        workItemName: item.name,
-        ...issuePlace(item),
-        category,
-        categoryLabel: ISSUE_LABELS[category],
-        severity,
-        status: resolvedDays === null ? "open" : "resolved",
-        description,
-        reportedBy,
-        createdAt: daysAgoIso(days),
-        resolvedAt: resolvedDays === null ? null : daysAgoIso(resolvedDays),
-      };
-      mockIssues.set(item.id, [...(mockIssues.get(item.id) ?? []), issue]);
-    },
-  );
+  ISSUE_SEED.forEach(([category, severity, days, resolvedDays, description, reportedBy], i) => {
+    const item = candidates[Math.floor((i * candidates.length) / ISSUE_SEED.length)];
+    const issue: MockIssue = {
+      id: `iss-seed-${i}`,
+      workItemId: item.id,
+      workItemName: item.name,
+      ...issuePlace(item),
+      category,
+      categoryLabel: ISSUE_LABELS[category],
+      severity,
+      status: resolvedDays === null ? "open" : "resolved",
+      description,
+      reportedBy,
+      createdAt: daysAgoIso(days),
+      resolvedAt: resolvedDays === null ? null : daysAgoIso(resolvedDays),
+    };
+    mockIssues.set(item.id, [...(mockIssues.get(item.id) ?? []), issue]);
+  });
 }
 
 /** Бүх саатал — уншихаас өмнө seed нь заавал буусан байна. */
@@ -684,23 +530,20 @@ function allIssues(): MockIssue[] {
   return [...mockIssues.values()].flat();
 }
 
-const mockUsers: MockUser[] = [
-  "admin",
-  "director",
-  "inspector",
-  "site_engineer",
-].map((role, i) => ({
-  id: `usr-seed-${i}`,
-  name: MOCK_ROLES.find((r) => r.value === role)!.label,
-  email: `${role}@cpms.test`,
-  role,
-  roleLabel: MOCK_ROLES.find((r) => r.value === role)!.label,
-  scopeBlockIds: [],
-  contractorId: null,
-  isActive: true,
-  canReportProgress: REPORTER_ROLES.includes(role),
-  canInspect: INSPECTOR_ROLES.includes(role),
-}));
+const mockUsers: MockUser[] = ["admin", "director", "inspector", "site_engineer"].map(
+  (role, i) => ({
+    id: `usr-seed-${i}`,
+    name: MOCK_ROLES.find((r) => r.value === role)!.label,
+    email: `${role}@cpms.test`,
+    role,
+    roleLabel: MOCK_ROLES.find((r) => r.value === role)!.label,
+    scopeBlockIds: [],
+    contractorId: null,
+    isActive: true,
+    canReportProgress: REPORTER_ROLES.includes(role),
+    canInspect: INSPECTOR_ROLES.includes(role),
+  }),
+);
 
 /**
  * Бүртгэлийн мөрөөс нэвтрэлтийн сесс үүсгэнэ.
@@ -721,8 +564,7 @@ function sessionFor(user: MockUser): MockSession {
     canManageContractors: USER_MANAGER_ROLES.includes(user.role),
     canManageUsers: USER_MANAGER_ROLES.includes(user.role),
     canManageReferenceData: UNRESTRICTED_ROLES.includes(user.role),
-    canEditPlan:
-      UNRESTRICTED_ROLES.includes(user.role) || user.role === "project_manager",
+    canEditPlan: UNRESTRICTED_ROLES.includes(user.role) || user.role === "project_manager",
     scopeBlockIds: user.scopeBlockIds,
   };
 }
@@ -749,14 +591,11 @@ function contractorSession(id: string, name: string): MockSession {
 }
 
 /** Гүйцэтгэгчийн сесс үү? */
-const isRep = () =>
-  session.role === "contractor" && session.contractorId !== null;
+const isRep = () => session.role === "contractor" && session.contractorId !== null;
 
 /** Бүх блок харах эрхтэй юу — backend-ийн `User::canSeeAllBlocks()`. */
 const seesAllBlocks = () =>
-  !isRep() &&
-  (UNRESTRICTED_ROLES.includes(session.role) ||
-    session.scopeBlockIds.length === 0);
+  !isRep() && (UNRESTRICTED_ROLES.includes(session.role) || session.scopeBlockIds.length === 0);
 
 /**
  * Хамрах хүрээ — жагсаалт, нэгтгэл, dashboard бүгд ҮҮГЭЭР дамжина.
@@ -770,8 +609,7 @@ const seesAllBlocks = () =>
  * 403 авна.
  */
 function inScope(items: WorkItem[]): WorkItem[] {
-  if (isRep())
-    return items.filter((w) => w.contractor?.id === session.contractorId);
+  if (isRep()) return items.filter((w) => w.contractor?.id === session.contractorId);
   if (seesAllBlocks()) return items;
 
   return items.filter((w) => session.scopeBlockIds.includes(w.blockId));
@@ -811,31 +649,34 @@ const round = (n: number) => Math.round(n * 1000) / 1000;
  * үүнийг дуудна. Урьд нь самбар дундажаар, блокийн хуудас тоо хэмжээгээр
  * боддог байсан тул нэг блок 3% ба 11% гэж хоёр өөр харагдаж байв.
  */
-function avgPercentage(
-  rows: { plannedQty: number; acceptedQty: number }[],
-): number {
-  if (rows.length === 0) return 0;
-  const sum = rows.reduce(
-    (s, w) =>
-      s + (w.plannedQty > 0 ? Math.min(w.acceptedQty / w.plannedQty, 1) : 0),
-    0,
-  );
+function avgPercentage(rows: { plannedQty: number; acceptedQty: number }[]): number {
+  /*
+   * Хуваарь нь ХЭМЖИГДЭХ мөрүүд.
+   *
+   * Тоо хэмжээ нь бүртгэгдээгүй ажил «0% хийгдсэн» БИШ, «хэмжих боломжгүй».
+   * Хоёуланг нь ижил гэж үзвэл мөрүүдийнхээ 58% нь тоо хэмжээгүй блокийн
+   * хувь мөнхөд 42%-иас хэтрэхгүй болно.
+   */
+  const measurable = rows.filter((w) => w.plannedQty > 0);
+  if (measurable.length === 0) return 0;
 
-  return Math.round((sum / rows.length) * 100);
+  const sum = measurable.reduce((s, w) => s + Math.min(w.acceptedQty / w.plannedQty, 1), 0);
+
+  return Math.round((sum / measurable.length) * 100);
 }
 
 /** Төлөвийн тоолол — гурав нь харилцан үл огтлолцоно. */
-function statusCounts(rows: { status: string }[]): StatusCounts {
+function statusCounts(rows: { status: string; plannedQty: number }[]): StatusCounts {
   const completedItems = rows.filter((w) => w.status === "completed").length;
   const inProgressItems = rows.filter((w) => w.status === "in_progress").length;
 
   return {
     completedItems,
     inProgressItems,
-    notStartedItems: Math.max(
-      rows.length - completedItems - inProgressItems,
-      0,
-    ),
+    notStartedItems: Math.max(rows.length - completedItems - inProgressItems, 0),
+    // Эдгээр нь `notStartedItems`-ийн ДОТОР — тусдаа бүлэг биш, харин
+    // «яагаад эхлээгүй вэ» гэсэн асуултын хариулт.
+    unmeasuredItems: rows.filter((w) => w.plannedQty <= 0).length,
   };
 }
 
@@ -862,8 +703,7 @@ function applyPlannedQty(item: WorkItem, qty: number): void {
 function minDate(rows: WorkItem[]): string | null {
   let min: string | null = null;
   for (const w of rows) {
-    if (w.plannedStartDate && (min === null || w.plannedStartDate < min))
-      min = w.plannedStartDate;
+    if (w.plannedStartDate && (min === null || w.plannedStartDate < min)) min = w.plannedStartDate;
   }
 
   return min;
@@ -873,8 +713,7 @@ function minDate(rows: WorkItem[]): string | null {
 function maxDate(rows: WorkItem[]): string | null {
   let max: string | null = null;
   for (const w of rows) {
-    if (w.plannedEndDate && (max === null || w.plannedEndDate > max))
-      max = w.plannedEndDate;
+    if (w.plannedEndDate && (max === null || w.plannedEndDate > max)) max = w.plannedEndDate;
   }
 
   return max;
@@ -882,10 +721,7 @@ function maxDate(rows: WorkItem[]): string | null {
 
 function paginate<T>(rows: T[], q: URLSearchParams) {
   const page = Math.max(1, Number(q.get("page") ?? 1));
-  const pageSize = Math.min(
-    MAX_PAGE_SIZE,
-    Math.max(1, Number(q.get("pageSize") ?? 50)),
-  );
+  const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(q.get("pageSize") ?? 50)));
   const start = (page - 1) * pageSize;
   return {
     data: rows.slice(start, start + pageSize),
@@ -911,10 +747,7 @@ function filterWorkItems(items: WorkItem[], q: URLSearchParams): WorkItem[] {
     rows = rows.filter((w) => scope.has(w.locationId));
   }
 
-  const eq = (
-    key: string,
-    pick: (w: WorkItem) => string | null | undefined,
-  ) => {
+  const eq = (key: string, pick: (w: WorkItem) => string | null | undefined) => {
     const v = q.get(key);
     if (v) rows = rows.filter((w) => pick(w) === v);
   };
@@ -925,8 +758,7 @@ function filterWorkItems(items: WorkItem[], q: URLSearchParams): WorkItem[] {
   // `contractorId=none` — хариуцагч оноогдоогүй ажлууд.
   const contractorId = q.get("contractorId");
   if (contractorId === "none") rows = rows.filter((w) => !w.contractor);
-  else if (contractorId)
-    rows = rows.filter((w) => w.contractor?.id === contractorId);
+  else if (contractorId) rows = rows.filter((w) => w.contractor?.id === contractorId);
 
   const groupId = q.get("workTypeGroupId");
   if (groupId) {
@@ -941,8 +773,7 @@ function filterWorkItems(items: WorkItem[], q: URLSearchParams): WorkItem[] {
   if (search) {
     rows = rows.filter(
       (w) =>
-        w.name.toLowerCase().includes(search) ||
-        w.location.path.toLowerCase().includes(search),
+        w.name.toLowerCase().includes(search) || w.location.path.toLowerCase().includes(search),
     );
   }
   return rows;
@@ -969,9 +800,7 @@ function summarize(items: WorkItem[], groupBy: SummaryGroupBy): SummaryGroup[] {
       label = w.workType.name;
       filter = { workTypeId: key };
     } else if (groupBy === "workTypeGroup") {
-      key =
-        db.groups.find((g) => g.name === w.workType.groupName)?.id ??
-        w.workType.groupName;
+      key = db.groups.find((g) => g.name === w.workType.groupName)?.id ?? w.workType.groupName;
       label = w.workType.groupName;
       filter = { workTypeGroupId: key };
     } else if (groupBy === "contractor") {
@@ -983,10 +812,7 @@ function summarize(items: WorkItem[], groupBy: SummaryGroupBy): SummaryGroup[] {
       // зангилаа бүх зүйлийн эцэг тул удмаа хамруулахгүй, эс бөгөөс
       // "барилга бүхэлдээ" бүлэг дарахад бүх мөр гарч ирнэ.
       const loc = db.locations.find((l) => l.id === w.locationId);
-      const floor =
-        loc?.level === "unit"
-          ? db.locations.find((l) => l.id === loc.parentId)
-          : loc;
+      const floor = loc?.level === "unit" ? db.locations.find((l) => l.id === loc.parentId) : loc;
       const isRoot = floor?.level === "block";
       key = floor?.id ?? "loc-block";
       label = isRoot ? "Барилга бүхэлдээ" : (floor?.name ?? "Блок");
@@ -1013,8 +839,7 @@ function summarize(items: WorkItem[], groupBy: SummaryGroupBy): SummaryGroup[] {
         acceptedQty: round(acceptedQty),
         percentage: avgPercentage(b.rows),
         ...statusCounts(b.rows),
-        pendingInspections: b.rows.filter((w) => w.reviewState === "pending")
-          .length,
+        pendingInspections: b.rows.filter((w) => w.reviewState === "pending").length,
         overdue: b.rows.filter((w) => w.overdueDays > 0).length,
         plannedStartDate: minDate(b.rows),
         plannedEndDate: maxDate(b.rows),
@@ -1054,11 +879,11 @@ function recalcReview(item: WorkItem) {
 function recalc(item: WorkItem) {
   item.remainingQty = round(Math.max(item.plannedQty - item.acceptedQty, 0));
   item.percentage =
-    item.plannedQty > 0
-      ? Math.round((item.acceptedQty / item.plannedQty) * 100)
-      : 0;
+    item.plannedQty > 0 ? Math.round((item.acceptedQty / item.plannedQty) * 100) : 0;
+  // `plannedQty > 0` нь ЗААВАЛ — эс бөгөөс тоо хэмжээгүй мөр дээр
+  // `0 >= 0` үнэн болж, ХИЙГДЭЭГҮЙ ажил «дууссан» гэж тоологдоно.
   item.status =
-    item.acceptedQty >= item.plannedQty
+    item.plannedQty > 0 && item.acceptedQty >= item.plannedQty
       ? "completed"
       : item.reportedQty > 0
         ? "in_progress"
@@ -1097,9 +922,7 @@ export function handleMock(
      * хүрээтэй инженерийн урсгалыг mock дээр огт туршиж болдоггүй байв.
      */
     const email = (body as { email?: string })?.email?.trim();
-    const found = email
-      ? mockUsers.find((u) => u.email === email && u.isActive)
-      : undefined;
+    const found = email ? mockUsers.find((u) => u.email === email && u.isActive) : undefined;
 
     session = found ? sessionFor(found) : STAFF_SESSION;
 
@@ -1113,16 +936,10 @@ export function handleMock(
 
   if (a === "auth" && b === "contractor-login" && method === "POST") {
     const code = (body as { code?: string })?.code?.trim();
-    const contractor = db.contractors.find(
-      (x) => x.accessCode && x.accessCode === code,
-    );
+    const contractor = db.contractors.find((x) => x.accessCode && x.accessCode === code);
 
     if (!contractor) {
-      return fail(
-        422,
-        "ValidationError",
-        "Код буруу эсвэл хугацаа нь дууссан байна.",
-      );
+      return fail(422, "ValidationError", "Код буруу эсвэл хугацаа нь дууссан байна.");
     }
 
     session = contractorSession(contractor.id, contractor.name);
@@ -1167,8 +984,7 @@ export function handleMock(
     const contractor = db.contractors.find((x) => x.id === b);
     if (!contractor) return fail(404, "NotFound", "Гүйцэтгэгч олдсонгүй.");
     // v1 дэлгэц гүйцэтгэгчийн төслүүдийг асуудаг — v2-д блокоор буцаана.
-    if (c === "projects")
-      return ok({ data: [], meta: { total: 0, page: 1, pageSize: 50 } });
+    if (c === "projects") return ok({ data: [], meta: { total: 0, page: 1, pageSize: 50 } });
 
     // Нэвтрэх код олгох / хаах — mock-д санах ойд хадгална.
     if (c === "access-code") {
@@ -1212,10 +1028,8 @@ export function handleMock(
           password?: string;
           scopeBlockIds?: string[];
         };
-        if (!p?.name?.trim())
-          return fail(422, "ValidationError", "Нэр заавал.");
-        if (!p?.email?.trim())
-          return fail(422, "ValidationError", "Имэйл заавал.");
+        if (!p?.name?.trim()) return fail(422, "ValidationError", "Нэр заавал.");
+        if (!p?.email?.trim()) return fail(422, "ValidationError", "Имэйл заавал.");
         if (mockUsers.some((u) => u.email === p.email?.trim())) {
           return fail(422, "ValidationError", "Энэ имэйл бүртгэлтэй байна.");
         }
@@ -1256,8 +1070,7 @@ export function handleMock(
     const user = mockUsers.find((u) => u.id === b);
     if (!user) return fail(404, "NotFound", "Хэрэглэгч олдсонгүй.");
 
-    if (c === "reset-password")
-      return ok({ data: { temporaryPassword: "MOCK-RESET-5678" } });
+    if (c === "reset-password") return ok({ data: { temporaryPassword: "MOCK-RESET-5678" } });
 
     // Идэвхгүй болгоно — устгахгүй. Түүний мэдээлсэн явц эзэнгүй үлдэх ёсгүй.
     if (method === "DELETE") {
@@ -1302,11 +1115,7 @@ export function handleMock(
         USER_MANAGER_ROLES.includes(user.role) &&
         !USER_MANAGER_ROLES.includes(p.role)
       ) {
-        return fail(
-          422,
-          "ValidationError",
-          "Өөрийн эрхээ бууруулах боломжгүй.",
-        );
+        return fail(422, "ValidationError", "Өөрийн эрхээ бууруулах боломжгүй.");
       }
 
       if (p.name !== undefined) user.name = p.name.trim();
@@ -1319,8 +1128,7 @@ export function handleMock(
         // үлдэж, mock дээр «Захирал · мэдээлнэ» гэсэн боломжгүй хослол
         // үүсдэг байв.
         user.role = p.role;
-        user.roleLabel =
-          MOCK_ROLES.find((r) => r.value === p.role)?.label ?? p.role;
+        user.roleLabel = MOCK_ROLES.find((r) => r.value === p.role)?.label ?? p.role;
         user.canReportProgress = REPORTER_ROLES.includes(p.role);
         user.canInspect = INSPECTOR_ROLES.includes(p.role);
       }
@@ -1348,8 +1156,7 @@ export function handleMock(
         return fail(403, "Forbidden", "Танд лавлах сан засах эрх байхгүй.");
       }
       const p = body as { name?: string };
-      if (!p?.name?.trim())
-        return fail(422, "ValidationError", "Бүлгийн нэр заавал.");
+      if (!p?.name?.trim()) return fail(422, "ValidationError", "Бүлгийн нэр заавал.");
 
       const group = {
         id: mockId("wtg"),
@@ -1421,11 +1228,7 @@ export function handleMock(
     // Ашиглагдаж эхэлсэн төрөл нь мянган ажлын эцэг — устгавал түүх эзэнгүй болно.
     const used = db.workItems.filter((i) => i.workTypeId === b).length;
     if (used > 0) {
-      return fail(
-        409,
-        "Conflict",
-        `Энэ төрлөөр ${used} ажил үүссэн тул устгах боломжгүй.`,
-      );
+      return fail(409, "Conflict", `Энэ төрлөөр ${used} ажил үүссэн тул устгах боломжгүй.`);
     }
     const idx = db.workTypes.findIndex((w) => w.id === b);
     if (idx >= 0) db.workTypes.splice(idx, 1);
@@ -1445,11 +1248,7 @@ export function handleMock(
     if (c === "apply" && method === "POST") {
       const p = body as { blockId?: string; startDate?: string };
       if (!p?.blockId) return fail(422, "ValidationError", "blockId заавал.");
-      const job = startApplyJob(
-        p.blockId,
-        p.startDate ?? new Date().toISOString().slice(0, 10),
-        b,
-      );
+      const job = startApplyJob(p.blockId, p.startDate ?? new Date().toISOString().slice(0, 10), b);
       if (!job) return fail(404, "NotFound", "Блок олдсонгүй.");
       return { status: 202, body: { data: job } };
     }
@@ -1492,17 +1291,12 @@ export function handleMock(
           unitsPerFloor?: number;
           taktDays?: number;
         };
-        if (!p?.name?.trim())
-          return fail(422, "ValidationError", "Блокийн нэр заавал.");
+        if (!p?.name?.trim()) return fail(422, "ValidationError", "Блокийн нэр заавал.");
 
         // Загвар нь ЗААВАЛ БИШ — загваргүй бол давхрын тоо шаардлагатай, эс
         // бөгөөс байршил үүсгэх мэдээлэлгүй хоосон блок үлдэнэ.
         if (!p?.designId && !(Number(p?.floors) > 0)) {
-          return fail(
-            422,
-            "ValidationError",
-            "Загвар сонгоогүй бол давхрын тоог оруулна уу.",
-          );
+          return fail(422, "ValidationError", "Загвар сонгоогүй бол давхрын тоог оруулна уу.");
         }
 
         const block = createBlock({
@@ -1526,9 +1320,7 @@ export function handleMock(
        * инженерт зөвхөн оноосон барилга харагдана.
        */
       const visible = isRep()
-        ? db.blocks.filter((bl) =>
-            inScope(db.workItems).some((w) => w.blockId === bl.id),
-          )
+        ? db.blocks.filter((bl) => inScope(db.workItems).some((w) => w.blockId === bl.id))
         : seesAllBlocks()
           ? db.blocks
           : db.blocks.filter((bl) => session.scopeBlockIds.includes(bl.id));
@@ -1545,9 +1337,7 @@ export function handleMock(
       const accepted = items.reduce((s, w) => s + w.acceptedQty, 0);
       const reported = items.reduce((s, w) => s + w.reportedQty, 0);
       const openIssueRows = allIssues().filter(
-        (i) =>
-          i.status === "open" &&
-          new Set(items.map((w) => w.id)).has(i.workItemId),
+        (i) => i.status === "open" && new Set(items.map((w) => w.id)).has(i.workItemId),
       );
       const byCategory = new Map<string, number>();
       for (const i of openIssueRows)
@@ -1587,14 +1377,11 @@ export function handleMock(
               plannedQty: round(p),
               reportedQty: round(rows.reduce((s, w) => s + w.reportedQty, 0)),
               acceptedQty: round(acc),
-              pendingInspections: rows.filter(
-                (w) => w.reviewState === "pending",
-              ).length,
+              pendingInspections: rows.filter((w) => w.reviewState === "pending").length,
               overdue: rows.filter((w) => w.overdueDays > 0).length,
             };
           }),
-        pendingInspections: items.filter((w) => w.reviewState === "pending")
-          .length,
+        pendingInspections: items.filter((w) => w.reviewState === "pending").length,
         // Босго нь блокийн картынхтай ИЖИЛ байх ёстой (`> 0`). Урьд нь энд
         // `>= 3` байсан тул самбар "52 хоцорсон" гэж бичээд, блокуудын нийлбэр
         // 56 гардаг байв — хэрэглэгч алины нь зөв болохыг мэдэхгүй.
@@ -1603,8 +1390,7 @@ export function handleMock(
         openIssues: openIssueRows.length,
         issuesByCategory: [...byCategory.entries()]
           .map(([category, count]) => ({
-            category:
-              category as ProjectDashboard["issuesByCategory"][number]["category"],
+            category: category as ProjectDashboard["issuesByCategory"][number]["category"],
             categoryLabel: ISSUE_LABELS[category] ?? category,
             count,
           }))
@@ -1614,9 +1400,7 @@ export function handleMock(
     }
 
     if (c === "inspections") {
-      const rows = inScope(db.workItems).filter(
-        (w) => w.reviewState === "pending",
-      );
+      const rows = inScope(db.workItems).filter((w) => w.reviewState === "pending");
       return ok(paginate(rows, q));
     }
 
@@ -1636,11 +1420,7 @@ export function handleMock(
       const from = q.get("from") ?? "";
       const to = q.get("to") ?? "";
       if (!from || !to || from > to) {
-        return fail(
-          422,
-          "ValidationError",
-          "Дуусах огноо эхлэхээсээ өмнө байж болохгүй.",
-        );
+        return fail(422, "ValidationError", "Дуусах огноо эхлэхээсээ өмнө байж болохгүй.");
       }
 
       const stage = q.get("stage") ?? "client";
@@ -1710,9 +1490,7 @@ export function handleMock(
 
       return ok({
         data: {
-          contractor: contractor
-            ? { id: contractor.id, name: contractor.name }
-            : null,
+          contractor: contractor ? { id: contractor.id, name: contractor.name } : null,
           project: { id: MOCK_IDS.projectId, name: "75 барилгын цогцолбор" },
           period: { from, to },
           stage,
@@ -1789,8 +1567,7 @@ export function handleMock(
     if (!issue) return fail(404, "NotFound", "Асуудал олдсонгүй.");
     const p = body as { status?: string };
     issue.status = p?.status ?? "resolved";
-    issue.resolvedAt =
-      issue.status === "resolved" ? new Date().toISOString() : null;
+    issue.resolvedAt = issue.status === "resolved" ? new Date().toISOString() : null;
 
     return ok({ data: issue });
   }
@@ -1851,10 +1628,7 @@ export function handleMock(
         };
         row.workItems += 1;
         if (w.contractor) {
-          row.byContractor.set(
-            w.contractor.id,
-            (row.byContractor.get(w.contractor.id) ?? 0) + 1,
-          );
+          row.byContractor.set(w.contractor.id, (row.byContractor.get(w.contractor.id) ?? 0) + 1);
         } else {
           row.unassigned += 1;
         }
@@ -1878,10 +1652,7 @@ export function handleMock(
 
     // Тоо хэмжээгүй ажлын төрлүүд — "юуг гүйцээх вэ".
     if (c === "missing-quantities") {
-      const byType = new Map<
-        string,
-        { name: string; unit: string; level: string; n: number }
-      >();
+      const byType = new Map<string, { name: string; unit: string; level: string; n: number }>();
       for (const w of blockItems.filter((x) => x.plannedQty === 0)) {
         const row = byType.get(w.workTypeId) ?? {
           name: w.workType.name,
@@ -1913,11 +1684,7 @@ export function handleMock(
       const p = body as { taktDays?: number; startDate?: string };
       const takt = Number(p?.taktDays);
       if (!Number.isInteger(takt) || takt < 1 || takt > 60) {
-        return fail(
-          422,
-          "ValidationError",
-          "Давхрын хугацаа 1-60 хоногийн хооронд байна.",
-        );
+        return fail(422, "ValidationError", "Давхрын хугацаа 1-60 хоногийн хооронд байна.");
       }
 
       if (block) {
@@ -1938,9 +1705,7 @@ export function handleMock(
         }
 
         const loc = db.locations.find((l) => l.id === w.locationId);
-        const order =
-          db.groups.find((g) => g.name === w.workType.groupName)
-            ?.sequenceNumber ?? 5;
+        const order = db.groups.find((g) => g.name === w.workType.groupName)?.sequenceNumber ?? 5;
         const win = taktWindow(
           start,
           takt,
@@ -1953,12 +1718,8 @@ export function handleMock(
         w.plannedStartDate = win.plannedStartDate;
         w.plannedEndDate = win.plannedEndDate;
         w.overdueDays =
-          w.status !== "completed" &&
-          win.plannedEndDate < new Date().toISOString().slice(0, 10)
-            ? Math.round(
-                (Date.now() - Date.parse(`${win.plannedEndDate}T00:00:00Z`)) /
-                  86_400_000,
-              )
+          w.status !== "completed" && win.plannedEndDate < new Date().toISOString().slice(0, 10)
+            ? Math.round((Date.now() - Date.parse(`${win.plannedEndDate}T00:00:00Z`)) / 86_400_000)
             : 0;
         updated++;
       }
@@ -1982,13 +1743,8 @@ export function handleMock(
 
         // Барилгын төлөвлөлт "нэг давхарт ямар ажлууд" гэсэн БАГЦААР явдаг тул
         // олон төрлийг нэг дор хүлээж авна. Ганц `workTypeId` нь хуучин хэлбэр.
-        const ids = p?.workTypeIds?.length
-          ? p.workTypeIds
-          : p?.workTypeId
-            ? [p.workTypeId]
-            : [];
-        if (ids.length === 0)
-          return fail(422, "ValidationError", "Ажлын төрөл сонгоно уу.");
+        const ids = p?.workTypeIds?.length ? p.workTypeIds : p?.workTypeId ? [p.workTypeId] : [];
+        if (ids.length === 0) return fail(422, "ValidationError", "Ажлын төрөл сонгоно уу.");
 
         const qty = Number(p?.plannedQty) || 0;
         const skipped: { name: string; reason: string }[] = [];
@@ -1996,13 +1752,11 @@ export function handleMock(
 
         for (const id of ids) {
           const wt = db.workTypes.find((x) => x.id === id);
-          if (!wt)
-            return fail(422, "ValidationError", "Ажлын төрөл олдсонгүй.");
+          if (!wt) return fail(422, "ValidationError", "Ажлын төрөл олдсонгүй.");
 
           const targets = db.locations.filter(
             (l) =>
-              l.blockId === b &&
-              (p?.locationId ? l.id === p.locationId : l.level === wt.level),
+              l.blockId === b && (p?.locationId ? l.id === p.locationId : l.level === wt.level),
           );
           if (targets.length === 0) {
             skipped.push({ name: wt.name, reason: "Тохирох байршил алга" });
@@ -2024,8 +1778,7 @@ export function handleMock(
           // Гараар нэмсэн ажил ч нэг хуваарьт багтана — эс бөгөөс загвараар
           // үүссэн ажил огноотой, гараар нэмсэн нь огноогүй болж хоёр өөр
           // жишгээр хэмжигдэнэ.
-          const order =
-            db.groups.find((g) => g.name === wt.groupName)?.sequenceNumber ?? 5;
+          const order = db.groups.find((g) => g.name === wt.groupName)?.sequenceNumber ?? 5;
 
           for (const loc of fresh) {
             const window = taktWindow(
@@ -2088,27 +1841,18 @@ export function handleMock(
           reassignExisting?: boolean;
         };
         if (!p?.workTypeGroupId && !p?.workTypeId) {
-          return fail(
-            422,
-            "ValidationError",
-            "Ажлын бүлэг эсвэл ажлын төрлийг заана уу.",
-          );
+          return fail(422, "ValidationError", "Ажлын бүлэг эсвэл ажлын төрлийг заана уу.");
         }
 
         const group = db.groups.find((g) => g.id === p.workTypeGroupId);
         let targets = blockItems.filter((w) =>
-          p.workTypeId
-            ? w.workTypeId === p.workTypeId
-            : w.workType.groupName === group?.name,
+          p.workTypeId ? w.workTypeId === p.workTypeId : w.workType.groupName === group?.name,
         );
         if (!p.reassignExisting) targets = targets.filter((w) => !w.contractor);
 
         // Гүйцэтгэл бүртгэгдсэн ажлын хариуцагчийг солих нь түүхийг гуйвуулна.
         const started = targets.filter(
-          (w) =>
-            w.reportedQty > 0 &&
-            w.contractor &&
-            w.contractor.id !== p.contractorId,
+          (w) => w.reportedQty > 0 && w.contractor && w.contractor.id !== p.contractorId,
         ).length;
         if (started > 0) {
           return fail(
@@ -2121,9 +1865,7 @@ export function handleMock(
 
         const contractor = db.contractors.find((x) => x.id === p.contractorId);
         for (const w of targets) {
-          w.contractor = contractor
-            ? { id: contractor.id, name: contractor.name }
-            : null;
+          w.contractor = contractor ? { id: contractor.id, name: contractor.name } : null;
         }
 
         return ok({
@@ -2137,11 +1879,7 @@ export function handleMock(
       // Нэг ажлын төрлийн БҮХ мөрөнд тоо хэмжээ оруулах.
       if (segments[3] === "set-quantity" && method === "POST") {
         if (!session.canEditPlan) {
-          return fail(
-            403,
-            "Forbidden",
-            "Танд төлөвлөгөөт тоо хэмжээ засах эрх байхгүй.",
-          );
+          return fail(403, "Forbidden", "Танд төлөвлөгөөт тоо хэмжээ засах эрх байхгүй.");
         }
 
         const p = body as {
@@ -2150,18 +1888,12 @@ export function handleMock(
           overwriteExisting?: boolean;
         };
         const qty = Number(p?.plannedQty);
-        if (!p?.workTypeId)
-          return fail(422, "ValidationError", "workTypeId заавал.");
+        if (!p?.workTypeId) return fail(422, "ValidationError", "workTypeId заавал.");
         if (!Number.isFinite(qty) || qty < 0)
-          return fail(
-            422,
-            "ValidationError",
-            "plannedQty эерэг тоо байх ёстой.",
-          );
+          return fail(422, "ValidationError", "plannedQty эерэг тоо байх ёстой.");
 
         let targets = blockItems.filter((w) => w.workTypeId === p.workTypeId);
-        if (!p.overwriteExisting)
-          targets = targets.filter((w) => w.plannedQty === 0);
+        if (!p.overwriteExisting) targets = targets.filter((w) => w.plannedQty === 0);
 
         // Батлагдсанаас бага төлөвлөгөө тавьвал хувь 100-аас давна.
         const conflicts = targets.filter((w) => w.acceptedQty > qty).length;
@@ -2197,8 +1929,7 @@ export function handleMock(
           acceptedQty: round(acceptedQty),
           percentage: avgPercentage(items),
           ...statusCounts(items),
-          pendingInspections: items.filter((w) => w.reviewState === "pending")
-            .length,
+          pendingInspections: items.filter((w) => w.reviewState === "pending").length,
           overdue: items.filter((w) => w.overdueDays > 0).length,
           plannedStartDate: minDate(items),
           plannedEndDate: maxDate(items),
@@ -2227,11 +1958,7 @@ export function handleMock(
           return fail(403, "Forbidden", "Танд төлөвлөгөө засах эрх байхгүй.");
         }
         if (item.reportedQty > 0) {
-          return fail(
-            409,
-            "Conflict",
-            "Энэ ажилд гүйцэтгэл бүртгэгдсэн тул устгах боломжгүй.",
-          );
+          return fail(409, "Conflict", "Энэ ажилд гүйцэтгэл бүртгэгдсэн тул устгах боломжгүй.");
         }
 
         const idx = db.workItems.findIndex((w) => w.id === item.id);
@@ -2246,11 +1973,7 @@ export function handleMock(
 
         if (p.plannedQty !== undefined) {
           if (!session.canEditPlan) {
-            return fail(
-              403,
-              "Forbidden",
-              "Танд төлөвлөгөөт тоо хэмжээ засах эрх байхгүй.",
-            );
+            return fail(403, "Forbidden", "Танд төлөвлөгөөт тоо хэмжээ засах эрх байхгүй.");
           }
           if (p.plannedQty < item.acceptedQty) {
             return fail(
@@ -2281,11 +2004,7 @@ export function handleMock(
         };
         const qty = Number(payload?.completedQty);
         if (!Number.isFinite(qty) || qty <= 0)
-          return fail(
-            422,
-            "ValidationError",
-            "completedQty эерэг тоо байх ёстой.",
-          );
+          return fail(422, "ValidationError", "completedQty эерэг тоо байх ёстой.");
         if (qty > item.remainingQty)
           return fail(
             422,
@@ -2308,20 +2027,14 @@ export function handleMock(
           photos: [],
           photoCount: 0,
         };
-        extraProgress.set(item.id, [
-          entry,
-          ...(extraProgress.get(item.id) ?? []),
-        ]);
+        extraProgress.set(item.id, [entry, ...(extraProgress.get(item.id) ?? [])]);
         item.reportedQty = round(item.reportedQty + qty);
         recalc(item);
         recalcReview(item);
 
         return created(entry);
       }
-      const rows = [
-        ...(extraProgress.get(item.id) ?? []),
-        ...progressFor(item),
-      ];
+      const rows = [...(extraProgress.get(item.id) ?? []), ...progressFor(item)];
       return ok({
         data: rows,
         meta: { total: rows.length, page: 1, pageSize: rows.length },
@@ -2347,11 +2060,7 @@ export function handleMock(
           return fail(422, "ValidationError", "Татгалзах шалтгаан заавал.");
 
         // "Зөвхөн зураг дээр үндэслэн ажил батлахгүй" — backend-тэй ижил хаалт.
-        const clError = checklistError(
-          item,
-          p?.result ?? "accepted",
-          p?.checklist ?? [],
-        );
+        const clError = checklistError(item, p?.result ?? "accepted", p?.checklist ?? []);
         if (clError) return fail(422, "ValidationError", clError);
 
         const insp: Inspection = {
@@ -2364,36 +2073,23 @@ export function handleMock(
           rejectedQty:
             p.result === "accepted"
               ? 0
-              : round(
-                  Math.max(
-                    item.reportedQty - item.acceptedQty - acceptedQty,
-                    0,
-                  ),
-                ),
+              : round(Math.max(item.reportedQty - item.acceptedQty - acceptedQty, 0)),
           reason: p.reason,
           inspectedAt: new Date().toISOString(),
           inspector: { id: session.id, name: session.name },
         };
-        extraInspections.set(item.id, [
-          insp,
-          ...(extraInspections.get(item.id) ?? []),
-        ]);
+        extraInspections.set(item.id, [insp, ...(extraInspections.get(item.id) ?? [])]);
         item.acceptedQty = round(item.acceptedQty + acceptedQty);
         // ТАТГАЛЗСАН хэмжээ мэдээлсэн дүнгээс хасагдана — ингэснээр үлдэгдэл
         // эргэж бүтэн болж, гүйцэтгэгч засвараа ижил мөрөн дээр дахин
         // мэдээлж чадна. Хасахгүй бол «үлдэгдэл 0» болж мухардана.
-        item.reportedQty = round(
-          Math.max(item.reportedQty - insp.rejectedQty, 0),
-        );
+        item.reportedQty = round(Math.max(item.reportedQty - insp.rejectedQty, 0));
         recalc(item);
         recalcReview(item);
 
         return created(insp);
       }
-      const rows = [
-        ...(extraInspections.get(item.id) ?? []),
-        ...inspectionsFor(item),
-      ];
+      const rows = [...(extraInspections.get(item.id) ?? []), ...inspectionsFor(item)];
       return ok({
         data: rows,
         meta: { total: rows.length, page: 1, pageSize: rows.length },
@@ -2411,13 +2107,11 @@ export function handleMock(
         category?: string;
         reason?: string;
       };
-      if (!p?.plannedEndDate)
-        return fail(422, "ValidationError", "Шинэ дуусах огноог сонгоно уу.");
+      if (!p?.plannedEndDate) return fail(422, "ValidationError", "Шинэ дуусах огноог сонгоно уу.");
       if (!p?.category || !(p.category in ISSUE_LABELS)) {
         return fail(422, "ValidationError", "Саатлын шалтгааныг сонгоно уу.");
       }
-      if (!p?.reason?.trim())
-        return fail(422, "ValidationError", "Тайлбар бичнэ үү.");
+      if (!p?.reason?.trim()) return fail(422, "ValidationError", "Тайлбар бичнэ үү.");
 
       const current = item.plannedEndDate;
       // Огноог урагш татах нь сунгах биш — хоцролтыг хиймлээр үүсгэнэ.
@@ -2433,10 +2127,7 @@ export function handleMock(
       // Хугацаа сунгамагц хоцролт тэглэгдэнэ — шинэ огноо ирээдүйд байгаа.
       item.overdueDays =
         p.plannedEndDate < new Date().toISOString().slice(0, 10)
-          ? Math.round(
-              (Date.now() - Date.parse(`${p.plannedEndDate}T00:00:00Z`)) /
-                86_400_000,
-            )
+          ? Math.round((Date.now() - Date.parse(`${p.plannedEndDate}T00:00:00Z`)) / 86_400_000)
           : 0;
 
       // Шалтгааныг АСУУДЛЫН бүртгэлд — хоцролтын статистик нэг дороос гарна.
@@ -2464,11 +2155,7 @@ export function handleMock(
         return fail(403, "Forbidden", "Танд гүйцэтгэгч оноох эрх байхгүй.");
       }
       const p = body as { contractorId?: string | null };
-      if (
-        item.reportedQty > 0 &&
-        item.contractor &&
-        item.contractor.id !== p?.contractorId
-      ) {
+      if (item.reportedQty > 0 && item.contractor && item.contractor.id !== p?.contractorId) {
         return fail(
           409,
           "Conflict",
@@ -2495,8 +2182,7 @@ export function handleMock(
         };
         if (!p?.category || !(p.category in ISSUE_LABELS))
           return fail(422, "ValidationError", "Ангилал буруу байна.");
-        if (!p?.description?.trim())
-          return fail(422, "ValidationError", "Тайлбар заавал бичнэ.");
+        if (!p?.description?.trim()) return fail(422, "ValidationError", "Тайлбар заавал бичнэ.");
 
         const issue: MockIssue = {
           id: mockId("iss"),
@@ -2534,8 +2220,7 @@ export function handleMock(
      * хоосон жагсаалт дээр огт харагддаггүй.
      */
     if (c === "photos") {
-      if (method === "POST")
-        return fail(501, "NotImplemented", "Mock горимд зураг хадгалахгүй.");
+      if (method === "POST") return fail(501, "NotImplemented", "Mock горимд зураг хадгалахгүй.");
 
       const rows = progressFor(item).flatMap((e) => e.photos ?? []);
 
@@ -2546,11 +2231,7 @@ export function handleMock(
     }
   }
 
-  return fail(
-    404,
-    "NotFound",
-    `Mock-д ${method} /${segments.join("/")} хэрэгжээгүй.`,
-  );
+  return fail(404, "NotFound", `Mock-д ${method} /${segments.join("/")} хэрэгжээгүй.`);
 }
 
 export { MOCK_IDS };

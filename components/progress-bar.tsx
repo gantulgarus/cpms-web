@@ -102,6 +102,15 @@ export function ItemLegend({ counts, className }: { counts: StatusCounts; classN
         <span className="bg-muted size-2 rounded-full" />
         Эхлээгүй {n(counts.notStartedItems)}
       </span>
+      {/* Тоо хэмжээгүй ажил нь «эхлээгүй»-гийн ДОТОР байна — тусад нь
+          нэрлэхгүй бол «яагаад эхлэхгүй байгаа юм бэ» гэсэн асуулт
+          хариултгүй үлдэнэ. Эдгээрт гүйцэтгэл ОРУУЛАХ БОЛОМЖГҮЙ. */}
+      {counts.unmeasuredItems > 0 && (
+        <span className="inline-flex items-center gap-1.5 text-amber-700 dark:text-amber-500">
+          <span className="size-2 rounded-full border border-current" />
+          Тоо хэмжээгүй {n(counts.unmeasuredItems)}
+        </span>
+      )}
     </p>
   );
 }

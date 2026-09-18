@@ -397,6 +397,14 @@ export interface StatusCounts {
   completedItems: number;
   inProgressItems: number;
   notStartedItems: number;
+  /**
+   * Тоо хэмжээ нь бүртгэгдээгүй ажлын тоо.
+   *
+   * `notStartedItems`-ийн ДОТОР байна — тусдаа бүлэг биш, харин «яагаад
+   * эхлээгүй вэ» гэсэн асуултын хариулт. Гүйцэтгэл оруулах боломжгүй тул
+   * хувийн бодолтод ч ороогүй: «0% хийгдсэн» биш, «хэмжих боломжгүй».
+   */
+  unmeasuredItems: number;
 }
 
 export interface ItemCounts extends StatusCounts {
