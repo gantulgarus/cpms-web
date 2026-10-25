@@ -25,10 +25,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { agreements } from "@/lib/api/v2/endpoints";
-import type { AgreementStatus } from "@/lib/api/v2/types";
-import { useMe } from "@/lib/api/v2/use-me";
-import { useProject } from "@/lib/api/v2/use-project";
+import { agreements } from "@/lib/api/endpoints";
+import type { AgreementStatus } from "@/lib/api/types";
+import { useMe } from "@/lib/api/use-me";
+import { useProject } from "@/lib/api/use-project";
 import { formatDate, formatMoney } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
@@ -52,7 +52,7 @@ export default function AgreementsPage() {
   const [tab, setTab] = useState<AgreementStatus | "">("");
 
   const list = useQuery({
-    queryKey: ["v2-agreements", project?.id, tab],
+    queryKey: ["agreements", project?.id, tab],
     queryFn: () => agreements.list(project!.id, tab ? { status: tab } : {}),
     enabled: Boolean(project),
     placeholderData: keepPreviousData,

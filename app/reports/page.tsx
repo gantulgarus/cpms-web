@@ -29,11 +29,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { blocks as blocksApi, contractorsV2, reports } from "@/lib/api/v2/endpoints";
-import type { AcceptanceParams } from "@/lib/api/v2/endpoints";
-import type { AcceptanceReport, InspectionStage, UnitTotal } from "@/lib/api/v2/types";
-import { useMe } from "@/lib/api/v2/use-me";
-import { useProject } from "@/lib/api/v2/use-project";
+import { blocks as blocksApi, contractors, reports } from "@/lib/api/endpoints";
+import type { AcceptanceParams } from "@/lib/api/endpoints";
+import type { AcceptanceReport, InspectionStage, UnitTotal } from "@/lib/api/types";
+import { useMe } from "@/lib/api/use-me";
+import { useProject } from "@/lib/api/use-project";
 import { formatDate, formatQty, todayInProjectZone } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
@@ -83,14 +83,14 @@ export default function AcceptanceReportPage() {
   const stage = ACT_STAGE;
 
   const contractorsQuery = useQuery({
-    queryKey: ["v2-contractors"],
-    queryFn: () => contractorsV2.list(),
+    queryKey: ["contractors"],
+    queryFn: () => contractors.list(),
     // Гүйцэтгэгч зөвхөн өөрийн актыг гаргах тул жагсаалт хэрэггүй.
     enabled: !me?.contractorId,
   });
 
   const blocksQuery = useQuery({
-    queryKey: ["v2-blocks", projectId],
+    queryKey: ["blocks", projectId],
     queryFn: () => blocksApi.listForProject(projectId!),
     enabled: Boolean(projectId),
   });
@@ -105,7 +105,7 @@ export default function AcceptanceReportPage() {
   const validRange = Boolean(from && to && from <= to);
 
   const reportQuery = useQuery({
-    queryKey: ["v2-acceptance", projectId, contractorId, blockId, from, to, stage],
+    queryKey: ["acceptance", projectId, contractorId, blockId, from, to, stage],
     queryFn: () => reports.acceptance(projectId!, params),
     enabled: Boolean(projectId) && validRange,
   });

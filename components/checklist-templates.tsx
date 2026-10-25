@@ -21,18 +21,18 @@ import { ToneBadge } from "@/components/tone-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { checklists, referenceData } from "@/lib/api/v2/endpoints";
-import type { Uuid } from "@/lib/api/v2/types";
+import { checklists, referenceData } from "@/lib/api/endpoints";
+import type { Uuid } from "@/lib/api/types";
 
 export function ChecklistTemplates({ canManage }: { canManage: boolean }) {
   const qc = useQueryClient();
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ name: "", groupId: "", items: "" });
 
-  const groups = useQuery({ queryKey: ["v2-wt-groups"], queryFn: referenceData.groups });
-  const list = useQuery({ queryKey: ["v2-checklist-templates"], queryFn: () => checklists.templates() });
+  const groups = useQuery({ queryKey: ["wt-groups"], queryFn: referenceData.groups });
+  const list = useQuery({ queryKey: ["checklist-templates"], queryFn: () => checklists.templates() });
 
-  const refresh = () => qc.invalidateQueries({ queryKey: ["v2-checklist-templates"] });
+  const refresh = () => qc.invalidateQueries({ queryKey: ["checklist-templates"] });
 
   const create = useMutation({
     mutationFn: () =>

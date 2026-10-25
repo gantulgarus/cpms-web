@@ -30,9 +30,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { assignments, blocks, contractorsV2 } from "@/lib/api/v2/endpoints";
-import type { Uuid } from "@/lib/api/v2/types";
-import { useMe } from "@/lib/api/v2/use-me";
+import { assignments, blocks, contractors } from "@/lib/api/endpoints";
+import type { Uuid } from "@/lib/api/types";
+import { useMe } from "@/lib/api/use-me";
 
 export default function AssignmentsPage() {
   const { blockId } = useParams<{ blockId: string }>();
@@ -44,16 +44,16 @@ export default function AssignmentsPage() {
   const [picked, setPicked] = useState<Record<string, string>>({});
 
   const blockQuery = useQuery({
-    queryKey: ["v2-block", blockId],
+    queryKey: ["block", blockId],
     queryFn: () => blocks.get(blockId),
   });
   const list = useQuery({
-    queryKey: ["v2-assignments", blockId],
+    queryKey: ["assignments", blockId],
     queryFn: () => assignments.forBlock(blockId),
   });
   const contractorList = useQuery({
-    queryKey: ["v2-contractors"],
-    queryFn: () => contractorsV2.list(),
+    queryKey: ["contractors"],
+    queryFn: () => contractors.list(),
   });
 
   const assign = useMutation({
@@ -68,9 +68,9 @@ export default function AssignmentsPage() {
           ? `${res.affected} ажилд хариуцагч оноогдлоо.`
           : "Оноох шинэ ажил олдсонгүй — бүгд хариуцагчтай байна.",
       );
-      qc.invalidateQueries({ queryKey: ["v2-assignments", blockId] });
-      qc.invalidateQueries({ queryKey: ["v2-summary"] });
-      qc.invalidateQueries({ queryKey: ["v2-work-items"] });
+      qc.invalidateQueries({ queryKey: ["assignments", blockId] });
+      qc.invalidateQueries({ queryKey: ["summary"] });
+      qc.invalidateQueries({ queryKey: ["work-items"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });

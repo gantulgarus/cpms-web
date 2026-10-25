@@ -32,10 +32,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { extensions } from "@/lib/api/v2/endpoints";
-import type { ExtensionRequest, ExtensionStatus } from "@/lib/api/v2/types";
-import { useMe } from "@/lib/api/v2/use-me";
-import { useProject } from "@/lib/api/v2/use-project";
+import { extensions } from "@/lib/api/endpoints";
+import type { ExtensionRequest, ExtensionStatus } from "@/lib/api/types";
+import { useMe } from "@/lib/api/use-me";
+import { useProject } from "@/lib/api/use-project";
 import { ISSUE_CATEGORIES } from "@/components/issue-panel";
 import { formatDate } from "@/lib/domain";
 import { cn } from "@/lib/utils";
@@ -66,19 +66,19 @@ export default function ExtensionRequestsPage() {
   const [note, setNote] = useState("");
 
   const list = useQuery({
-    queryKey: ["v2-extensions", project?.id, tab],
+    queryKey: ["extensions", project?.id, tab],
     queryFn: () => extensions.list(project!.id, tab),
     enabled: Boolean(project),
     placeholderData: keepPreviousData,
   });
 
   const refresh = () => {
-    qc.invalidateQueries({ queryKey: ["v2-extensions"] });
-    qc.invalidateQueries({ queryKey: ["v2-work-items"] });
-    qc.invalidateQueries({ queryKey: ["v2-queue"] });
-    qc.invalidateQueries({ queryKey: ["v2-queue-counts"] });
-    qc.invalidateQueries({ queryKey: ["v2-issues"] });
-    qc.invalidateQueries({ queryKey: ["v2-dashboard"] });
+    qc.invalidateQueries({ queryKey: ["extensions"] });
+    qc.invalidateQueries({ queryKey: ["work-items"] });
+    qc.invalidateQueries({ queryKey: ["queue"] });
+    qc.invalidateQueries({ queryKey: ["queue-counts"] });
+    qc.invalidateQueries({ queryKey: ["issues"] });
+    qc.invalidateQueries({ queryKey: ["dashboard"] });
   };
 
   const approve = useMutation({

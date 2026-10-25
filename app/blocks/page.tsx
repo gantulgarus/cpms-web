@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Блокийн жагсаалт — v2 горимын нүүр хуудас.
+ * Блокийн жагсаалт.
  *
  * Явцын хувь, хоцролтыг төслийн dashboard-аас авна (сервер талд нэгтгэгдсэн),
  * давхар/айлын тоог блокийн жагсаалтаас. Хоёр дуудлага зэрэг явна.
@@ -16,6 +16,7 @@ import { ProgressBar } from "@/components/progress-bar";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { BlockCard } from "@/components/block-card";
+import { NoProjectState } from "@/components/no-project-state";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -25,9 +26,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { blocks, projectsV2 } from "@/lib/api/v2/endpoints";
-import { useMe } from "@/lib/api/v2/use-me";
-import { useProject } from "@/lib/api/v2/use-project";
+import { blocks, projects } from "@/lib/api/endpoints";
+import { useMe } from "@/lib/api/use-me";
+import { useProject } from "@/lib/api/use-project";
 import { cn } from "@/lib/utils";
 
 const VIEW_KEY = "cpms.blocks.view";
@@ -66,13 +67,13 @@ export default function BlocksPage() {
   const isRep = me?.role === "contractor";
 
   const blocksQuery = useQuery({
-    queryKey: ["v2-blocks", project?.id],
+    queryKey: ["blocks", project?.id],
     queryFn: () => blocks.listForProject(project!.id),
     enabled: Boolean(project),
   });
   const dashQuery = useQuery({
-    queryKey: ["v2-dashboard", project?.id],
-    queryFn: () => projectsV2.dashboard(project!.id),
+    queryKey: ["dashboard", project?.id],
+    queryFn: () => projects.dashboard(project!.id),
     enabled: Boolean(project),
   });
 
@@ -144,6 +145,8 @@ export default function BlocksPage() {
         <ErrorState message={(projectError as Error).message} />
       ) : projectLoading || blocksQuery.isLoading ? (
         <LoadingRows rows={3} />
+      ) : !project ? (
+        <NoProjectState />
       ) : blocksQuery.error ? (
         <ErrorState
           message={(blocksQuery.error as Error).message}

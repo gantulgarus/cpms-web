@@ -17,10 +17,10 @@ import { toast } from "sonner";
 
 import { FormDialog, FormField } from "@/components/form-dialog";
 import { Input } from "@/components/ui/input";
-import { blocks as blocksApi, users } from "@/lib/api/v2/endpoints";
-import type { ManagedUser } from "@/lib/api/v2/types";
-import { useMe } from "@/lib/api/v2/use-me";
-import { useProject } from "@/lib/api/v2/use-project";
+import { blocks as blocksApi, users } from "@/lib/api/endpoints";
+import type { ManagedUser } from "@/lib/api/types";
+import { useMe } from "@/lib/api/use-me";
+import { useProject } from "@/lib/api/use-project";
 
 export function EditUserDialog({
   user,
@@ -42,9 +42,9 @@ export function EditUserDialog({
   const [isActive, setIsActive] = useState(user.isActive);
 
   // Хоёулаа кэшлэгдсэн түлхүүр — жагсаалтын хуудас аль хэдийн татсан байна.
-  const roles = useQuery({ queryKey: ["v2-roles"], queryFn: users.roles });
+  const roles = useQuery({ queryKey: ["roles"], queryFn: users.roles });
   const blockList = useQuery({
-    queryKey: ["v2-blocks", project?.id],
+    queryKey: ["blocks", project?.id],
     queryFn: () => blocksApi.listForProject(project!.id),
     enabled: Boolean(project),
   });
@@ -76,9 +76,9 @@ export function EditUserDialog({
     onSuccess: (updated) => {
       toast.success(`${updated.name} шинэчлэгдлээ`);
       onOpenChange(false);
-      qc.invalidateQueries({ queryKey: ["v2-users"] });
+      qc.invalidateQueries({ queryKey: ["users"] });
       // Өөрийгөө засвал толгойн нэр, эрх шууд шинэчлэгдэнэ.
-      if (isSelf) qc.invalidateQueries({ queryKey: ["v2-me"] });
+      if (isSelf) qc.invalidateQueries({ queryKey: ["me"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });

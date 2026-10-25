@@ -27,10 +27,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { blocks as blocksApi, users } from "@/lib/api/v2/endpoints";
-import type { ManagedUser } from "@/lib/api/v2/types";
-import { useMe } from "@/lib/api/v2/use-me";
-import { useProject } from "@/lib/api/v2/use-project";
+import { blocks as blocksApi, users } from "@/lib/api/endpoints";
+import type { ManagedUser } from "@/lib/api/types";
+import { useMe } from "@/lib/api/use-me";
+import { useProject } from "@/lib/api/use-project";
 
 const EMPTY = {
   name: "",
@@ -52,18 +52,18 @@ export default function UsersPage() {
   const canManage = Boolean(me?.canManageUsers);
 
   const list = useQuery({
-    queryKey: ["v2-users"],
+    queryKey: ["users"],
     queryFn: () => users.list(),
     enabled: canManage,
   });
-  const roles = useQuery({ queryKey: ["v2-roles"], queryFn: users.roles, enabled: canManage });
+  const roles = useQuery({ queryKey: ["roles"], queryFn: users.roles, enabled: canManage });
   const blockList = useQuery({
-    queryKey: ["v2-blocks", project?.id],
+    queryKey: ["blocks", project?.id],
     queryFn: () => blocksApi.listForProject(project!.id),
     enabled: Boolean(project) && canManage,
   });
 
-  const refresh = () => qc.invalidateQueries({ queryKey: ["v2-users"] });
+  const refresh = () => qc.invalidateQueries({ queryKey: ["users"] });
 
   const selectedRole = roles.data?.find((r) => r.value === form.role);
 

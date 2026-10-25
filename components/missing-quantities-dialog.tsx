@@ -32,8 +32,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { plan } from "@/lib/api/v2/endpoints";
-import type { Uuid } from "@/lib/api/v2/types";
+import { plan } from "@/lib/api/endpoints";
+import type { Uuid } from "@/lib/api/types";
 
 /** Байршлын түвшний монгол нэр — «нэг юун дээр» гэдгийг тодруулна. */
 const LEVEL_LABEL: Record<string, string> = {
@@ -58,7 +58,7 @@ export function MissingQuantitiesDialog({
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
   const list = useQuery({
-    queryKey: ["v2-missing-quantities", blockId],
+    queryKey: ["missing-quantities", blockId],
     queryFn: () => plan.missingQuantities(blockId),
     enabled: open,
   });
@@ -79,10 +79,10 @@ export function MissingQuantitiesDialog({
         return next;
       });
       // Тоо хэмжээ өөрчлөгдвөл хувь, төлөв, нэгтгэл бүгд хуучирна.
-      qc.invalidateQueries({ queryKey: ["v2-missing-quantities", blockId] });
-      qc.invalidateQueries({ queryKey: ["v2-block-summary"] });
-      qc.invalidateQueries({ queryKey: ["v2-work-items"] });
-      qc.invalidateQueries({ queryKey: ["v2-dashboard"] });
+      qc.invalidateQueries({ queryKey: ["missing-quantities", blockId] });
+      qc.invalidateQueries({ queryKey: ["block-summary"] });
+      qc.invalidateQueries({ queryKey: ["work-items"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });

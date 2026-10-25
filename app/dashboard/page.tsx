@@ -31,11 +31,11 @@ import { ItemLegend, ProgressBar } from "@/components/progress-bar";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/states";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { projectsV2, queue } from "@/lib/api/v2/endpoints";
-import type { DashboardBlock, ItemCounts } from "@/lib/api/v2/types";
-import { useMe } from "@/lib/api/v2/use-me";
+import { projects, queue } from "@/lib/api/endpoints";
+import type { DashboardBlock, ItemCounts } from "@/lib/api/types";
+import { useMe } from "@/lib/api/use-me";
 import { isObserver } from "@/lib/domain";
-import { useProject } from "@/lib/api/v2/use-project";
+import { useProject } from "@/lib/api/use-project";
 import { cn } from "@/lib/utils";
 
 export default function DashboardPage() {
@@ -52,12 +52,12 @@ export default function DashboardPage() {
   const isRep = me?.role === "contractor";
 
   const dash = useQuery({
-    queryKey: ["v2-dashboard", project?.id],
-    queryFn: () => projectsV2.dashboard(project!.id),
+    queryKey: ["dashboard", project?.id],
+    queryFn: () => projects.dashboard(project!.id),
     enabled: Boolean(project),
   });
   const counts = useQuery({
-    queryKey: ["v2-queue-counts", project?.id],
+    queryKey: ["queue-counts", project?.id],
     queryFn: () => queue.counts(project!.id),
     enabled: Boolean(project),
   });

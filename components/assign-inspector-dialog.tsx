@@ -19,8 +19,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { FormDialog, FormField } from "@/components/form-dialog";
-import { assignments, users } from "@/lib/api/v2/endpoints";
-import type { WorkItem } from "@/lib/api/v2/types";
+import { assignments, users } from "@/lib/api/endpoints";
+import type { WorkItem } from "@/lib/api/types";
 
 export function AssignInspectorDialog({
   item,
@@ -46,7 +46,7 @@ export function AssignInspectorDialog({
    * өөрчлөгдөхөд энэ файл чимээгүй хоцорно.
    */
   const list = useQuery({
-    queryKey: ["v2-inspectors"],
+    queryKey: ["inspectors"],
     queryFn: () => users.inspectors(),
     enabled: open,
   });
@@ -62,8 +62,8 @@ export function AssignInspectorDialog({
           : "Хяналтын инженерийг авлаа",
       );
       onOpenChange(false);
-      qc.invalidateQueries({ queryKey: ["v2-work-item", item.id] });
-      qc.invalidateQueries({ queryKey: ["v2-work-items"] });
+      qc.invalidateQueries({ queryKey: ["work-item", item.id] });
+      qc.invalidateQueries({ queryKey: ["work-items"] });
       onDone?.();
     },
     onError: (e: Error) => toast.error(e.message),

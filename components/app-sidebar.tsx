@@ -24,6 +24,7 @@ import {
   FileSpreadsheet,
   FileText,
   FileUp,
+  FolderKanban,
   PackageSearch,
   Truck,
   LayoutDashboard,
@@ -39,9 +40,9 @@ import { BrandMark } from "@/components/brand-mark";
 import { isObserver } from "@/lib/domain";
 
 import { Button } from "@/components/ui/button";
-import { queue } from "@/lib/api/v2/endpoints";
-import { useMe } from "@/lib/api/v2/use-me";
-import { useProject } from "@/lib/api/v2/use-project";
+import { queue } from "@/lib/api/endpoints";
+import { useMe } from "@/lib/api/use-me";
+import { useProject } from "@/lib/api/use-project";
 import { clearSession } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
@@ -79,7 +80,7 @@ interface NavGroup {
 export function AppSidebar() {
   const pathname = usePathname();
   const { me } = useMe();
-  const { project } = useProject();
+  const { project, projects } = useProject();
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -113,7 +114,7 @@ export function AppSidebar() {
    * шаардлагагүй болно — өдөр тутмын урсгал богиносно.
    */
   const counts = useQuery({
-    queryKey: ["v2-queue-counts", project?.id],
+    queryKey: ["queue-counts", project?.id],
     queryFn: () => queue.counts(project!.id),
     enabled: Boolean(project?.id),
     refetchInterval: 60_000,
@@ -251,6 +252,17 @@ export function AppSidebar() {
 
   // Тохиргооны бүлэг нь эрхээс хамаарна — хоосон бүлэг харуулах нь утгагүй.
   const settings: NavItem[] = [
+    // Ганц төсөлтэй үед сонгох юм алга — зөвхөн үүсгэх эрхтэй хүнд хэрэгтэй.
+    ...(me?.canManageProjects || projects.length > 1
+      ? [
+          {
+            href: "/projects",
+            label: "Төслүүд",
+            icon: FolderKanban,
+            match: (p: string) => p.startsWith("/projects"),
+          },
+        ]
+      : []),
     ...(me?.canManageContractors
       ? [
           {

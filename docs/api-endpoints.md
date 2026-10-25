@@ -1,10 +1,10 @@
-# CPMS API v2 — endpoint жагсаалт
+# CPMS API — endpoint жагсаалт
 
-Инэл ХХК-ийн шаардлагад тохирсон шинэ өгөгдлийн загварын REST гадаргуу.
-Одоогийн v1-ийн конвенцийг хадгална: `{ data }` / `{ data, meta }` / `{ error }` дугтуй,
+Инэл ХХК-ийн шаардлагад тохирсон өгөгдлийн загварын REST гадаргуу.
+Конвенц: `{ data }` / `{ data, meta }` / `{ error }` дугтуй,
 жагсаалтад `page` + `pageSize`, шинэчлэлтэд `PATCH`.
 
-Base: `/api/v1` (хувилбар ахиулах бол `/api/v2`)
+Base: `/api/v1` — URL-ийн угтвар л, өөр хувилбар байхгүй.
 
 **Тэмдэглэгээ:** 🆕 шинэ · ♻️ өөрчлөгдсөн · ✅ хэвээр · ❌ хасагдана
 
@@ -35,14 +35,14 @@ Base: `/api/v1` (хувилбар ахиулах бол `/api/v2`)
 
 ## 1. Мастер өгөгдөл
 
-### Компани, төсөл ✅ хэвээр
+### Компани, төсөл
 
-| Method | Path |
-|---|---|
-| GET · POST | `/companies` |
-| GET · PATCH · DELETE | `/companies/:id` |
-| GET · POST | `/companies/:id/projects` |
-| GET · PATCH · DELETE | `/projects/:id` |
+| Method | Path | Тайлбар |
+|---|---|---|
+| GET | `/companies` | Зөвхөн `canManageProjects` (админ) — төсөл үүсгэх маягтад |
+| GET | `/projects` | Бүх төсөл |
+| POST | `/projects` | Зөвхөн админ. `{ name, companyId \| companyName, code?, location?, startDate?, endDate? }` — `companyName` өгвөл компанийг хамт үүсгэнэ |
+| GET | `/projects/:id` | |
 
 ### Блок (барилга) 🆕
 
@@ -333,26 +333,7 @@ Base: `/api/v1` (хувилбар ахиулах бол `/api/v2`)
 
 ---
 
-## 13. Хуучин endpoint-уудын хувь заяа
-
-| v1 | Шинэ байдал |
-|---|---|
-| `/companies*`, `/projects*` (CRUD) | ✅ хэвээр |
-| `/contractors*` | ✅ хэвээр |
-| `/projects/:id/work-packages` | ♻️ → `/work-type-groups` (ажлын бүлэг болно) |
-| `/work-packages/:id/activities` | ♻️ → `/work-types` |
-| `/activities/:id/tasks` | ♻️ → `/blocks/:id/work-items` |
-| `/activities/:id/contractors` | ♻️ → `/contract-sheets` |
-| `/tasks/:id/progress` | ♻️ → `/work-items/:id/progress` (+ `completedQty`) |
-| `/activities/:id/tasks/reorder` | ♻️ → `PATCH /work-items/bulk` (`sequenceNumber`) |
-| `/activities/:id/move` | ♻️ → `PATCH /work-items/:id { locationId }` |
-| `/tasks/:id/dependencies` | ♻️ Phase 2 руу хойшилно |
-| `/projects/:id/schedule`, `/critical-path` | ♻️ Phase 2 руу хойшилно |
-| `[БАТЛАВ]` remarks арга | ❌ хасагдана → `/work-items/:id/inspections` |
-
----
-
-## 14. Бүх endpoint-д мөрдөх дүрэм
+## 13. Бүх endpoint-д мөрдөх дүрэм
 
 1. **Жагсаалт бүр `meta.total`-той**, `pageSize`-ийн дээд хязгаар 200 боловч
    `total` ирснээр client дараагийн хуудсыг татна. Одоогийн апп-ын "чимээгүй

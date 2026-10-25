@@ -19,9 +19,9 @@ import { FormDialog, FormField } from "@/components/form-dialog";
 import { ISSUE_CATEGORIES } from "@/components/issue-panel";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { schedule } from "@/lib/api/v2/endpoints";
-import { useMe } from "@/lib/api/v2/use-me";
-import type { IssueCategory, Uuid } from "@/lib/api/v2/types";
+import { schedule } from "@/lib/api/endpoints";
+import { useMe } from "@/lib/api/use-me";
+import type { IssueCategory, Uuid } from "@/lib/api/types";
 import { formatDate, todayInProjectZone } from "@/lib/domain";
 
 /** Хугацаа хэтэрсэн ажилд хамгийн түгээмэл сунгалт — долоо хоног. */
@@ -91,15 +91,15 @@ export function ExtendDeadlineDialog({
           ? "Хугацаа сунгагдлаа"
           : "Хүсэлт илгээгдлээ — ерөнхий инженер батлахыг хүлээж байна",
       );
-      qc.invalidateQueries({ queryKey: ["v2-extensions"] });
+      qc.invalidateQueries({ queryKey: ["extensions"] });
       onOpenChange(false);
       setReason("");
-      qc.invalidateQueries({ queryKey: ["v2-queue"] });
-      qc.invalidateQueries({ queryKey: ["v2-queue-counts"] });
-      qc.invalidateQueries({ queryKey: ["v2-work-item", workItemId] });
-      qc.invalidateQueries({ queryKey: ["v2-work-items"] });
-      qc.invalidateQueries({ queryKey: ["v2-issues"] });
-      qc.invalidateQueries({ queryKey: ["v2-dashboard"] });
+      qc.invalidateQueries({ queryKey: ["queue"] });
+      qc.invalidateQueries({ queryKey: ["queue-counts"] });
+      qc.invalidateQueries({ queryKey: ["work-item", workItemId] });
+      qc.invalidateQueries({ queryKey: ["work-items"] });
+      qc.invalidateQueries({ queryKey: ["issues"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
       onDone?.();
     },
     onError: (e: Error) => toast.error(e.message),

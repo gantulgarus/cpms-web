@@ -37,10 +37,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { blocks as blocksApi, concreteOrders } from "@/lib/api/v2/endpoints";
-import type { ConcreteOrderStatus } from "@/lib/api/v2/types";
-import { useMe } from "@/lib/api/v2/use-me";
-import { useProject } from "@/lib/api/v2/use-project";
+import { blocks as blocksApi, concreteOrders } from "@/lib/api/endpoints";
+import type { ConcreteOrderStatus } from "@/lib/api/types";
+import { useMe } from "@/lib/api/use-me";
+import { useProject } from "@/lib/api/use-project";
 import { CONCRETE_ORDER_WRITER_ROLES, formatDate, formatQty } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
@@ -70,7 +70,7 @@ export default function ConcreteOrdersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const blockList = useQuery({
-    queryKey: ["v2-blocks", project?.id],
+    queryKey: ["blocks", project?.id],
     queryFn: () => blocksApi.listForProject(project!.id),
     enabled: Boolean(project),
   });
@@ -81,7 +81,7 @@ export default function ConcreteOrdersPage() {
   const blockLabels = Object.fromEntries(blockOptions.map((b) => [b.id, b.name]));
 
   const list = useQuery({
-    queryKey: ["v2-concrete-orders", project?.id, status, blockId],
+    queryKey: ["concrete-orders", project?.id, status, blockId],
     queryFn: () =>
       concreteOrders
         .list(project!.id, {
@@ -94,7 +94,7 @@ export default function ConcreteOrdersPage() {
   });
 
   const balance = useQuery({
-    queryKey: ["v2-concrete-balance", blockId],
+    queryKey: ["concrete-balance", blockId],
     queryFn: () => concreteOrders.balance(blockId).then((r) => r.data),
     enabled: view === "balance" && Boolean(blockId),
   });

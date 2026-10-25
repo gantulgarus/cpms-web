@@ -41,9 +41,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { blocks, materialBudget } from "@/lib/api/v2/endpoints";
-import { useMe } from "@/lib/api/v2/use-me";
-import type { BudgetMaterialRow } from "@/lib/api/v2/types";
+import { blocks, materialBudget } from "@/lib/api/endpoints";
+import { useMe } from "@/lib/api/use-me";
+import type { BudgetMaterialRow } from "@/lib/api/types";
 import { formatMoney, formatQty } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
@@ -61,22 +61,22 @@ export default function BlockBudgetPage() {
   const canEdit = Boolean(me?.canManageReferenceData);
 
   const blockQuery = useQuery({
-    queryKey: ["v2-block", blockId],
+    queryKey: ["block", blockId],
     queryFn: () => blocks.get(blockId),
   });
 
   const qc = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["v2-block-budget", blockId],
+    queryKey: ["block-budget", blockId],
     queryFn: () => blocks.budget(blockId),
   });
 
   const refresh = () => {
-    qc.invalidateQueries({ queryKey: ["v2-block-budget", blockId] });
+    qc.invalidateQueries({ queryKey: ["block-budget", blockId] });
     // Төсвийн үнэ өөрчлөгдвөл блокийн тайлан, тохиролцооны жишиг үнэ
     // хоёулаа хуучирна.
-    qc.invalidateQueries({ queryKey: ["v2-block-report", blockId] });
+    qc.invalidateQueries({ queryKey: ["block-report", blockId] });
   };
 
   const setWorkPrice = useMutation({

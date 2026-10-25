@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Туслан гүйцэтгэгч ба тэдний нэвтрэх эрх (API v2).
+ * Туслан гүйцэтгэгч ба тэдний нэвтрэх эрх.
  *
  * Захиалагч: "Ажил гүйцэтгэх хугацаанд олгогдсон кодоор нэвтэрнэ",
  * "Туслан гүйцэтгэгчээс 1 хүн — талбай дээр ажил ахалж байгаа хүн".
@@ -20,7 +20,7 @@ import { FormDialog, FormField } from "@/components/form-dialog";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/states";
 import { ToneBadge } from "@/components/tone-badge";
-import type { Contractor } from "@/lib/api/v2/types";
+import type { Contractor } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,8 +33,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { request } from "@/lib/api/client";
-import type { ListEnvelope, Uuid } from "@/lib/api/v2/types";
-import { useMe } from "@/lib/api/v2/use-me";
+import type { ListEnvelope, Uuid } from "@/lib/api/types";
+import { useMe } from "@/lib/api/use-me";
 
 /*
  * Төрлийг ХУВААЛЦСАН `Contractor`-оос авна.
@@ -45,18 +45,18 @@ import { useMe } from "@/lib/api/v2/use-me";
  */
 type ContractorRow = Contractor;
 
-export default function ContractorsV2Page() {
+export default function ContractorsPage() {
   const qc = useQueryClient();
   const { me } = useMe();
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ name: "", tradeSpecialty: "", contactPerson: "", phone: "" });
 
   const query = useQuery({
-    queryKey: ["v2-contractors"],
+    queryKey: ["contractors"],
     queryFn: () => request<ListEnvelope<ContractorRow>>("GET", "/contractors"),
   });
 
-  const refresh = () => qc.invalidateQueries({ queryKey: ["v2-contractors"] });
+  const refresh = () => qc.invalidateQueries({ queryKey: ["contractors"] });
 
   /** "Хэдэн утаснаас гарлаа" — админ үйлдлийнхээ үр дагаврыг харах ёстой. */
   const signedOutNote = (n?: number) => (n && n > 0 ? ` ${n} төхөөрөмжөөс гарлаа.` : "");

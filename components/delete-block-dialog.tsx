@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { blocks } from "@/lib/api/v2/endpoints";
+import { blocks } from "@/lib/api/endpoints";
 
 export function DeleteBlockDialog({
   open,
@@ -65,7 +65,7 @@ function Body({
   const [typed, setTyped] = useState("");
 
   const impact = useQuery({
-    queryKey: ["v2-block-deletion-impact", blockId],
+    queryKey: ["block-deletion-impact", blockId],
     queryFn: () => blocks.deletionImpact(blockId),
   });
 

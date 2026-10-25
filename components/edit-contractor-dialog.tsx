@@ -16,8 +16,8 @@ import { toast } from "sonner";
 
 import { FormDialog, FormField } from "@/components/form-dialog";
 import { Input } from "@/components/ui/input";
-import { contractorsV2 } from "@/lib/api/v2/endpoints";
-import type { Contractor } from "@/lib/api/v2/types";
+import { contractors } from "@/lib/api/endpoints";
+import type { Contractor } from "@/lib/api/types";
 import { CONTRACTOR_CATEGORIES, CONTRACTOR_STATUSES } from "@/lib/domain";
 
 export function EditContractorDialog({
@@ -54,7 +54,7 @@ export function EditContractorDialog({
 
   const save = useMutation({
     mutationFn: () =>
-      contractorsV2.update(contractor.id, {
+      contractors.update(contractor.id, {
         name: form.name.trim(),
         registrationNo: form.registrationNo.trim() || null,
         tradeSpecialty: form.tradeSpecialty.trim() || null,
@@ -69,7 +69,7 @@ export function EditContractorDialog({
     onSuccess: () => {
       toast.success("Хадгалагдлаа");
       onOpenChange(false);
-      qc.invalidateQueries({ queryKey: ["v2-contractors"] });
+      qc.invalidateQueries({ queryKey: ["contractors"] });
       onDone?.();
     },
     onError: (e: Error) => toast.error(e.message),

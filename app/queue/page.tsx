@@ -41,10 +41,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { blocks as blocksApi, queue } from "@/lib/api/v2/endpoints";
-import type { QueueType, WorkItem } from "@/lib/api/v2/types";
-import { useMe } from "@/lib/api/v2/use-me";
-import { useProject } from "@/lib/api/v2/use-project";
+import { blocks as blocksApi, queue } from "@/lib/api/endpoints";
+import type { QueueType, WorkItem } from "@/lib/api/types";
+import { useMe } from "@/lib/api/use-me";
+import { useProject } from "@/lib/api/use-project";
 import { formatQty } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
@@ -143,7 +143,7 @@ function QueueContent() {
   const [blockId, setBlockId] = useState<string>("");
 
   const blockList = useQuery({
-    queryKey: ["v2-blocks", project?.id],
+    queryKey: ["blocks", project?.id],
     queryFn: () => blocksApi.listForProject(project!.id),
     enabled: Boolean(project),
   });
@@ -157,13 +157,13 @@ function QueueContent() {
   const blockLabels = Object.fromEntries(blockOptions.map((b) => [b.id, b.name]));
 
   const counts = useQuery({
-    queryKey: ["v2-queue-counts", project?.id, blockId],
+    queryKey: ["queue-counts", project?.id, blockId],
     queryFn: () => queue.counts(project!.id, blockId ? { blockId } : {}),
     enabled: Boolean(project),
   });
 
   const list = useQuery({
-    queryKey: ["v2-queue", project?.id, activeTab, page, blockId],
+    queryKey: ["queue", project?.id, activeTab, page, blockId],
     queryFn: () =>
       queue.list(project!.id, activeTab, {
         page,

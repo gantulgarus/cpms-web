@@ -30,7 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { blocks } from "@/lib/api/v2/endpoints";
+import { blocks } from "@/lib/api/endpoints";
 import { formatDate, formatMoney } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +38,7 @@ export default function BlockReportPage() {
   const { blockId } = useParams<{ blockId: string }>();
 
   const query = useQuery({
-    queryKey: ["v2-block-report", blockId],
+    queryKey: ["block-report", blockId],
     queryFn: () => blocks.report(blockId),
   });
 

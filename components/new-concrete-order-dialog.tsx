@@ -34,8 +34,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { concreteOrders } from "@/lib/api/v2/endpoints";
-import type { Block } from "@/lib/api/v2/types";
+import { concreteOrders } from "@/lib/api/endpoints";
+import type { Block } from "@/lib/api/types";
 import { formatQty } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
@@ -105,7 +105,7 @@ function OrderForm({
   });
 
   const balance = useQuery({
-    queryKey: ["v2-concrete-balance", blockId],
+    queryKey: ["concrete-balance", blockId],
     queryFn: () => concreteOrders.balance(blockId).then((r) => r.data),
     enabled: Boolean(blockId),
   });
@@ -160,8 +160,8 @@ function OrderForm({
       }),
     onSuccess: (order) => {
       toast.success(`${order.number} драфт үүслээ — илгээх хүртэл төсөв иддэггүй.`);
-      qc.invalidateQueries({ queryKey: ["v2-concrete-orders"] });
-      qc.invalidateQueries({ queryKey: ["v2-concrete-balance"] });
+      qc.invalidateQueries({ queryKey: ["concrete-orders"] });
+      qc.invalidateQueries({ queryKey: ["concrete-balance"] });
       onDone();
     },
     onError: (e: Error) => toast.error(e.message),

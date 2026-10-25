@@ -17,8 +17,8 @@ import { toast } from "sonner";
 
 import { FormDialog, FormField } from "@/components/form-dialog";
 import { Input } from "@/components/ui/input";
-import { plan } from "@/lib/api/v2/endpoints";
-import type { WorkItem } from "@/lib/api/v2/types";
+import { plan } from "@/lib/api/endpoints";
+import type { WorkItem } from "@/lib/api/types";
 import { formatQty } from "@/lib/domain";
 
 export function PlanQuantityDialog({
@@ -64,10 +64,10 @@ export function PlanQuantityDialog({
       );
       onOpenChange(false);
       // Тоо хэмжээ өөрчлөгдвөл хувь, төлөв, нэгтгэл бүгд хуучирна.
-      qc.invalidateQueries({ queryKey: ["v2-work-item"] });
-      qc.invalidateQueries({ queryKey: ["v2-work-items"] });
-      qc.invalidateQueries({ queryKey: ["v2-summary"] });
-      qc.invalidateQueries({ queryKey: ["v2-dashboard"] });
+      qc.invalidateQueries({ queryKey: ["work-item"] });
+      qc.invalidateQueries({ queryKey: ["work-items"] });
+      qc.invalidateQueries({ queryKey: ["summary"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
       onDone();
     },
     onError: (e: Error) => toast.error(e.message),

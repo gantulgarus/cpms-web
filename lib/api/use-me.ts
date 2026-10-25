@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { request } from "@/lib/api/client";
-import type { Uuid } from "@/lib/api/v2/types";
+import type { Uuid } from "@/lib/api/types";
 
 export interface Me {
   id: number | string;
@@ -40,6 +40,8 @@ export interface Me {
   canAssignInspectors: boolean;
   /** Хэрэглэгч бүртгэх, үүрэг оноох эрхтэй эсэх. */
   canManageUsers: boolean;
+  /** Төсөл (ба захиалагч компани) үүсгэх эрхтэй эсэх. */
+  canManageProjects?: boolean;
   /** Ажлын төрөл, бүлэг зэрэг лавлах сан засах эрхтэй эсэх. */
   canManageReferenceData: boolean;
   /** Төлөвлөгөөт тоо хэмжээ, хугацаа засах эрхтэй эсэх. */
@@ -69,7 +71,7 @@ export interface Me {
  */
 export function useMe() {
   const query = useQuery({
-    queryKey: ["v2-me"],
+    queryKey: ["me"],
     queryFn: () => request<{ data: Me }>("GET", "/me").then((r) => r.data),
     staleTime: 5 * 60_000,
   });

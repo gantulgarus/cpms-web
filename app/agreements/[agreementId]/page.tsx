@@ -25,8 +25,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { agreements } from "@/lib/api/v2/endpoints";
-import { useMe } from "@/lib/api/v2/use-me";
+import { agreements } from "@/lib/api/endpoints";
+import { useMe } from "@/lib/api/use-me";
 import { formatDate, formatMoney, formatQty } from "@/lib/domain";
 
 export default function AgreementPage() {
@@ -35,7 +35,7 @@ export default function AgreementPage() {
   const qc = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["v2-agreement", agreementId],
+    queryKey: ["agreement", agreementId],
     queryFn: () => agreements.get(agreementId),
   });
 
@@ -49,8 +49,8 @@ export default function AgreementPage() {
     mutationFn: () => agreements.approve(agreementId),
     onSuccess: (a) => {
       toast.success(`${a.number} хүчин төгөлдөр болов`);
-      qc.invalidateQueries({ queryKey: ["v2-agreement", agreementId] });
-      qc.invalidateQueries({ queryKey: ["v2-agreements"] });
+      qc.invalidateQueries({ queryKey: ["agreement", agreementId] });
+      qc.invalidateQueries({ queryKey: ["agreements"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });

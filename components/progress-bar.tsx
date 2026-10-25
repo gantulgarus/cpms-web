@@ -1,4 +1,4 @@
-import type { StatusCounts } from "@/lib/api/v2/types";
+import type { StatusCounts } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
 /**

@@ -20,8 +20,8 @@ import { toast } from "sonner";
 
 import { FormDialog, FormField } from "@/components/form-dialog";
 import { Input } from "@/components/ui/input";
-import { referenceData } from "@/lib/api/v2/endpoints";
-import type { LocationLevel, WorkType } from "@/lib/api/v2/types";
+import { referenceData } from "@/lib/api/endpoints";
+import type { LocationLevel, WorkType } from "@/lib/api/types";
 
 /** Байршлын түвшний монгол нэр — «нэг юун дээр үүсэх вэ». */
 const LEVELS: { value: LocationLevel; label: string }[] = [
@@ -51,7 +51,7 @@ export function EditWorkTypeDialog({
   const [unit, setUnit] = useState(workType.unit);
   const [level, setLevel] = useState<LocationLevel>(workType.level);
 
-  const groups = useQuery({ queryKey: ["v2-wt-groups"], queryFn: referenceData.groups });
+  const groups = useQuery({ queryKey: ["wt-groups"], queryFn: referenceData.groups });
 
   const save = useMutation({
     mutationFn: () =>
@@ -74,8 +74,8 @@ export function EditWorkTypeDialog({
     onSuccess: (updated) => {
       toast.success(`«${updated.name}» шинэчлэгдлээ`);
       onOpenChange(false);
-      qc.invalidateQueries({ queryKey: ["v2-work-types"] });
-      qc.invalidateQueries({ queryKey: ["v2-wt-groups"] });
+      qc.invalidateQueries({ queryKey: ["work-types"] });
+      qc.invalidateQueries({ queryKey: ["wt-groups"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });

@@ -16,8 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ToneBadge } from "@/components/tone-badge";
-import { issues } from "@/lib/api/v2/endpoints";
-import type { IssueCategory, Uuid } from "@/lib/api/v2/types";
+import { issues } from "@/lib/api/endpoints";
+import type { IssueCategory, Uuid } from "@/lib/api/types";
 
 /** Ангиллын монгол нэр — серверийн `CATEGORY_LABELS`-тай нэг мөр. */
 export const ISSUE_CATEGORIES: { value: IssueCategory; label: string }[] = [
@@ -46,14 +46,14 @@ export function IssuePanel({ workItemId }: { workItemId: Uuid }) {
   });
 
   const list = useQuery({
-    queryKey: ["v2-issues", workItemId],
+    queryKey: ["issues", workItemId],
     queryFn: () => issues.forWorkItem(workItemId),
   });
 
   const refresh = () => {
-    qc.invalidateQueries({ queryKey: ["v2-issues", workItemId] });
+    qc.invalidateQueries({ queryKey: ["issues", workItemId] });
     // Төслийн dashboard дээрх "нээлттэй асуудал" тоо мөн өөрчлөгдөнө.
-    qc.invalidateQueries({ queryKey: ["v2-dashboard"] });
+    qc.invalidateQueries({ queryKey: ["dashboard"] });
   };
 
   const create = useMutation({

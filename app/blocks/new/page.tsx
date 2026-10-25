@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Шинэ блок үүсгэх — загвараас хувилах дэлгэц (API v2).
+ * Шинэ блок үүсгэх — загвараас хувилах дэлгэц.
  *
  * Хэрэглэгч гурван зүйл л оруулна: нэр, барилгын дугаар, эхлэх огноо. Үлдсэнийг
  * загвар хийнэ — 3,000 орчим ажлын нэгж автоматаар үүснэ. Захиалагчийн 49
@@ -17,6 +17,7 @@ import { AlertTriangle, Check, Layers } from "lucide-react";
 import { toast } from "sonner";
 
 import { FormField } from "@/components/form-dialog";
+import { NoProjectState } from "@/components/no-project-state";
 import { PageHeader } from "@/components/page-header";
 import { ProgressBar } from "@/components/progress-bar";
 import { ErrorState, LoadingRows } from "@/components/states";
@@ -24,10 +25,10 @@ import { ToneBadge } from "@/components/tone-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { blockDesigns, blocks, jobs } from "@/lib/api/v2/endpoints";
-import type { BlockDesign, Job } from "@/lib/api/v2/types";
+import { blockDesigns, blocks, jobs } from "@/lib/api/endpoints";
+import type { BlockDesign, Job } from "@/lib/api/types";
 import { todayInProjectZone } from "@/lib/domain";
-import { useProject } from "@/lib/api/v2/use-project";
+import { useProject } from "@/lib/api/use-project";
 import { cn } from "@/lib/utils";
 
 const today = todayInProjectZone;
@@ -62,9 +63,9 @@ export default function NewBlockPage() {
   /** Ажил эхлэхгүй удаж байна уу — дараалал боловсруулагчийн шинж. */
   const [stalled, setStalled] = useState(false);
 
-  const { project } = useProject();
+  const { project, isLoading: projectLoading } = useProject();
 
-  const designsQuery = useQuery({ queryKey: ["v2-designs"], queryFn: () => blockDesigns.list() });
+  const designsQuery = useQuery({ queryKey: ["designs"], queryFn: () => blockDesigns.list() });
   const designs = designsQuery.data?.data ?? [];
   const selected = designs.find((d) => d.id === designId) ?? null;
 
@@ -116,7 +117,7 @@ export default function NewBlockPage() {
       return block;
     },
     onSuccess: (block) => {
-      qc.invalidateQueries({ queryKey: ["v2-blocks"] });
+      qc.invalidateQueries({ queryKey: ["blocks"] });
       toast.success(`${block.name} үүслээ`);
       router.push(`/blocks/${block.id}`);
     },
@@ -141,8 +142,10 @@ export default function NewBlockPage() {
         description="Стандарт загвараас хувилна, эсвэл хоосон үүсгээд загварыг дараа буулгана."
       />
 
-      {designsQuery.isLoading ? (
+      {designsQuery.isLoading || projectLoading ? (
         <LoadingRows rows={3} />
+      ) : !project ? (
+        <NoProjectState />
       ) : designsQuery.error ? (
         <ErrorState
           message={(designsQuery.error as Error).message}

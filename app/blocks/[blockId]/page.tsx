@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Блокийн явцын дэлгэц (API v2).
+ * Блокийн явцын дэлгэц.
  *
  * Нэг блокт ~3,290 ажлын нэгж байдаг тул жагсаалтаар харуулах боломжгүй.
  * Эхлээд нэгтгэсэн бүлгүүд (давхар / ажлын бүлэг / гүйцэтгэгч), бүлэг дарахад
@@ -47,14 +47,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { blocks, workItems } from "@/lib/api/v2/endpoints";
+import { blocks, workItems } from "@/lib/api/endpoints";
 import type {
   BlockSummary,
   ReviewState,
   SummaryGroupBy,
   WorkItemFilters,
-} from "@/lib/api/v2/types";
-import { useMe } from "@/lib/api/v2/use-me";
+} from "@/lib/api/types";
+import { useMe } from "@/lib/api/use-me";
 import { formatDate, formatQty } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
@@ -117,11 +117,11 @@ export default function BlockProgressPage() {
   const [fixingQuantities, setFixingQuantities] = useState(false);
 
   const blockQuery = useQuery({
-    queryKey: ["v2-block", blockId],
+    queryKey: ["block", blockId],
     queryFn: () => blocks.get(blockId),
   });
   const summaryQuery = useQuery({
-    queryKey: ["v2-summary", blockId, groupBy],
+    queryKey: ["summary", blockId, groupBy],
     queryFn: () => blocks.summary(blockId, groupBy),
   });
 
@@ -139,7 +139,7 @@ export default function BlockProgressPage() {
   );
 
   const itemsQuery = useQuery({
-    queryKey: ["v2-work-items", blockId, filters],
+    queryKey: ["work-items", blockId, filters],
     queryFn: () => workItems.listForBlock(blockId, filters),
     enabled: Boolean(active),
     placeholderData: keepPreviousData,

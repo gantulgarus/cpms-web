@@ -29,9 +29,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { agreements, blocks, contractorsV2, referenceData } from "@/lib/api/v2/endpoints";
-import type { AgreementDraftLine } from "@/lib/api/v2/types";
-import { useProject } from "@/lib/api/v2/use-project";
+import { agreements, blocks, contractors, referenceData } from "@/lib/api/endpoints";
+import type { AgreementDraftLine } from "@/lib/api/types";
+import { useProject } from "@/lib/api/use-project";
 import { formatMoney, formatQty } from "@/lib/domain";
 
 interface Row extends AgreementDraftLine {
@@ -67,18 +67,18 @@ export default function NewAgreementPage() {
   const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const blockList = useQuery({
-    queryKey: ["v2-blocks", project?.id],
+    queryKey: ["blocks", project?.id],
     queryFn: () => blocks.listForProject(project!.id),
     enabled: Boolean(project),
   });
 
   const contractorList = useQuery({
-    queryKey: ["v2-contractors"],
-    queryFn: () => contractorsV2.list(),
+    queryKey: ["contractors"],
+    queryFn: () => contractors.list(),
   });
 
   const groupList = useQuery({
-    queryKey: ["v2-work-type-groups"],
+    queryKey: ["work-type-groups"],
     queryFn: () => referenceData.groups(),
   });
 

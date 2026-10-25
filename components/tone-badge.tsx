@@ -1,8 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { PROJECT_STATUS, REVIEW_STATE, WORK_STATUS, type Tone } from "@/lib/domain";
-import type { ProjectStatus, WorkStatus } from "@/lib/api";
-import type { ReviewState } from "@/lib/approval";
+import { PROJECT_STATUS, REVIEW_STATE, type Tone } from "@/lib/domain";
 
 const TONE_CLASS: Record<Tone, string> = {
   gray: "bg-muted text-muted-foreground border-transparent",
@@ -22,23 +20,16 @@ export function ToneBadge({ tone, children }: { tone: Tone; children: React.Reac
   );
 }
 
-export function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
-  const s = PROJECT_STATUS[status];
-  return <ToneBadge tone={s.tone}>{s.label}</ToneBadge>;
-}
-
-export function WorkStatusBadge({ status }: { status: WorkStatus }) {
-  const s = WORK_STATUS[status];
+export function ProjectStatusBadge({ status }: { status: string }) {
+  const s = PROJECT_STATUS[status] ?? { label: status, tone: "gray" as Tone };
   return <ToneBadge tone={s.tone}>{s.label}</ToneBadge>;
 }
 
 /**
- * v1 ба v2 хоёр өөр `ReviewState` төрөлтэй тул string-ээр авна.
- *
  * Танихгүй төлөв ирвэл хоосон биш, өөрийг нь харуулна — шинэ төлөв
  * нэмэгдэхэд дэлгэц чимээгүй хоосон болох нь хамгийн муу.
  */
-export function ReviewStateBadge({ state }: { state: ReviewState | string }) {
+export function ReviewStateBadge({ state }: { state: string }) {
   const s = REVIEW_STATE[state] ?? { label: state, tone: "gray" as Tone };
   return <ToneBadge tone={s.tone}>{s.label}</ToneBadge>;
 }

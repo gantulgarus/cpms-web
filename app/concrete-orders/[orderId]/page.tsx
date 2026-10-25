@@ -18,8 +18,8 @@ import { ToneBadge } from "@/components/tone-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { concreteOrders } from "@/lib/api/v2/endpoints";
-import { useMe } from "@/lib/api/v2/use-me";
+import { concreteOrders } from "@/lib/api/endpoints";
+import { useMe } from "@/lib/api/use-me";
 import {
   CONCRETE_ORDER_CONFIRMER_ROLES,
   CONCRETE_ORDER_WRITER_ROLES,
@@ -36,14 +36,14 @@ export default function ConcreteOrderPage() {
   const [delivered, setDelivered] = useState("");
 
   const query = useQuery({
-    queryKey: ["v2-concrete-order", orderId],
+    queryKey: ["concrete-order", orderId],
     queryFn: () => concreteOrders.get(orderId),
   });
 
   function refresh() {
-    qc.invalidateQueries({ queryKey: ["v2-concrete-order", orderId] });
-    qc.invalidateQueries({ queryKey: ["v2-concrete-orders"] });
-    qc.invalidateQueries({ queryKey: ["v2-concrete-balance"] });
+    qc.invalidateQueries({ queryKey: ["concrete-order", orderId] });
+    qc.invalidateQueries({ queryKey: ["concrete-orders"] });
+    qc.invalidateQueries({ queryKey: ["concrete-balance"] });
   }
 
   const act = (fn: () => Promise<unknown>, message: string) => ({

@@ -48,7 +48,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { blocks as blocksApi, budgetImports } from "@/lib/api/v2/endpoints";
+import { blocks as blocksApi, budgetImports } from "@/lib/api/endpoints";
 import type {
   BudgetImport,
   BudgetImportType,
@@ -56,9 +56,9 @@ import type {
   ImportReport,
   ImportStatRow,
   ImportWarning,
-} from "@/lib/api/v2/types";
-import { useMe } from "@/lib/api/v2/use-me";
-import { useProject } from "@/lib/api/v2/use-project";
+} from "@/lib/api/types";
+import { useMe } from "@/lib/api/use-me";
+import { useProject } from "@/lib/api/use-project";
 import { formatDate, formatMoney } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
@@ -91,7 +91,7 @@ export default function ImportsPage() {
   const fileInput = useRef<HTMLInputElement>(null);
 
   /*
-   * `["v2-blocks", projectId]` түлхүүрийг ТАВАН дэлгэц хуваалцдаг бөгөөд
+   * `["blocks", projectId]` түлхүүрийг ТАВАН дэлгэц хуваалцдаг бөгөөд
    * бүгд ДУГТУЙГ (`{ data, meta }`) хадгалдаг. Энд `.then(r => r.data)`
    * хийвэл нэг түлхүүр дор хоёр өөр хэлбэр хадгалагдана: хэрэглэгч
    * эхлээд /blocks руу ороод дараа нь энд ирэхэд кэшнээс дугтуй ирж
@@ -101,7 +101,7 @@ export default function ImportsPage() {
    * Нэг түлхүүр — нэг хэлбэр.
    */
   const blockList = useQuery({
-    queryKey: ["v2-blocks", project?.id],
+    queryKey: ["blocks", project?.id],
     queryFn: () => blocksApi.listForProject(project!.id),
     enabled: Boolean(project),
   });
@@ -114,7 +114,7 @@ export default function ImportsPage() {
   );
 
   const history = useQuery({
-    queryKey: ["v2-imports", blockId],
+    queryKey: ["imports", blockId],
     queryFn: () => budgetImports.list(blockId).then((r) => r.data),
     enabled: Boolean(blockId),
   });
@@ -139,7 +139,7 @@ export default function ImportsPage() {
         chosen: res.reports.map((r) => r.type),
         applied: false,
       });
-      qc.invalidateQueries({ queryKey: ["v2-imports", blockId] });
+      qc.invalidateQueries({ queryKey: ["imports", blockId] });
 
       const rejected = res.reports.reduce((n, r) => n + r.summary.rejected, 0);
 
@@ -196,7 +196,7 @@ export default function ImportsPage() {
     mutationFn: () => budgetImports.discard(pending!.id),
     onSuccess: () => {
       setPending(null);
-      qc.invalidateQueries({ queryKey: ["v2-imports", blockId] });
+      qc.invalidateQueries({ queryKey: ["imports", blockId] });
       toast.success("Цуцлагдлаа.");
     },
     onError: (e: Error) => toast.error(e.message),

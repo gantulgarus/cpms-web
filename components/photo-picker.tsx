@@ -18,7 +18,7 @@ import { useRef } from "react";
 import { ImagePlus, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import type { PhotoType } from "@/lib/api/v2/types";
+import type { PhotoType } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
 /** Илгээхийн өмнөх дээд хэмжээ — талбайн сүлжээнд эвтэйхэн. */

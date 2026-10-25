@@ -36,10 +36,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { blocks as blocksApi, materialOrders } from "@/lib/api/v2/endpoints";
-import type { MaterialOrderKind, MaterialOrderStatus } from "@/lib/api/v2/types";
-import { useMe } from "@/lib/api/v2/use-me";
-import { useProject } from "@/lib/api/v2/use-project";
+import { blocks as blocksApi, materialOrders } from "@/lib/api/endpoints";
+import type { MaterialOrderKind, MaterialOrderStatus } from "@/lib/api/types";
+import { useMe } from "@/lib/api/use-me";
+import { useProject } from "@/lib/api/use-project";
 import {
   formatDate,
   formatQty,
@@ -74,7 +74,7 @@ export default function MaterialOrdersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const blockList = useQuery({
-    queryKey: ["v2-blocks", project?.id],
+    queryKey: ["blocks", project?.id],
     queryFn: () => blocksApi.listForProject(project!.id),
     enabled: Boolean(project),
   });
@@ -83,7 +83,7 @@ export default function MaterialOrdersPage() {
   const blockLabels = Object.fromEntries(blockOptions.map((b) => [b.id, b.name]));
 
   const list = useQuery({
-    queryKey: ["v2-material-orders", project?.id, kind, blockId],
+    queryKey: ["material-orders", project?.id, kind, blockId],
     queryFn: () =>
       materialOrders
         .list(project!.id, {
@@ -96,7 +96,7 @@ export default function MaterialOrdersPage() {
   });
 
   const balance = useQuery({
-    queryKey: ["v2-material-balance", blockId],
+    queryKey: ["material-balance", blockId],
     queryFn: () => materialOrders.balance(blockId).then((r) => r.data),
     enabled: view === "balance" && Boolean(blockId),
   });

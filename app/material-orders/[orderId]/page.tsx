@@ -28,8 +28,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { materialOrders } from "@/lib/api/v2/endpoints";
-import { useMe } from "@/lib/api/v2/use-me";
+import { materialOrders } from "@/lib/api/endpoints";
+import { useMe } from "@/lib/api/use-me";
 import {
   formatDate,
   formatQty,
@@ -47,14 +47,14 @@ export default function MaterialOrderPage() {
   const [edits, setEdits] = useState<Record<string, string>>({});
 
   const query = useQuery({
-    queryKey: ["v2-material-order", orderId],
+    queryKey: ["material-order", orderId],
     queryFn: () => materialOrders.get(orderId),
   });
 
   function refresh() {
-    qc.invalidateQueries({ queryKey: ["v2-material-order", orderId] });
-    qc.invalidateQueries({ queryKey: ["v2-material-orders"] });
-    qc.invalidateQueries({ queryKey: ["v2-material-balance"] });
+    qc.invalidateQueries({ queryKey: ["material-order", orderId] });
+    qc.invalidateQueries({ queryKey: ["material-orders"] });
+    qc.invalidateQueries({ queryKey: ["material-balance"] });
     setEdits({});
   }
 

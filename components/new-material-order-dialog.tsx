@@ -30,8 +30,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { materialOrders } from "@/lib/api/v2/endpoints";
-import type { Block, MaterialBalanceRow, MaterialOrderKind } from "@/lib/api/v2/types";
+import { materialOrders } from "@/lib/api/endpoints";
+import type { Block, MaterialBalanceRow, MaterialOrderKind } from "@/lib/api/types";
 import { formatQty, MATERIAL_ORDER_KINDS } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
@@ -96,7 +96,7 @@ function OrderForm({
   const [nextKey, setNextKey] = useState(1);
 
   const balance = useQuery({
-    queryKey: ["v2-material-balance", blockId],
+    queryKey: ["material-balance", blockId],
     queryFn: () => materialOrders.balance(blockId).then((r) => r.data),
     enabled: Boolean(blockId),
   });
@@ -133,8 +133,8 @@ function OrderForm({
       }),
     onSuccess: (order) => {
       toast.success(`${order.number} драфт үүслээ — илгээх хүртэл төсөв иддэггүй.`);
-      qc.invalidateQueries({ queryKey: ["v2-material-orders"] });
-      qc.invalidateQueries({ queryKey: ["v2-material-balance"] });
+      qc.invalidateQueries({ queryKey: ["material-orders"] });
+      qc.invalidateQueries({ queryKey: ["material-balance"] });
       onDone();
     },
     onError: (e: Error) => toast.error(e.message),

@@ -18,8 +18,8 @@ import { toast } from "sonner";
 
 import { FormDialog, FormField } from "@/components/form-dialog";
 import { Input } from "@/components/ui/input";
-import { blocks as blocksApi, plan, referenceData } from "@/lib/api/v2/endpoints";
-import type { LocationLevel, Uuid } from "@/lib/api/v2/types";
+import { blocks as blocksApi, plan, referenceData } from "@/lib/api/endpoints";
+import type { LocationLevel, Uuid } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
 const LEVELS: { value: LocationLevel; label: string; hint: string }[] = [
@@ -54,12 +54,12 @@ export function AddWorkTypeDialog({
   const [plannedQty, setPlannedQty] = useState("");
 
   const typesQuery = useQuery({
-    queryKey: ["v2-work-types", ""],
+    queryKey: ["work-types", ""],
     queryFn: () => referenceData.types(),
     enabled: open,
   });
   const locationsQuery = useQuery({
-    queryKey: ["v2-locations", blockId],
+    queryKey: ["locations", blockId],
     queryFn: () => blocksApi.locations(blockId),
     enabled: open,
   });
@@ -114,10 +114,10 @@ export function AddWorkTypeDialog({
       );
       onOpenChange(false);
       reset();
-      qc.invalidateQueries({ queryKey: ["v2-summary"] });
-      qc.invalidateQueries({ queryKey: ["v2-work-items"] });
-      qc.invalidateQueries({ queryKey: ["v2-assignments"] });
-      qc.invalidateQueries({ queryKey: ["v2-dashboard"] });
+      qc.invalidateQueries({ queryKey: ["summary"] });
+      qc.invalidateQueries({ queryKey: ["work-items"] });
+      qc.invalidateQueries({ queryKey: ["assignments"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
       onDone?.();
     },
     onError: (e: Error) => toast.error(e.message),

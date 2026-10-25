@@ -32,10 +32,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { blocks, issues } from "@/lib/api/v2/endpoints";
-import type { Issue, Uuid } from "@/lib/api/v2/types";
-import { useMe } from "@/lib/api/v2/use-me";
-import { useProject } from "@/lib/api/v2/use-project";
+import { blocks, issues } from "@/lib/api/endpoints";
+import type { Issue, Uuid } from "@/lib/api/types";
+import { useMe } from "@/lib/api/use-me";
+import { useProject } from "@/lib/api/use-project";
 import { formatDateTime } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
@@ -82,13 +82,13 @@ function IssuesContent() {
   const [blockId, setBlockId] = useState("");
 
   const blockList = useQuery({
-    queryKey: ["v2-blocks", projectId],
+    queryKey: ["blocks", projectId],
     queryFn: () => blocks.listForProject(projectId!),
     enabled: Boolean(projectId),
   });
 
   const list = useQuery({
-    queryKey: ["v2-issues", projectId, status, category, blockId],
+    queryKey: ["issues", projectId, status, category, blockId],
     queryFn: () =>
       issues.forProject(projectId!, {
         status: status || undefined,
@@ -102,9 +102,9 @@ function IssuesContent() {
     mutationFn: (id: Uuid) => issues.resolve(id),
     onSuccess: () => {
       toast.success("Шийдвэрлэсэн гэж тэмдэглэлээ");
-      qc.invalidateQueries({ queryKey: ["v2-issues"] });
+      qc.invalidateQueries({ queryKey: ["issues"] });
       // Хянах самбарын тоо мөн өөрчлөгдөнө.
-      qc.invalidateQueries({ queryKey: ["v2-dashboard"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });

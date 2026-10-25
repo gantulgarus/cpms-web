@@ -22,8 +22,8 @@ import { EmptyState } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { downscale, PHOTO_TYPES } from "@/components/photo-picker";
-import { photoUrl, workItems } from "@/lib/api/v2/endpoints";
-import type { Photo, PhotoType, Uuid } from "@/lib/api/v2/types";
+import { photoUrl, workItems } from "@/lib/api/endpoints";
+import type { Photo, PhotoType, Uuid } from "@/lib/api/types";
 import { formatDateTime } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
@@ -44,12 +44,12 @@ export function PhotoGallery({
   const [preview, setPreview] = useState<Photo | null>(null);
 
   const photosQuery = useQuery({
-    queryKey: ["v2-photos", workItemId],
+    queryKey: ["photos", workItemId],
     queryFn: () => workItems.photos(workItemId),
   });
 
   const refresh = () => {
-    qc.invalidateQueries({ queryKey: ["v2-photos", workItemId] });
+    qc.invalidateQueries({ queryKey: ["photos", workItemId] });
     onChange?.();
   };
 

@@ -31,9 +31,9 @@ import {
 } from "@/components/ui/table";
 import { ChecklistTemplates } from "@/components/checklist-templates";
 import { EditWorkTypeDialog } from "@/components/edit-work-type-dialog";
-import { referenceData } from "@/lib/api/v2/endpoints";
-import type { LocationLevel, WorkType } from "@/lib/api/v2/types";
-import { useMe } from "@/lib/api/v2/use-me";
+import { referenceData } from "@/lib/api/endpoints";
+import type { LocationLevel, WorkType } from "@/lib/api/types";
+import { useMe } from "@/lib/api/use-me";
 import { cn } from "@/lib/utils";
 
 const LEVEL_LABEL: Record<string, string> = {
@@ -63,15 +63,15 @@ export default function ReferenceDataPage() {
     level: "floor" as LocationLevel,
   });
 
-  const groups = useQuery({ queryKey: ["v2-wt-groups"], queryFn: referenceData.groups });
+  const groups = useQuery({ queryKey: ["wt-groups"], queryFn: referenceData.groups });
   const types = useQuery({
-    queryKey: ["v2-work-types", groupId],
+    queryKey: ["work-types", groupId],
     queryFn: () => referenceData.types(groupId ? { groupId } : undefined),
   });
 
   const refresh = () => {
-    qc.invalidateQueries({ queryKey: ["v2-work-types"] });
-    qc.invalidateQueries({ queryKey: ["v2-wt-groups"] });
+    qc.invalidateQueries({ queryKey: ["work-types"] });
+    qc.invalidateQueries({ queryKey: ["wt-groups"] });
   };
 
   const addGroup = useMutation({

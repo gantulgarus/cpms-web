@@ -14,7 +14,7 @@
 import { Check, Minus, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import type { ChecklistItem, ChecklistResult, ChecklistTemplate } from "@/lib/api/v2/types";
+import type { ChecklistItem, ChecklistResult, ChecklistTemplate } from "@/lib/api/types";
 
 export type ChecklistAnswers = Record<string, { result: ChecklistResult; note?: string }>;
 

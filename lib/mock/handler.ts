@@ -1,5 +1,5 @@
 /**
- * Mock router — v2 endpoint-уудыг санах ой дээрх өгөгдлөөс хариулна.
+ * Mock router — API endpoint-уудыг санах ой дээрх өгөгдлөөс хариулна.
  *
  * Санаатайгаар "жинхэнэ шиг" ажиллана: шүүлтүүр, хуудаслалт, `meta.total`,
  * сервер талын нэгтгэл бүгд хэрэгжсэн. Бүх мөрийг нэг дор буцаадаг хялбар
@@ -52,7 +52,7 @@ import type {
   WorkItem,
   WorkItemFilters,
   WorkType,
-} from "@/lib/api/v2/types";
+} from "@/lib/api/types";
 
 const MAX_PAGE_SIZE = 200;
 
@@ -84,6 +84,7 @@ interface MockSession {
   canAssignInspectors: boolean;
   canApproveExtensions: boolean;
   canManageUsers: boolean;
+  canManageProjects: boolean;
   canManageReferenceData: boolean;
   canEditPlan: boolean;
   /** Мөнгө харах эрх — батлахаас тусдаа. */
@@ -122,6 +123,7 @@ const STAFF_SESSION: MockSession = {
   canAssignInspectors: true,
   canApproveExtensions: true,
   canManageUsers: true,
+  canManageProjects: true,
   canManageReferenceData: true,
   canEditPlan: true,
   canSeeMoney: true,
@@ -838,6 +840,7 @@ function sessionFor(user: MockUser): MockSession {
     canAssignInspectors: INSPECTOR_ASSIGNER_ROLES.includes(user.role),
     canApproveExtensions: EXTENSION_APPROVER_ROLES.includes(user.role),
     canManageUsers: USER_MANAGER_ROLES.includes(user.role),
+    canManageProjects: user.role === "admin",
     canManageReferenceData: UNRESTRICTED_ROLES.includes(user.role),
     canEditPlan: UNRESTRICTED_ROLES.includes(user.role) || user.role === "project_manager",
     canSeeMoney: MONEY_READER_ROLES.includes(user.role),
@@ -864,6 +867,7 @@ function contractorSession(id: string, name: string): MockSession {
     canAssignInspectors: false,
     canApproveExtensions: false,
     canManageUsers: false,
+    canManageProjects: false,
     canManageReferenceData: false,
     // Гүйцэтгэгч төлөвлөгөө засахгүй — тоо хэмжээ бол гэрээний асуудал.
     canEditPlan: false,
@@ -1847,6 +1851,23 @@ function shapeMaterialOrder(order: MaterialOrder): MaterialOrder {
   };
 }
 
+/** Mock-ийн компани, төслүүд — санах ойд, POST-оор нэмэгдэнэ. */
+const mockCompanies: { id: string; name: string }[] = [{ id: "cmp-inel", name: "Инэл ХХК" }];
+
+const mockProjects: Record<string, string | null>[] = [
+  {
+    id: MOCK_IDS.projectId,
+    companyId: "cmp-inel",
+    companyName: "Инэл ХХК",
+    name: "75 барилгын цогцолбор",
+    code: "INL-75",
+    location: "Улаанбаатар",
+    startDate: null,
+    endDate: null,
+    status: "active",
+  },
+];
+
 export function handleMock(
   method: string,
   segments: string[],
@@ -1994,9 +2015,6 @@ export function handleMock(
 
       return ok({ data: contractor });
     }
-    // v1 дэлгэц гүйцэтгэгчийн төслүүдийг асуудаг — v2-д блокоор буцаана.
-    if (c === "projects") return ok({ data: [], meta: { total: 0, page: 1, pageSize: 50 } });
-
     // Нэвтрэх код олгох / хаах — mock-д санах ойд хадгална.
     if (c === "access-code") {
       if (method === "POST") {
@@ -2420,21 +2438,60 @@ export function handleMock(
     return job ? ok({ data: job }) : fail(404, "NotFound", "Ажил олдсонгүй.");
   }
 
+  // --- companies ---
+  if (a === "companies" && !b && method === "GET") {
+    if (!session.canManageProjects) return fail(403, "Forbidden", "Танд төсөл удирдах эрх байхгүй.");
+
+    return ok({ data: mockCompanies });
+  }
+
   // --- projects ---
   // Frontend төслийн ID-г эндээс олж авдаг (хатуу бичихгүй) тул жагсаалт
   // заавал байх ёстой — жинхэнэ backend-тэй ижил зан төлөв.
-  if (a === "projects" && !b) {
+  if (a === "projects" && !b && method === "POST") {
+    if (!session.canManageProjects) return fail(403, "Forbidden", "Танд төсөл үүсгэх эрх байхгүй.");
+
+    const p = body as {
+      name?: string;
+      companyId?: string;
+      companyName?: string;
+      code?: string;
+      location?: string;
+      startDate?: string;
+      endDate?: string;
+    };
+    if (!p.name?.trim()) return fail(422, "ValidationError", "Төслийн нэр заавал.");
+
+    let company = mockCompanies.find((x) => x.id === p.companyId);
+    if (!company) {
+      if (!p.companyName?.trim()) {
+        return fail(422, "ValidationError", "Компани сонгох эсвэл шинэ компанийн нэр оруулна уу.");
+      }
+      company = { id: `cmp-${mockCompanies.length + 1}`, name: p.companyName.trim() };
+      mockCompanies.push(company);
+    }
+
     const project = {
-      id: MOCK_IDS.projectId,
-      companyId: "cmp-inel",
-      companyName: "Инэл ХХК",
-      name: "75 барилгын цогцолбор",
-      code: "INL-75",
-      location: "Улаанбаатар",
+      id: `prj-${mockProjects.length + 1}`,
+      companyId: company.id,
+      companyName: company.name,
+      name: p.name.trim(),
+      code: p.code ?? null,
+      location: p.location ?? null,
+      startDate: p.startDate ?? null,
+      endDate: p.endDate ?? null,
       status: "active",
     };
+    mockProjects.push(project);
 
-    return ok({ data: [project], meta: { total: 1, page: 1, pageSize: 50 } });
+    return { status: 201, body: { data: project } };
+  }
+
+  if (a === "projects" && !b) {
+    return ok({
+      data: mockProjects,
+      meta: { total: mockProjects.length, page: 1, pageSize: 50 },
+    });
   }
 
   if (a === "projects" && b) {

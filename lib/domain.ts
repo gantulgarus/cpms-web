@@ -3,31 +3,21 @@
  *
  * `tone` maps to a Tailwind color family consumed by <ToneBadge>.
  */
-import type { DependencyType, ProjectStatus, WorkStatus } from "@/lib/api";
-
 export type Tone = "gray" | "blue" | "amber" | "green" | "red";
 
-export const PROJECT_STATUS: Record<ProjectStatus, { label: string; tone: Tone }> = {
-  planned: { label: "Planned", tone: "gray" },
-  active: { label: "Active", tone: "blue" },
-  on_hold: { label: "On hold", tone: "amber" },
-  completed: { label: "Completed", tone: "green" },
-  cancelled: { label: "Cancelled", tone: "red" },
-};
-
-export const WORK_STATUS: Record<WorkStatus, { label: string; tone: Tone }> = {
-  not_started: { label: "Not started", tone: "gray" },
-  in_progress: { label: "In progress", tone: "blue" },
-  completed: { label: "Completed", tone: "green" },
-  on_hold: { label: "On hold", tone: "amber" },
-  cancelled: { label: "Cancelled", tone: "red" },
+/** Төслийн төлөв — танихгүй утга ирвэл өөрийг нь харуулна. */
+export const PROJECT_STATUS: Record<string, { label: string; tone: Tone }> = {
+  planned: { label: "Төлөвлөсөн", tone: "gray" },
+  active: { label: "Идэвхтэй", tone: "blue" },
+  on_hold: { label: "Түр зогссон", tone: "amber" },
+  completed: { label: "Дууссан", tone: "green" },
+  cancelled: { label: "Цуцлагдсан", tone: "red" },
 };
 
 /**
  * Хяналтын төлвийн нэр.
  *
- * Хоёр шаттай каскадын зургаан төлөв, дээр нь хуучин v1 дэлгэцийн хоёр
- * (`pending`, `returned`). Нэрийг ТОДОРХОЙ бичнэ: «Хүлээгдэж буй» гэвэл
+ * Хоёр шаттай каскадын зургаан төлөв. Нэрийг ТОДОРХОЙ бичнэ: «Хүлээгдэж буй» гэвэл
  * хэрэглэгч хэнийг хүлээж байгааг мэдэхгүй — талбайн инженер үү, хяналтын
  * инженер үү гэдэг нь өөр хүний ажил.
  */
@@ -38,10 +28,6 @@ export const REVIEW_STATE: Record<string, { label: string; tone: Tone }> = {
   returned_by_site: { label: "Талбайн инженер буцаасан", tone: "red" },
   returned_by_final: { label: "Хяналтын инженер буцаасан", tone: "red" },
   approved: { label: "Батлагдсан", tone: "green" },
-
-  // Хуучин v1 дэлгэц (даалгавар, үйл ажиллагаа) эдгээрийг хэрэглэсээр байна.
-  pending: { label: "Хүлээгдэж буй", tone: "amber" },
-  returned: { label: "Буцаагдсан", tone: "red" },
 };
 
 /**
@@ -90,17 +76,6 @@ export const INSPECTION_ACTION: Record<string, {
     qty: "Батлах тоо хэмжээ",
   },
 };
-
-export const DEPENDENCY_TYPE: Record<DependencyType, { label: string; full: string }> = {
-  FS: { label: "FS", full: "Finish → Start" },
-  SS: { label: "SS", full: "Start → Start" },
-  FF: { label: "FF", full: "Finish → Finish" },
-  SF: { label: "SF", full: "Start → Finish" },
-};
-
-export const PROJECT_STATUS_OPTIONS = Object.keys(PROJECT_STATUS) as ProjectStatus[];
-export const WORK_STATUS_OPTIONS = Object.keys(WORK_STATUS) as WorkStatus[];
-export const DEPENDENCY_TYPE_OPTIONS = Object.keys(DEPENDENCY_TYPE) as DependencyType[];
 
 /**
  * Төслийн цагийн бүс.

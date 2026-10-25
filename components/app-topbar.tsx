@@ -24,7 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useMe } from "@/lib/api/v2/use-me";
+import { useMe } from "@/lib/api/use-me";
 import { clearSession } from "@/lib/auth";
 
 export function AppTopbar() {

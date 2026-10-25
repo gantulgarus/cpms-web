@@ -34,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { blocks, materialBudget } from "@/lib/api/v2/endpoints";
+import { blocks, materialBudget } from "@/lib/api/endpoints";
 import { MATERIAL_UNITS } from "@/lib/domain";
 
 interface QtyRow {
@@ -92,7 +92,7 @@ function Body({
    * (verify-mock-ийн статик шалгалт үүнийг барина).
    */
   const locationsQuery = useQuery({
-    queryKey: ["v2-locations", blockId],
+    queryKey: ["locations", blockId],
     queryFn: () => blocks.locations(blockId),
   });
 
@@ -122,8 +122,8 @@ function Body({
       }),
     onSuccess: () => {
       toast.success(`«${name.trim()}» төсөвт нэмэгдлээ.`);
-      qc.invalidateQueries({ queryKey: ["v2-block-budget", blockId] });
-      qc.invalidateQueries({ queryKey: ["v2-material-balance"] });
+      qc.invalidateQueries({ queryKey: ["block-budget", blockId] });
+      qc.invalidateQueries({ queryKey: ["material-balance"] });
       onDone();
       onClose();
     },

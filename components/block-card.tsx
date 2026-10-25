@@ -14,7 +14,7 @@ import { AlertTriangle, Stamp } from "lucide-react";
 
 import { ProgressBar } from "@/components/progress-bar";
 import { Card } from "@/components/ui/card";
-import type { Block, DashboardBlock } from "@/lib/api/v2/types";
+import type { Block, DashboardBlock } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
 export function BlockCard({

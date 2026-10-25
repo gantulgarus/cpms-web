@@ -3,8 +3,7 @@
 /**
  * Sanctum token-ы хадгалалт.
  *
- * v1-ийн role сонголт (`lib/role.tsx`) нь client талын дүр эсгэлт байсан.
- * Энэ нь жинхэнэ нэвтрэлт: backend token өгнө, хүсэлт бүрд `Authorization`
+ * Backend token өгнө, хүсэлт бүрд `Authorization`
  * толгойгоор явна, хамрах хүрээг backend мөрдүүлнэ.
  */
 

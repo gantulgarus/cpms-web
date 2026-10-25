@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Ажлын нэгжийн дэлгэрэнгүй — гүйцэтгэл бүртгэх ба баталгаажуулах (API v2).
+ * Ажлын нэгжийн дэлгэрэнгүй — гүйцэтгэл бүртгэх ба баталгаажуулах.
  *
  * Системийн гол гогцоо энд хаагдана: гүйцэтгэгч/инженер тоо хэмжээ мэдээлнэ →
  * хяналтын инженер батална эсвэл буцаана. Урьд нь 484 ажил "батлахыг хүлээж
@@ -48,7 +48,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { checklists, photoUrl, plan, queue, workItems } from "@/lib/api/v2/endpoints";
+import { checklists, photoUrl, plan, queue, workItems } from "@/lib/api/endpoints";
 import type {
   Inspection,
   InspectionStage,
@@ -56,9 +56,9 @@ import type {
   ProgressEntry,
   QueueType,
   WorkItem,
-} from "@/lib/api/v2/types";
-import { type Me, useMe } from "@/lib/api/v2/use-me";
-import { useProject } from "@/lib/api/v2/use-project";
+} from "@/lib/api/types";
+import { type Me, useMe } from "@/lib/api/use-me";
+import { useProject } from "@/lib/api/use-project";
 import {
   formatDate,
   formatDateTime,
@@ -134,26 +134,26 @@ export default function WorkItemDetailPage() {
   const [extending, setExtending] = useState(false);
 
   const itemQuery = useQuery({
-    queryKey: ["v2-work-item", workItemId],
+    queryKey: ["work-item", workItemId],
     queryFn: () => workItems.get(workItemId),
   });
   const progressQuery = useQuery({
-    queryKey: ["v2-progress", workItemId],
+    queryKey: ["progress", workItemId],
     queryFn: () => workItems.progress(workItemId),
   });
   const inspectionsQuery = useQuery({
-    queryKey: ["v2-inspections", workItemId],
+    queryKey: ["inspections", workItemId],
     queryFn: () => workItems.inspections(workItemId),
   });
 
   /** Явц/шалгалт нэмэгдэхэд дүн, жагсаалт, нэгтгэл бүгд хуучирна. */
   const refreshAll = () => {
-    qc.invalidateQueries({ queryKey: ["v2-work-item", workItemId] });
-    qc.invalidateQueries({ queryKey: ["v2-progress", workItemId] });
-    qc.invalidateQueries({ queryKey: ["v2-inspections", workItemId] });
-    qc.invalidateQueries({ queryKey: ["v2-summary"] });
-    qc.invalidateQueries({ queryKey: ["v2-work-items"] });
-    qc.invalidateQueries({ queryKey: ["v2-dashboard"] });
+    qc.invalidateQueries({ queryKey: ["work-item", workItemId] });
+    qc.invalidateQueries({ queryKey: ["progress", workItemId] });
+    qc.invalidateQueries({ queryKey: ["inspections", workItemId] });
+    qc.invalidateQueries({ queryKey: ["summary"] });
+    qc.invalidateQueries({ queryKey: ["work-items"] });
+    qc.invalidateQueries({ queryKey: ["dashboard"] });
   };
 
   const item = itemQuery.data;
@@ -162,8 +162,8 @@ export default function WorkItemDetailPage() {
     mutationFn: () => plan.deleteWorkItem(workItemId),
     onSuccess: () => {
       toast.success("Ажил устгагдлаа");
-      qc.invalidateQueries({ queryKey: ["v2-summary"] });
-      qc.invalidateQueries({ queryKey: ["v2-work-items"] });
+      qc.invalidateQueries({ queryKey: ["summary"] });
+      qc.invalidateQueries({ queryKey: ["work-items"] });
       router.push(item ? `/blocks/${item.blockId}` : "/blocks");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -911,7 +911,7 @@ function InspectionCard({
   // Энэ ажлын төрөлд чанарын хуудас тохируулсан эсэхийг СЕРВЕР шийднэ —
   // дэлгэц дүрмийг таамаглахгүй.
   const checklistQuery = useQuery({
-    queryKey: ["v2-checklist", item.workTypeId],
+    queryKey: ["checklist", item.workTypeId],
     queryFn: () => checklists.forWorkItem(item.id),
   });
   const template = checklistQuery.data;
