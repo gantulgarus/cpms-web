@@ -6,6 +6,19 @@ import { Select as SelectPrimitive } from "@base-ui/react/select"
 import { cn } from "@/lib/utils"
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
 
+/**
+ * ЗААВАЛ `items` ӨГНӨ.
+ *
+ * Base UI-ийн `Select.Value` нь сонгогдсон УТГЫГ харуулдаг, шошгыг БИШ.
+ * Тиймээс `value` нь UUID бол товчин дээр UUID гарна. `items` нь
+ * `{ утга: шошго }` бүтэцтэй бөгөөд түүнийг өгч байж л хүн уншихаар
+ * нэр харагдана.
+ *
+ *   <Select value={id} onValueChange={set} items={{ "uuid-1": "А1 блок" }}>
+ *
+ * Энэ нь чимэг биш: `items` мартвал дэлгэц дээр санамсаргүй тэмдэгтийн
+ * цуваа гарах бөгөөд хэрэглэгч систем эвдэрсэн гэж бодно.
+ */
 const Select = SelectPrimitive.Root
 
 function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {

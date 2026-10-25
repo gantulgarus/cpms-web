@@ -1,7 +1,10 @@
+import * as nodeFs from "node:fs";
+import * as nodePath from "node:path";
+
 import { handleMock } from "../lib/mock/handler";
 import { forwardResponseHeaders, responseHasBody } from "../lib/proxy";
 import { photoUrl } from "../lib/photo-url";
-import { getDb } from "../lib/mock/store";
+import { getDb, GROUP_ORDER } from "../lib/mock/store";
 
 let fail = 0;
 const t = (n: string, c: boolean, e = "") => {
@@ -17,6 +20,47 @@ const round3 = (n: number) => Math.round(n * 1000) / 1000;
 
 const db = getDb();
 
+/**
+ * Ажлыг БҮРЭН батална — хоёр шатыг хоёр ӨӨР хүнээр дамжуулна.
+ *
+ * Хоёр шаттай болсон тул «батлах» нь нэг дуудлага биш. Нэг хүн хоёр шатыг
+ * ч хийж чадахгүй (backend 403 буцаана) тул 1-р шатыг талбайн инженер,
+ * 2-рыг захирал хийнэ. Эцэст нь сессийг БУЦААЖ сэргээнэ — эс бөгөөс
+ * дараагийн шалгуурууд өөр хүний эрхээр ажиллана.
+ */
+function approveFully(itemId: string, checklist?: { itemId: string; result: string }[]) {
+  const login = (email: string) =>
+    handleMock("POST", ["auth", "login"], "", { email, password: "x" });
+
+  const extra = checklist ? { checklist } : {};
+  const row = getDb().byId.get(itemId)!;
+
+  /*
+   * Хэмжээг ӨГӨГДЛӨӨС авна, гараар бичихгүй.
+   *
+   * Шатны сан нь `мэдээлсэн − шалгасан` ба `шалгасан − баталсан`. Тоог
+   * гараар бичвэл өмнөх шалгуурууд тухайн мөрийг хөндсөн үед чимээгүй
+   * 422 аваад, үр дүн нь хол доошоо «батлагдсан 0» гэж гарна.
+   */
+  login("site_engineer@cpms.test");
+  const check = handleMock("POST", ["work-items", itemId, "inspections"], "", {
+    stage: "site_check",
+    result: "accepted",
+    acceptedQty: round3(row.reportedQty - (row.checkedQty ?? 0)),
+    ...extra,
+  });
+
+  login("admin@cpms.test");
+  const approve = handleMock("POST", ["work-items", itemId, "inspections"], "", {
+    stage: "final_approval",
+    result: "accepted",
+    acceptedQty: round3((row.checkedQty ?? 0) - row.acceptedQty),
+    ...extra,
+  });
+
+  return { check, approve };
+}
+
 /*
  * Хэмжээг ТУХАЙН БЛОКООР шалгана, нийт дүнгээр БИШ.
  *
@@ -27,10 +71,49 @@ const db = getDb();
  */
 const seedItems = db.workItems.filter((w) => w.blockId === "blk-a-01");
 const seedLocations = db.locations.filter((l) => l.blockId === "blk-a-01");
-t("Анхны блокийн WorkItem 3,290", seedItems.length === 3290, String(seedItems.length));
+
+/*
+ * Хүлээгдэж буй мөрийн тоог ЛАВЛАХ САНГААС БОДНО, гараар бичихгүй.
+ *
+ * Урьд нь 3,290 гэж бичсэн байв. Ажлын төрөл нэмэгдэх бүрд 11 шалгуур зэрэг
+ * унаж, тоог нь гараар засдаг байсан — өөрөөр хэлбэл шалгуур юу ч
+ * хамгаалахаа больж, зөвхөн ажил нэмдэг байв.
+ */
+/*
+ * Байршлын тоог ӨГӨГДЛӨӨС тоолно, гараар бичихгүй.
+ *
+ * Техникийн давхар нэмэгдэхэд 17 → 18 давхар, 144 → 148 айл болсон.
+ * Гараар бичсэн бол 15 шалгуур зэрэг унана — яг тэр болсон.
+ */
+const LOCS_PER_LEVEL: Record<string, number> = seedLocations.reduce(
+  (acc, l) => ({ ...acc, [l.level]: (acc[l.level] ?? 0) + 1 }),
+  {} as Record<string, number>,
+);
+const SEED_ITEMS = db.workTypes.reduce((sum, wt) => sum + (LOCS_PER_LEVEL[wt.level] ?? 0), 0);
+
+/*
+ * Нэг блокт зарлагдсан давхраас ХЭД ИЛҮҮ байршил үүсэх, техникийн давхарт
+ * хэдэн зай байхыг ӨГӨГДЛӨӨС бодно.
+ *
+ * Одоогоор +2 давхар (зоорь, техникийн) ба 4 зай. Гараар бичвэл дараагийн
+ * удаа давхар нэмэхэд арав гаруй шалгуур зэрэг унана — яг тэр болсон.
+ */
+const techFloor = seedLocations.find((l) => l.level === "floor" && l.name === "Техникийн давхар")!;
+const TECH_SPACES = seedLocations.filter((l) => l.parentId === techFloor.id).length;
+const EXTRA_FLOORS = LOCS_PER_LEVEL.floor - db.blocks.find((b) => b.id === "blk-a-01")!.floors;
 t(
-  "Байршил: 1 блок + 17 давхар + 144 айл = 162",
-  seedLocations.length === 162,
+  `Блок бүрт нэмэлт ${EXTRA_FLOORS} давхар, техникийн давхарт ${TECH_SPACES} зай`,
+  EXTRA_FLOORS === 2 && TECH_SPACES === 4,
+  `${EXTRA_FLOORS} / ${TECH_SPACES}`,
+);
+t(
+  `Анхны блокийн WorkItem ${SEED_ITEMS.toLocaleString("mn-MN")}`,
+  seedItems.length === SEED_ITEMS,
+  `${seedItems.length} vs ${SEED_ITEMS}`,
+);
+t(
+  `Байршил: ${LOCS_PER_LEVEL.block} блок + ${LOCS_PER_LEVEL.floor} давхар + ${LOCS_PER_LEVEL.unit} айл`,
+  seedLocations.length === LOCS_PER_LEVEL.block + LOCS_PER_LEVEL.floor + LOCS_PER_LEVEL.unit,
   String(seedLocations.length),
 );
 t(
@@ -38,14 +121,14 @@ t(
   db.blocks.length >= 4,
   `${db.blocks.length} блок`,
 );
-t("Ажлын төрөл 47", db.workTypes.length === 47);
+t("Ажлын төрөл бүртгэгдсэн", db.workTypes.length >= 47, `${db.workTypes.length} төрөл`);
 
 // Хуудаслалт
 const p1 = body<{ data: unknown[]; meta: { total: number } }>(
   get("blocks/blk-a-01/work-items", "?page=1&pageSize=50"),
 );
 t("Хуудас 50 мөр буцаана", p1.data.length === 50, String(p1.data.length));
-t("meta.total бүх мөрийг заана", p1.meta.total === 3290, String(p1.meta.total));
+t("meta.total бүх мөрийг заана", p1.meta.total === SEED_ITEMS, String(p1.meta.total));
 const cap = body<{ data: unknown[] }>(get("blocks/blk-a-01/work-items", "?pageSize=9999"));
 t("pageSize 200-аар таслагдана", cap.data.length === 200, String(cap.data.length));
 
@@ -56,14 +139,30 @@ const f5 = body<{ meta: { total: number } }>(
 const f5d = body<{ meta: { total: number } }>(
   get("blocks/blk-a-01/work-items", "?locationId=loc-blk-a-01-f-5&includeDescendants=true"),
 );
-t("5-р давхрын өөрийн ажил 15", f5.meta.total === 15, String(f5.meta.total));
-t("Айлууд нь хамрагдвал 15 + 9×21 = 204", f5d.meta.total === 204, String(f5d.meta.total));
+/*
+ * Давхрын ажлын тоо = давхрын түвшний төрлийн тоо.
+ * Удам хамруулбал дээр нь айлын түвшний төрөл × 9 айл нэмэгдэнэ.
+ *
+ * Тоог гараар бичихгүй: ажлын төрөл нэмэгдэх бүрд энэ хоёр шалгуур унана.
+ */
+const FLOOR_TYPES = db.workTypes.filter((w) => w.level === "floor").length;
+const UNIT_TYPES = db.workTypes.filter((w) => w.level === "unit").length;
+t(
+  `5-р давхрын өөрийн ажил ${FLOOR_TYPES}`,
+  f5.meta.total === FLOOR_TYPES,
+  `${f5.meta.total} vs ${FLOOR_TYPES}`,
+);
+t(
+  `Айлууд нь хамрагдвал ${FLOOR_TYPES} + ${UNIT_TYPES}×9`,
+  f5d.meta.total === FLOOR_TYPES + UNIT_TYPES * 9,
+  `${f5d.meta.total} vs ${FLOOR_TYPES + UNIT_TYPES * 9}`,
+);
 const pend = body<{ meta: { total: number } }>(
   get("blocks/blk-a-01/work-items", "?reviewState=pending"),
 );
 t(
   "Хүлээгдэж буй шүүлтүүр ажиллана",
-  pend.meta.total > 0 && pend.meta.total < 3290,
+  pend.meta.total > 0 && pend.meta.total < SEED_ITEMS,
   String(pend.meta.total),
 );
 
@@ -74,8 +173,17 @@ const sum = body<{
     groups: { label: string; workItems: number }[];
   };
 }>(get("blocks/blk-a-01/summary", "?groupBy=floor"));
-t("Давхраар нэгтгэвэл 18 бүлэг", sum.data.groups.length === 18, String(sum.data.groups.length));
-t("Нэгтгэлийн нийлбэр 3,290", sum.data.groups.reduce((a, g) => a + g.workItems, 0) === 3290);
+// Давхар бүр нэг бүлэг, дээр нь «Барилга бүхэлдээ».
+const FLOOR_GROUPS = LOCS_PER_LEVEL.floor + 1;
+t(
+  `Давхраар нэгтгэвэл ${FLOOR_GROUPS} бүлэг`,
+  sum.data.groups.length === FLOOR_GROUPS,
+  String(sum.data.groups.length),
+);
+t(
+  "Нэгтгэлийн нийлбэр нийт мөртэй тэнцэнэ",
+  sum.data.groups.reduce((a, g) => a + g.workItems, 0) === SEED_ITEMS,
+);
 t(
   "Эхний бүлэг барилгын түвшний ажил",
   sum.data.groups[0].label === "Барилга бүхэлдээ",
@@ -85,7 +193,668 @@ t("Хоёр дахь нь зоорь", sum.data.groups[1].label === "Зоори�
 const byC = body<{ data: { groups: { label: string }[] } }>(
   get("blocks/blk-a-01/summary", "?groupBy=contractor"),
 );
-t("Гүйцэтгэгчээр нэгтгэнэ", byC.data.groups.length === 6, String(byC.data.groups.length));
+/*
+ * ГАНЦ мөрийн хариуцагчийг солих.
+ *
+ * Бүлгээр оноох нь 1,889 мөрийг хөдөлгөдөг тул нэг айлын хаалгыг өөр
+ * компанид өгөхөд тохиромжгүй. Сервер дээр эндпойнт бэлэн байсан ч дуудах
+ * цонх байгаагүй — одоо нэмэгдсэн тул mock-д ч ажиллахыг шалгана.
+ */
+{
+  const goo2 = getDb().contractors[0];
+  // Гүйцэтгэл ОРООГҮЙ мөр — орсон бол сервер солихыг хориглоно.
+  const free = getDb().workItems.find((w) => w.reportedQty === 0)!;
+  const originalContractorId = free.contractor?.id ?? null;
+
+  const res = handleMock("PATCH", ["work-items", free.id, "contractor"], "", {
+    contractorId: goo2.id,
+  });
+  t("Ганц мөрд хариуцагч оноож болно", res.status === 200, String(res.status));
+  t("Хариуцагч бүртгэгдсэн", free.contractor?.id === goo2.id);
+
+  // Хоосон утга илгээвэл хариуцагчийг АВНА — буруу оноосныг буцаах зам.
+  handleMock("PATCH", ["work-items", free.id, "contractor"], "", { contractorId: null });
+  t("Хариуцагчийг авч болно", !free.contractor);
+
+  // Дараагийн шалгуурууд энэ мөрийг тоолдог тул ХУУЧИН байдалд нь буцаана.
+  handleMock("PATCH", ["work-items", free.id, "contractor"], "", {
+    contractorId: originalContractorId,
+  });
+}
+
+/*
+ * --- Хяналт шалгалт хариуцах инженер ---
+ *
+ * Төсвийн «Хяналт шалгалт хийх инженер» баганаас оногддог. Хамгийн чухал
+ * хориг нь БАТЛАХ ЭРХГҮЙ хүнийг оноож болохгүй гэдэг: оноовол тэр ажил
+ * мөнхөд батлагдахгүй гацах бөгөөд шалтгаан нь дэлгэц дээр хаана ч
+ * харагдахгүй.
+ */
+{
+  const target = getDb().workItems.find((w) => w.inspector)!;
+  t("Ажилд хяналтын инженер оноогдсон", Boolean(target), target?.inspector?.name);
+  t(
+    "Албан тушаал ч хамт ирнэ — ижил үүрэгтэй хүмүүсийг ялгана",
+    Boolean(target.inspector?.position),
+    target.inspector?.position ?? "—",
+  );
+
+  /*
+   * Mock-ийн ажлын мөр дээрх оноолт хэрэглэгчийн ЖАГСААЛТАД байх ёстой.
+   * Хоёр файлд тусад нь бичсэн тул id зөрвөл дэлгэц «олдохгүй хүн»
+   * харуулна — зөвхөн гараар нээж байж мэдэгдэх алдаа.
+   */
+  const users = body<{ data: { id: string; name: string; canInspect: boolean }[] }>(
+    get("users"),
+  ).data;
+  const assigned = users.find((u) => String(u.id) === String(target.inspector!.id));
+  t("Оноогдсон инженер хэрэглэгчийн жагсаалтад бий", Boolean(assigned), target.inspector?.name);
+  t("Оноогдсон инженер батлах эрхтэй", assigned?.canInspect === true);
+
+  // Жинхэнэ staff.json дээр хяналт хариуцдаг хүн гэрээний мэргэжилтэн байдаг.
+  t(
+    "Албан тушаал нь «хяналтын инженер» биш хүн ч хяналт хариуцаж байна",
+    users.some((u) => u.canInspect && u.name === "Б.Сайхантамир"),
+  );
+
+  /*
+   * Хяналтын инженер СОНГОХ жагсаалт нь оноох эрхтэй бүх үүрэгт нээлттэй.
+   *
+   * `/users` нь зөвхөн админ, захиралд нээлттэй. Хэрэв цонх түүнийг
+   * дууддаг бол ерөнхий инженер 403 аваад жагсаалт хоосон гарна —
+   * дэлгэцээс харагдахгүй, зөвхөн жинхэнэ хэрэглэгчийн гарт тулж мэдэх
+   * алдаа. Тиймээс `/users/inspectors` гэсэн тусдаа зам шалгагдана.
+   */
+  const choices = body<{ data: { id: string; name: string; position: string | null }[] }>(
+    get("users/inspectors"),
+  ).data;
+  t("Сонгох жагсаалт хоосон биш", choices.length > 0, `${choices.length} хүн`);
+  t(
+    "Жагсаалтад батлах эрхгүй хүн ороогүй",
+    choices.every((c) => users.find((u) => String(u.id) === String(c.id))?.canInspect === true),
+  );
+  t(
+    "Албан тушаал нь жагсаалтад ирнэ",
+    choices.some((c) => Boolean(c.position)),
+    choices.map((c) => c.position ?? "—").join(" · "),
+  );
+
+  const insp = getDb().workItems.find((w) => w.inspector)!;
+  const original = insp.inspector!.id;
+
+  // Хоосон илгээвэл авна — төсвөөс хасагдсан хариуцлага үлдэх ёсгүй.
+  t(
+    "Хяналтын инженерийг авч болно",
+    handleMock("PATCH", ["work-items", insp.id, "inspector"], "", { inspectorId: null })
+      .status === 200,
+  );
+  t("Инженер хоосон болов", !insp.inspector);
+
+  // ГОЛ ХОРИГ: батлах эрхгүй хүнийг оноож болохгүй.
+  const reporter = users.find((u) => !u.canInspect)!;
+  const refused = handleMock("PATCH", ["work-items", insp.id, "inspector"], "", {
+    inspectorId: reporter.id,
+  });
+  t("Батлах эрхгүй хүнийг оноохгүй → 422", refused.status === 422, String(refused.status));
+  t("Татгалзсаны дараа хоосон хэвээр", !insp.inspector);
+
+  t(
+    "Байхгүй хэрэглэгч → 422",
+    handleMock("PATCH", ["work-items", insp.id, "inspector"], "", { inspectorId: "usr-байхгүй" })
+      .status === 422,
+  );
+
+  // Буцааж онооно — доорх шалгуурууд энэ мөрийг тоолно.
+  handleMock("PATCH", ["work-items", insp.id, "inspector"], "", { inspectorId: original });
+  t("Дахин оноогдов", insp.inspector?.id === original);
+
+  /*
+   * Эрхийн ПАРИТЕТ: `/me` нь backend-тэй ижил эрх буцаах ёстой.
+   *
+   * Урьд нь mock-д `canManageContractors` нь admin, director гэж бичигдсэн
+   * байв; backend дээр төслийн менежер БАС эрхтэй. Дэлгэц mock-ийг үзэж
+   * бүтээгддэг тул тэр товчийг нуух шийдвэр чимээгүй гарах эрсдэлтэй байв.
+   */
+  {
+    const roleRights: Record<
+      string,
+      { contractors: boolean; inspectors: boolean; extensions: boolean }
+    > = {
+      admin: { contractors: true, inspectors: true, extensions: true },
+      /*
+       * ЗАХИРАЛ ЮУ Ч ХИЙХГҮЙ.
+       *
+       * Удирдлагын эрхийг «бүх зүйлд хүрнэ» гэж ойлговол хяналт утгагүй
+       * болно: хэн ч захирлаар батлуулж, «мэдээлэгч ба батлагч өөр хүн»
+       * гэсэн дүрмийг тойрч болно. Захирлын ажил нь ХАРАХ.
+       */
+      director: { contractors: false, inspectors: false, extensions: false },
+      /*
+       * Төслийн менежер сунгалт БАТЛАХГҮЙ.
+       *
+       * Хуваарийн гулсалтыг хамгийн их нуумаар байдаг хүн нь тэр хуваарийг
+       * хариуцдаг хүн. Тиймээс гүйцэтгэгч оноох эрхтэй ч сунгалт батлах
+       * эрхгүй — энэ зөрүү зориудынх.
+       */
+      project_manager: { contractors: true, inspectors: true, extensions: false },
+      general_engineer: { contractors: false, inspectors: true, extensions: true },
+      site_engineer: { contractors: false, inspectors: false, extensions: false },
+      inspector: { contractors: false, inspectors: false, extensions: false },
+    };
+
+    for (const [role, want] of Object.entries(roleRights)) {
+      /*
+       * Хэрэглэгч үүсгэхийн ТУТАМД захирлаар дахин нэвтэрнэ.
+       *
+       * Эс бөгөөс өмнөх давталтын үүргээр (жишээ нь төслийн менежер)
+       * үүсгэх гэж оролдож 403 авна, дараа нь байхгүй и-мэйлээр нэвтрэхэд
+       * mock нь анхдагч ЗАХИРЛЫН сесс буцаана — тэгээд шалгуур «бүх эрхтэй»
+       * гэж уншаад хуурамчаар унана. Яг тэр болсон.
+       */
+      handleMock("POST", ["auth", "login"], "", { email: "admin@cpms.test", password: "x" });
+
+      const created = body<{ data: { id: string } }>(
+        handleMock("POST", ["users"], "", {
+          name: `Эрх ${role}`,
+          email: `rights-${role}@cpms.test`,
+          role,
+        }),
+      ).data;
+
+      t(`${role}: хэрэглэгч үүслээ`, Boolean(created?.id), created?.id);
+
+      handleMock("POST", ["auth", "login"], "", {
+        email: `rights-${role}@cpms.test`,
+        password: "x",
+      });
+
+      const me = body<{
+        data: {
+          role: string;
+          canManageContractors: boolean;
+          canAssignInspectors: boolean;
+          canApproveExtensions: boolean;
+        };
+      }>(get("me")).data;
+
+      /*
+       * Нэвтэрсэн хүн ЯГ ТЭР эсэхийг эхлээд шалгана. Mock нь олдоогүй
+       * и-мэйлийг анхдагч сессээр хувааж буцаадаг тул үүнгүйгээр доорх
+       * шалгуур өөр хүний эрхийг хэмжиж байж болно.
+       */
+      t(`${role}: тэр хүнээр нэвтэрлээ`, me.role === role, me.role);
+
+      t(
+        `${role}: гүйцэтгэгч=${want.contractors} хяналт=${want.inspectors} сунгалт=${want.extensions}`,
+        me.canManageContractors === want.contractors &&
+          me.canAssignInspectors === want.inspectors &&
+          me.canApproveExtensions === want.extensions,
+        `${me.canManageContractors} / ${me.canAssignInspectors} / ${me.canApproveExtensions}`,
+      );
+    }
+
+    handleMock("POST", ["auth", "login"], "", { email: "admin@cpms.test", password: "x" });
+  }
+
+  // --- Шүүлтүүр ---
+  const none = body<{ meta: { total: number } }>(
+    get("blocks/blk-a-01/work-items", "?inspectorId=none&pageSize=1"),
+  ).meta.total;
+  const mine = body<{ meta: { total: number } }>(
+    get("blocks/blk-a-01/work-items", `?inspectorId=${original}&pageSize=1`),
+  ).meta.total;
+
+  /*
+   * Хоёулаа 0-ээс их байх ёстой. Төсвийн 64 мөрийн 36-д инженер заагаагүй
+   * тул «хариуцагчгүй» самбар ҮРГЭЛЖ агуулгатай байна — mock-д бүх бүлгийг
+   * хамруулбал тэр дэлгэц хэзээ ч шалгагдахгүй.
+   */
+  t(`Инженергүй ажил бий: ${none}`, none > 0, String(none));
+  t(`Нэг инженерийн ажил: ${mine}`, mine > 0, String(mine));
+  t(
+    "Инженергүй + оноогдсон нь нийт мөрөөс хэтрэхгүй",
+    none + mine <= SEED_ITEMS,
+    `${none} + ${mine} vs ${SEED_ITEMS}`,
+  );
+}
+
+/*
+ * --- Хоёр шаттай каскад ---
+ *
+ * Дэлгэц нь батлах дээд хязгаарыг СЕРВЭРЭЭС (`stagePool`) уншина. Хэрэв
+ * сервер ба дэлгэц хоёр өөрөөр бодвол товч нь 40 санал болгоод сервер
+ * 10-аас илүүг татгалзаж, хэрэглэгч шалтгааныг ойлгохгүй.
+ */
+{
+  const login = (email: string) =>
+    handleMock("POST", ["auth", "login"], "", { email, password: "x" });
+
+  login("site_engineer@cpms.test");
+  const row = getDb().workItems.find((w) => w.plannedQty > 50 && w.reportedQty === 0)!;
+  handleMock("POST", ["work-items", row.id, "progress"], "", { completedQty: 40 });
+
+  const fresh = () =>
+    body<{ data: { nextStage: string | null; stagePool: number; checkedQty: number } }>(
+      get(`work-items/${row.id}`),
+    ).data;
+
+  let view = fresh();
+  t("Мэдээлсний дараа 1-р шат хүлээнэ", view.nextStage === "site_check", String(view.nextStage));
+  t("1-р шатны сан = мэдээлсэн дүн", view.stagePool === 40, String(view.stagePool));
+
+  handleMock("POST", ["work-items", row.id, "inspections"], "", {
+    stage: "site_check",
+    result: "accepted",
+    acceptedQty: 40,
+  });
+
+  login("admin@cpms.test");
+  view = fresh();
+  t("Шалгасны дараа 2-р шат хүлээнэ", view.nextStage === "final_approval", String(view.nextStage));
+  t("Шалгасан хэмжээ бичигдэв", view.checkedQty === 40, String(view.checkedQty));
+
+  /*
+   * ЭНЭ МӨР нь шатыг хасахад хүргэсэн алдааг барина: хуучин томьёогоор
+   * (мэдээлсэн − баталсан) бол 40 гарна, зөв нь мөн 40 — тиймээс дараагийн
+   * шалгуур ялгааг нь харуулна.
+   */
+  t("2-р шатны сан = ШАЛГАСАН дүн", view.stagePool === 40, String(view.stagePool));
+
+  // Хэсэгчлэн батлахад сан нь ШАЛГАСНААС хасагдана, мэдээлсэнээс биш.
+  handleMock("POST", ["work-items", row.id, "inspections"], "", {
+    stage: "final_approval",
+    result: "accepted",
+    acceptedQty: 15,
+  });
+
+  view = fresh();
+  t(
+    "Хэсэгчлэн батласны дараа сан = шалгасан − баталсан",
+    view.stagePool === 25,
+    `${view.stagePool} (хуучин томьёогоор бол 25 — ялгаа нь доорх мөрөнд)`,
+  );
+
+  // Гүйцэтгэгч ШИНЭ ажил мэдээлэхэд 1-р шат дахин хүлээнэ, 2-р шатны сан
+  // ХӨДӨЛӨХГҮЙ. Хуучин томьёогоор бол 2-р шатны сан 25 → 65 болж, хяналтын
+  // инженер хараахан шалгагдаагүй 40-ийг батлах боломжтой болно.
+  login("site_engineer@cpms.test");
+  handleMock("POST", ["work-items", row.id, "progress"], "", { completedQty: 40 });
+  login("admin@cpms.test");
+  view = fresh();
+
+  t("Шинэ гүйцэтгэл 1-р шат руу орно", view.nextStage === "site_check", String(view.nextStage));
+  t(
+    "Шалгагдаагүй ажил 2-р шатны санд ОРОХГҮЙ",
+    getDb().byId.get(row.id)!.checkedQty === 40,
+    String(getDb().byId.get(row.id)!.checkedQty),
+  );
+
+  login("admin@cpms.test");
+}
+
+/*
+ * --- Шалгалтын цэг ---
+ *
+ * Хоёр шаттай баталгаажуулалт байгаа ч дараагийн ажил зогсдоггүй бол тэр
+ * нь хоосон хэлбэр: гүйцэтгэгч арматураа шалгуулалгүй бетоноо цутгачихвал
+ * хяналтын инженер дараа нь юу ч шалгаж чадахгүй.
+ */
+{
+  handleMock("POST", ["auth", "login"], "", { email: "site_engineer@cpms.test", password: "x" });
+
+  const types = getDb().workTypes;
+  const hold = types.find((t) => t.isHoldPoint && t.level === "floor")!;
+  t("Шалгалтын цэг тэмдэглэгдсэн", Boolean(hold), hold?.name);
+
+  /*
+   * АЙЛТАЙ давхрыг сонгоно.
+   *
+   * Зоорь нь давхрын түвшний байршил ч доороо айлгүй — түүнийг сонговол
+   * хориг шалгах зүйлгүй болно. Эхний таарсныг авбал яг тэр болно.
+   */
+  const pair = getDb()
+    .workItems.filter((w) => w.workTypeId === hold.id && w.blockId === "blk-a-01" && w.plannedQty > 0)
+    .map((holdItem) => {
+      const unitIds = new Set(
+        getDb()
+          .locations.filter((l) => l.parentId === holdItem.locationId)
+          .map((l) => l.id),
+      );
+      const later = getDb().workItems.find(
+        (w) =>
+          unitIds.has(w.locationId) &&
+          w.plannedQty > 0 &&
+          w.remainingQty > 1 &&
+          (GROUP_ORDER[w.workType.groupName] ?? 0) > (GROUP_ORDER[hold.groupName] ?? 0),
+      );
+
+      return later ? { holdItem, later } : null;
+    })
+    .find((x) => x !== null)!;
+
+  t("Доорх айлд дараагийн ажил бий", Boolean(pair), pair?.later.name);
+
+  const { holdItem, later } = pair;
+
+  /*
+   * Далд ажлыг ДУУСААГҮЙ болгоно.
+   *
+   * Хориг нь `status === "completed"`-оор шалгадаг, төлөвөөр биш: «батлагдсан»
+   * гэдэг нь зөвхөн хүлээх юм алга гэсэн утгатай, ажил дууссан гэсэн утгатай
+   * биш. Тиймээс тестэд ч ЯГ ТЭР талбарыг хөндөх ёстой.
+   */
+  const keep = {
+    reported: holdItem.reportedQty,
+    checked: holdItem.checkedQty,
+    accepted: holdItem.acceptedQty,
+    state: holdItem.reviewState,
+    status: holdItem.status,
+    remaining: holdItem.remainingQty,
+  };
+  holdItem.acceptedQty = 0;
+  holdItem.checkedQty = 0;
+  holdItem.reviewState = "pending_check";
+  holdItem.status = "in_progress";
+  holdItem.remainingQty = holdItem.plannedQty;
+
+  const blocked = handleMock("POST", ["work-items", later.id, "progress"], "", {
+    completedQty: 1,
+  });
+  t("Батлагдаагүй далд ажил замыг хаана", blocked.status === 422, String(blocked.status));
+  t(
+    "Хориг нь ҮЛДЭГДЛИЙГ хэлнэ",
+    JSON.stringify(blocked.body).includes("үлдсэн"),
+    JSON.stringify(blocked.body).slice(0, 160),
+  );
+  t(
+    "Хаасан ажлын НЭРИЙГ хэлнэ",
+    JSON.stringify(blocked.body).includes(hold.name),
+    JSON.stringify(blocked.body).slice(0, 120),
+  );
+
+  // Дэлгэрэнгүй хуудас хоригийг УРЬДЧИЛЖ харуулна — товч дарж байж 422
+  // авах нь оройтсон: гүйцэтгэгч аль хэдийн ажлаа хийчихсэн байна.
+  const detail = body<{ data: { holdPointReason: string | null } }>(
+    get(`work-items/${later.id}`),
+  ).data;
+  t("Хориг дэлгэрэнгүйд харагдана", Boolean(detail.holdPointReason), detail.holdPointReason ?? "—");
+
+  // Жагсаалтад БОДОГДОХГҮЙ — 200 мөр тутамд нэмэлт тооцоо явуулахгүй.
+  const listRow = body<{ data: Record<string, unknown>[] }>(
+    get("blocks/blk-a-01/work-items", "?pageSize=1"),
+  ).data[0];
+  t("Жагсаалтад хориг бодогдохгүй", !("holdPointReason" in listRow));
+
+  // Дуусгасны дараа зам нээгдэнэ.
+  holdItem.reportedQty = holdItem.plannedQty;
+  holdItem.checkedQty = holdItem.plannedQty;
+  holdItem.acceptedQty = holdItem.plannedQty;
+  holdItem.remainingQty = 0;
+  holdItem.reviewState = "approved";
+  holdItem.status = "completed";
+
+  t(
+    "Батлагдсаны дараа зам нээгдэнэ",
+    handleMock("POST", ["work-items", later.id, "progress"], "", { completedQty: 1 }).status ===
+      201,
+  );
+
+  holdItem.reportedQty = keep.reported;
+  holdItem.checkedQty = keep.checked;
+  holdItem.acceptedQty = keep.accepted;
+  holdItem.reviewState = keep.state;
+  holdItem.status = keep.status;
+  holdItem.remainingQty = keep.remaining;
+  handleMock("POST", ["auth", "login"], "", { email: "admin@cpms.test", password: "x" });
+}
+
+/*
+ * --- Гүйцэтгэгчийн гэрээний профайл ---
+ *
+ * «Ажил гүйцэтгэх тохиролцооны хуудас» нь РД, данс, банк, утсыг шаарддаг.
+ * Эдгээргүйгээр тохиролцоо бичигдэхгүй, акт хэвлэгдэхгүй, төлбөр гарахгүй.
+ */
+{
+  const list = body<{ data: typeof db.contractors }>(get("contractors")).data;
+
+  t("Гүйцэтгэгчид ангилалтай", list.every((c) => Boolean(c.categoryLabel)), String(list.length));
+
+  /*
+   * Demo-д ДУТУУ профайл байх ЁСТОЙ.
+   *
+   * Бүх мөр төгс байвал «тохиролцоонд дутуу» гэсэн анхааруулга хэзээ ч
+   * харагдахгүй, тэр дэлгэц шалгагдахгүй.
+   */
+  const incomplete = list.filter((c) => (c.missingContractFields?.length ?? 0) > 0);
+  t(
+    "Дутуу профайлтай гүйцэтгэгч бий",
+    incomplete.length > 0,
+    incomplete.map((c) => `${c.name}: ${c.missingContractFields?.join("/")}`).join(" · "),
+  );
+
+  const target = list.find((c) => c.registrationNo)!;
+
+  // РД давхардуулах оролдлого — нэрээр барих нь хүрэлцэхгүй.
+  const other = list.find((c) => c.id !== target.id)!;
+  t(
+    "Давхардсан РД-г татгалзана",
+    handleMock("PATCH", ["contractors", other.id], "", {
+      registrationNo: target.registrationNo,
+    }).status === 422,
+  );
+
+  t(
+    "РД 7 орон биш бол 422",
+    handleMock("PATCH", ["contractors", other.id], "", { registrationNo: "123" }).status === 422,
+  );
+
+  /*
+   * НЭГ талбар засахад бусад нь ЦЭВЭРЛЭГДЭХГҮЙ.
+   *
+   * Бүх талбарыг дарж бичдэг PATCH нь утас засахад РД, данс, банкийг
+   * хоосон болгодог — яг тэр алдаа хэрэглэгчийн хуудсанд нэг удаа гарсан.
+   */
+  const keepReg = target.registrationNo;
+  const keepBank = target.bankAccount;
+  t(
+    "Хэсэгчилсэн засвар 200",
+    handleMock("PATCH", ["contractors", target.id], "", { phone: "9900-1122" }).status === 200,
+  );
+  t("РД хэвээр", target.registrationNo === keepReg, String(target.registrationNo));
+  t("Данс хэвээр", target.bankAccount === keepBank, String(target.bankAccount));
+  t("Утас шинэчлэгдэв", target.phone === "9900-1122", String(target.phone));
+
+  /*
+   * ГЭРЭЭ ЦУЦЛАГДСАН гүйцэтгэгчид шинэ ажил оноогдохгүй.
+   *
+   * Оноовол акт нь түүн рүү явж, төлбөр гарах эрсдэлтэй.
+   */
+  const gone = list.find((c) => c.canTakeWork === false)!;
+  t("Цуцлагдсан гүйцэтгэгч demo-д бий", Boolean(gone), gone?.name);
+
+  const free = db.workItems.find((w) => w.reportedQty === 0 && w.blockId === "blk-a-01")!;
+  const keepContractor = free.contractor;
+
+  const refused = handleMock("PATCH", ["work-items", free.id, "contractor"], "", {
+    contractorId: gone.id,
+  });
+  t("Цуцлагдсанд ажил оноохгүй → 422", refused.status === 422, String(refused.status));
+  t("Хариуцагч хөдлөөгүй", free.contractor === keepContractor);
+
+  // Бөөний оноолт ч ижил хоригтой — хоёр зам, нэг дүрэм.
+  t(
+    "Бөөнөөр ч оноохгүй → 422",
+    handleMock("POST", ["blocks", "blk-a-01", "work-items", "assign"], "", {
+      workTypeGroupId: db.groups[0].id,
+      contractorId: gone.id,
+    }).status === 422,
+  );
+
+  // Төлөв сэргээвэл зам нээгдэнэ.
+  handleMock("PATCH", ["contractors", gone.id], "", { status: "active" });
+  t("Сэргээсний дараа оноогдоно", gone.canTakeWork === true, String(gone.statusLabel));
+  handleMock("PATCH", ["contractors", gone.id], "", { status: "terminated" });
+}
+
+/*
+ * --- Ажил гүйцэтгэх тохиролцоо ---
+ *
+ * МӨНГӨ системд эндээс орно: акт нь тохиролцооны нэгж үнэ дээр тогтоно.
+ * Эндэх дүрмүүд нь төлбөрийн дүрмүүд — нэг нь зөрвөл акт худал болно.
+ */
+{
+  handleMock("POST", ["auth", "login"], "", { email: "admin@cpms.test", password: "x" });
+
+  // 1. Төсвөөс мөр татна — ажлын ТӨРЛӨӨР нэгтгэгдэнэ.
+  const drafted = body<{
+    data: { workTypeId: string; quantity: number; budgetUnitPrice: number | null }[];
+    meta: { withoutPrice: number; priceConflicts: number };
+  }>(get("blocks/blk-a-01/agreement-draft"));
+
+  t("Төсвөөс мөр татагдана", drafted.data.length > 0, `${drafted.data.length} мөр`);
+  t(
+    "Ажлын төрөл ДАВХАРДААГҮЙ",
+    new Set(drafted.data.map((l) => l.workTypeId)).size === drafted.data.length,
+  );
+  t(
+    "Нэгтгэсэн тоо нь мөрүүдийн нийлбэртэй тэнцэнэ",
+    (() => {
+      const first = drafted.data[0];
+      const sum = getDb()
+        .workItems.filter((w) => w.blockId === "blk-a-01" && w.workTypeId === first.workTypeId)
+        .reduce((s2, w) => s2 + w.plannedQty, 0);
+
+      return Math.abs(sum - first.quantity) < 0.01;
+    })(),
+  );
+  t("Төсвийн үнэ ирнэ", drafted.data.every((l) => l.budgetUnitPrice !== null));
+
+  const line = drafted.data[0];
+  const payload = {
+    contractorId: "ctr-1",
+    scope: "Дотор засал",
+    retentionPercent: 5,
+    barterPercent: 0,
+    cashPercent: 100,
+    lines: [
+      {
+        workTypeId: line.workTypeId,
+        unit: "м2",
+        quantity: line.quantity,
+        unitPrice: (line.budgetUnitPrice ?? 1000) * 1.1,
+        budgetUnitPrice: line.budgetUnitPrice,
+      },
+    ],
+  };
+
+  // 2. Мөнгөний дүрмүүд.
+  t(
+    "Бартер+бэлэн 100% биш бол 422",
+    handleMock("POST", ["blocks", "blk-a-01", "agreements"], "", {
+      ...payload,
+      barterPercent: 60,
+      cashPercent: 50,
+    }).status === 422,
+  );
+  t(
+    "Нэгж үнэ 0 бол 422",
+    handleMock("POST", ["blocks", "blk-a-01", "agreements"], "", {
+      ...payload,
+      lines: [{ ...payload.lines[0], unitPrice: 0 }],
+    }).status === 422,
+  );
+  t(
+    "Профайл дутуу гүйцэтгэгчтэй 422",
+    handleMock("POST", ["blocks", "blk-a-01", "agreements"], "", {
+      ...payload,
+      contractorId: "ctr-5",
+    }).status === 422,
+  );
+  t(
+    "Цуцлагдсан гүйцэтгэгчтэй 422",
+    handleMock("POST", ["blocks", "blk-a-01", "agreements"], "", {
+      ...payload,
+      contractorId: "ctr-6",
+    }).status === 422,
+  );
+
+  // 3. Үүсгэх — дүн СЕРВЕРЭЭС.
+  const created = handleMock("POST", ["blocks", "blk-a-01", "agreements"], "", payload);
+  t("Тохиролцоо 201", created.status === 201, String(created.status));
+
+  const agr = body<{
+    data: {
+      id: string;
+      number: string;
+      status: string;
+      totalAmount: number;
+      budgetAmount: number;
+      variancePercent: number;
+      retentionAmount: number;
+      isEditable: boolean;
+    };
+  }>(created).data;
+
+  t("Дугаар үүссэн", /^ТХ-\d{4}-\d{3}$/.test(agr.number), agr.number);
+  t("Драфт төлөвтэй", agr.status === "draft" && agr.isEditable);
+  t(
+    "Нийт дүн зөв бодогдов",
+    Math.abs(agr.totalAmount - line.quantity * (line.budgetUnitPrice ?? 1000) * 1.1) < 1,
+    String(agr.totalAmount),
+  );
+  t(
+    "Төсвөөс +10% зөрүү",
+    Math.abs(agr.variancePercent - 10) < 0.2,
+    `${agr.variancePercent}%`,
+  );
+  t(
+    "Барьцаа 5% бодогдов",
+    Math.abs(agr.retentionAmount - agr.totalAmount * 0.05) < 1,
+    String(agr.retentionAmount),
+  );
+
+  // 4. Батлах — зөвхөн эрхтэй хүн, дараа нь түгжигдэнэ.
+  handleMock("POST", ["auth", "login"], "", { email: "site_engineer@cpms.test", password: "x" });
+  t(
+    "Талбайн инженер харахгүй → 403",
+    get(`agreements/${agr.id}`).status === 403,
+    String(get(`agreements/${agr.id}`).status),
+  );
+
+  handleMock("POST", ["auth", "login"], "", { email: "admin@cpms.test", password: "x" });
+  t(
+    "Батлагдав",
+    handleMock("POST", ["agreements", agr.id, "approve"], "", {}).status === 200,
+  );
+
+  const after = body<{ data: { status: string; isEditable: boolean } }>(
+    get(`agreements/${agr.id}`),
+  ).data;
+  t("Хүчин төгөлдөр болов", after.status === "active");
+
+  /*
+   * ХАМГИЙН ЧУХАЛ ДҮРЭМ: батлагдсаны дараа мөр ТҮГЖИГДЭНЭ.
+   *
+   * Акт нь тохиролцооны үнэ дээр тогтдог. Үнэ хойшоо хөдөлвөл гарсан акт
+   * бүр худал болж, төлбөрийн баримт хүчингүй болно.
+   */
+  t("Мөр түгжигдэв", after.isEditable === false);
+  t(
+    "Батлагдсаныг засахгүй → 422",
+    handleMock("PATCH", ["agreements", agr.id], "", payload).status === 422,
+  );
+  t(
+    "Дахин батлахгүй → 422",
+    handleMock("POST", ["agreements", agr.id, "approve"], "", {}).status === 422,
+  );
+
+  // 5. Жагсаалтад харагдана.
+  const listed = body<{ data: { id: string }[] }>(get("projects/prj-inel-01/agreements")).data;
+  t("Жагсаалтад харагдана", listed.some((x) => x.id === agr.id), `${listed.length} тохиролцоо`);
+}
+
+// Бүлгийн тоо нь оноосон гүйцэтгэгч + «хариуцагчгүй» мөрөөс хамаарна.
+t("Гүйцэтгэгчээр нэгтгэнэ", byC.data.groups.length >= 2, `${byC.data.groups.length} бүлэг`);
 
 // Доод давхар дээд давхраасаа илүү дууссан эсэх
 const g = sum.data.groups as unknown as { label: string; percentage: number }[];
@@ -110,19 +879,64 @@ const okRes = handleMock("POST", ["work-items", item.id, "progress"], "", {
 });
 t("Зөв утга 201 буцаана", okRes.status === 201, String(okRes.status));
 t("reportedQty нэмэгдсэн", Math.abs(item.reportedQty - (before + 10)) < 0.01);
-t("Төлөв pending болсон", item.reviewState === "pending", item.reviewState);
+t("Төлөв «шалгалт хүлээж буй» болсон", item.reviewState === "pending_check", item.reviewState);
 
 // Шалгалт — ХҮЛЭЭГДЭЖ БУЙ бүх хэмжээг батална.
 // Хэсэгчлэн батлавал үлдсэн нь хянагдаагүй тул `pending` хэвээр байх ёстой:
 // «батлав» гэсэн товч дарахад бүх зүйл дуусдаг гэж үзвэл хэмжилт худал болно.
-const pendingBefore = round3(item.reportedQty - item.acceptedQty);
-const insp = handleMock("POST", ["work-items", item.id, "inspections"], "", {
-  stage: "client",
-  result: "accepted",
-  acceptedQty: pendingBefore,
-});
-t("Шалгалт 201", insp.status === 201);
+const insp = approveFully(item.id);
+t("1-р шат 201", insp.check.status === 201, String(insp.check.status));
+t("2-р шат 201", insp.approve.status === 201, String(insp.approve.status));
 t("Бүгдийг батласны дараа approved", item.reviewState === "approved", item.reviewState);
+
+/*
+ * НЭГ хүн хоёр шатыг ч хийж болохгүй — backend-тэй ижил 403.
+ *
+ * Эс бөгөөс каскад нь зүгээр л хоёр товч болж, мэдээлэх ба батлах эрхийг
+ * салгасан зарчим утгаа алдана.
+ */
+t(
+  "Нэг хүн хоёр шатыг хийхгүй",
+  (() => {
+    const other = db.workItems.find(
+      (w) => w.id !== item.id && w.plannedQty > 20 && w.reportedQty === 0,
+    )!;
+    handleMock("POST", ["auth", "login"], "", { email: "site_engineer@cpms.test", password: "x" });
+    handleMock("POST", ["work-items", other.id, "progress"], "", { completedQty: 5 });
+    handleMock("POST", ["auth", "login"], "", { email: "admin@cpms.test", password: "x" });
+    handleMock("POST", ["work-items", other.id, "inspections"], "", {
+      stage: "site_check",
+      result: "accepted",
+      acceptedQty: 5,
+    });
+    const second = handleMock("POST", ["work-items", other.id, "inspections"], "", {
+      stage: "final_approval",
+      result: "accepted",
+      acceptedQty: 5,
+    });
+
+    return second.status === 403;
+  })(),
+);
+
+/*
+ * ХЯНАГДААГҮЙ хэмжээнээс ИЛҮҮГ батлах боломжгүй.
+ *
+ * Энэ нь хоёр шатны хяналтын гол хамгаалалт: нэг ажлыг ерөнхий гүйцэтгэгч
+ * батлаад, дараа нь захиалагч ДАХИН батлах гэвэл батлагдсан хэмжээ хоёр
+ * дахин болно. Backend үүнийг 422-оор няцаадаг байсан ч mock зөвшөөрдөг
+ * байв — дэлгэц mock дээр «ажиллаад» бодит сервер дээр алдаа өгнө.
+ */
+{
+  const before = item.acceptedQty;
+  const again = handleMock("POST", ["work-items", item.id, "inspections"], "", {
+    stage: "site_check",
+    result: "accepted",
+    acceptedQty: 10,
+  });
+  t("Хянагдаагүйгээс илүүг батлахгүй", again.status === 422, String(again.status));
+  t("Татгалзсан шалгалт батлагдсан тоог хөдөлгөөгүй", item.acceptedQty === before);
+}
 
 const noReason = handleMock("POST", ["work-items", item.id, "inspections"], "", {
   result: "rejected",
@@ -177,7 +991,11 @@ for (;;) {
   if (seen >= r.meta.total || r.data.length === 0) break;
   pageNo++;
 }
-t("Бүх хуудсыг гүйлгэхэд мөр алдагдахгүй", seen === 3290, `${seen} / 3290 (${pageNo} хуудас)`);
+t(
+  "Бүх хуудсыг гүйлгэхэд мөр алдагдахгүй",
+  seen === SEED_ITEMS,
+  `${seen} / ${SEED_ITEMS} (${pageNo} хуудас)`,
+);
 
 // --- Загвараас блок хувилах урсгал ---
 const designs = body<{
@@ -186,12 +1004,31 @@ const designs = body<{
 t("Гурван загвар байна", designs.length === 3, String(designs.length));
 
 const d16 = designs.find((d) => d.id === "dsg-16-9")!;
-t("16 давхрын загвар 3,290 ажил тооцно", d16.estimatedItems === 3290, String(d16.estimatedItems));
+t(
+  "16 давхрын загварын тооцоо мөрийн тоотой таарна",
+  d16.estimatedItems === SEED_ITEMS,
+  String(d16.estimatedItems),
+);
 const dSvc = designs.find((d) => d.id === "dsg-4-svc")!;
+/*
+ * «100-аас бага» гэсэн бүдэг шалгуур биш, ЯГ тоогоор шалгана: үйлчилгээний
+ * барилгад айл байхгүй тул айлын түвшний төрөл бүрэн гарах ёстой. Техникийн
+ * давхрын дөрвөн зай нь айлын түвшний байршил хэдий ч загвар нь тэр түвшнийг
+ * хассан тул тэдгээрт ч ажил үүсэхгүй.
+ */
+const svcLocs = db.locations.filter((l) => l.blockId === "blk-s-04");
+const svcPerLevel = svcLocs.reduce(
+  (acc, l) => ({ ...acc, [l.level]: (acc[l.level] ?? 0) + 1 }),
+  {} as Record<string, number>,
+);
+const SVC_ITEMS = db.workTypes.reduce(
+  (sum, wt) => sum + (wt.level === "unit" ? 0 : (svcPerLevel[wt.level] ?? 0)),
+  0,
+);
 t(
   "Үйлчилгээний загварт айлын ажил ороогүй",
-  dSvc.estimatedItems < 100,
-  String(dSvc.estimatedItems),
+  dSvc.estimatedItems === SVC_ITEMS,
+  `${dSvc.estimatedItems} vs ${SVC_ITEMS}`,
 );
 
 const itemsBefore = getDb().workItems.length;
@@ -238,7 +1075,7 @@ const oldTotal = body<{ meta: { total: number } }>(get("blocks/blk-a-01/work-ite
 const newTotal = body<{ meta: { total: number } }>(
   get(`blocks/${newBlock.id}/work-items`, "?pageSize=1"),
 ).meta.total;
-t("Анхны блок хэвээр 3,290", oldTotal === 3290, String(oldTotal));
+t("Анхны блок хэвээр үлдэв", oldTotal === SEED_ITEMS, String(oldTotal));
 t("Шинэ блок зөвхөн өөрийнхөө ажлыг харуулна", newTotal === d12.estimatedItems, String(newTotal));
 
 const newSum = body<{
@@ -271,7 +1108,7 @@ const expected = db.workItems.filter(
   (w) => w.blockId === "blk-a-01" && w.contractor?.id === "ctr-5",
 ).length;
 t("Зөвхөн өөрийн ажил харагдана", mineTotal === expected, `${mineTotal} vs ${expected}`);
-t("Бүх ажлаас багассан", mineTotal > 0 && mineTotal < 3290, String(mineTotal));
+t("Бүх ажлаас багассан", mineTotal > 0 && mineTotal < SEED_ITEMS, String(mineTotal));
 
 // Хамгийн чухал: нэгтгэл ба жагсаалт ижил хүрээтэй байх. Хоёр өөр код замаар
 // бодогддог тул зөрөх магадлал өндөр — "204 ажил" гэж бичээд 12 гарвал
@@ -326,7 +1163,7 @@ const repReport = handleMock("POST", ["work-items", mineItem.id, "progress"], ""
 t("Гүйцэтгэгч өөрийн ажилд явц оруулна", repReport.status === 201, String(repReport.status));
 
 const repInspect = handleMock("POST", ["work-items", mineItem.id, "inspections"], "", {
-  stage: "client",
+  stage: "site_check",
   result: "accepted",
   acceptedQty: 3,
 });
@@ -360,13 +1197,13 @@ t(
 
 // Ажилтны сесс рүү буцаана — доорх шалгалтууд бүрэн хүрээ хүлээж байгаа.
 handleMock("POST", ["auth", "login"], "", {
-  email: "director@cpms.test",
+  email: "admin@cpms.test",
   password: "x",
 });
 t(
   "Ажилтан бүх ажлыг харна",
   body<{ meta: { total: number } }>(get("blocks/blk-a-01/work-items", "?pageSize=1")).meta.total ===
-    3290,
+    SEED_ITEMS,
 );
 
 // ---------------------------------------------------------------------------
@@ -520,6 +1357,119 @@ const newType = post("work-types", {
 });
 t("Шинэ ажлын төрөл нэмэгдлээ", newType.status === 201, String(newType.status));
 const newTypeId = body<{ data: { id: string } }>(newType).data.id;
+
+/*
+ * Ажлын төрөл ЗАСАХ.
+ *
+ * Урьд нь үүсгэх, устгах л боломжтой байв. Гэтэл ашиглагдаж эхэлсэн төрлийг
+ * устгах боломжгүй тул нэр буруу бичигдсэн төрөл мөнхөд буруу хэвээр үлддэг
+ * байсан: устгаж ч болохгүй, засаж ч болохгүй.
+ */
+const patchType = (id: string, payload: Record<string, unknown>) =>
+  handleMock("PATCH", ["work-types", id], "", payload);
+
+t(
+  "Ашиглагдаагүй төрлийн нэр засагдана",
+  body<{ data: { name: string } }>(patchType(newTypeId, { name: "Шинэ нэр" })).data.name ===
+    "Шинэ нэр",
+);
+t("Хоосон нэр 422", patchType(newTypeId, { name: "  " }).status === 422);
+t(
+  "Ашиглагдаагүй төрлийн нэгж засагдана",
+  body<{ data: { unit: string } }>(patchType(newTypeId, { unit: "м3" })).data.unit === "м3",
+);
+
+/*
+ * АШИГЛАГДАЖ ЭХЭЛСЭН төрлийн нэгж, түвшин ТҮГЖИГДЭНЭ.
+ *
+ * «м²» гэж бүртгэсэн 3,290 мөрийг «ш» болгон дахин тайлбарлах боломжгүй.
+ * Нэр, бүлэг нь харин чөлөөтэй — ажлын мөрүүд хөндөгдөхгүй.
+ */
+const usedTypeId = getDb().workItems[0].workTypeId;
+t(
+  "Ашиглагдсан төрлийн нэр засагдана",
+  patchType(usedTypeId, { name: "Засварласан" }).status === 200,
+);
+t("Ашиглагдсан төрлийн нэгж солихгүй", patchType(usedTypeId, { unit: "ш" }).status === 409);
+// Одоогийнхоос ӨӨР түвшин сонгоно — ижил утга илгээх нь өөрчлөлт биш.
+const usedLevel = getDb().workTypes.find((w) => w.id === usedTypeId)!.level;
+t(
+  "Ашиглагдсан төрлийн түвшин солихгүй",
+  patchType(usedTypeId, { level: usedLevel === "unit" ? "floor" : "unit" }).status === 409,
+);
+// Ижил утга илгээх нь өөрчлөлт БИШ — няцаах шалтгаангүй.
+t(
+  "Ижил нэгж илгээхэд асуудалгүй",
+  patchType(usedTypeId, { unit: getDb().workTypes.find((w) => w.id === usedTypeId)!.unit })
+    .status === 200,
+);
+
+/*
+ * --- ТӨСВИЙН КОД ---
+ *
+ * Код нь төсвийн файлыг системтэй холбох цорын ганц түлхүүр. Нэрээр
+ * тааруулах оролдлого 64 мөрийн 43-д нь бүдэрсэн тул кодыг харуулах,
+ * засах, давхардуулахгүй байх гурвуулаа чухал.
+ */
+{
+  const seeded = body<{ data: { code: string | null; codePart: string | null }[] }>(
+    get("work-types", "?pageSize=200"),
+  ).data;
+
+  t(
+    "Лавлах кодтой ирнэ",
+    seeded.filter((x) => x.code).length > 40,
+    `${seeded.filter((x) => x.code).length} кодтой`,
+  );
+  t(
+    "Нэг код олон ажилд хуваагдана",
+    seeded.filter((x) => x.code === "17.1.6" && x.codePart).length > 1,
+  );
+
+  // Кодоор ХАЙНА — инженер төсвийн мөрөө гартаа барьж суудаг.
+  const found = body<{ data: { code: string | null }[] }>(get("work-types", "?search=17.1.6")).data;
+  t("Кодоор хайлт ажиллана", found.length > 0 && found.every((x) => x.code === "17.1.6"));
+
+  t(
+    "Код хадгалагдана",
+    body<{ data: { code: string } }>(patchType(newTypeId, { code: "9.9.9" })).data.code === "9.9.9",
+  );
+
+  // Давхардсан код нь ЧИМЭЭГҮЙ дарагдана — эхлээд таарсан нь хожино.
+  t(
+    "Давхардсан код татгалзагдана",
+    post("work-types", {
+      groupId: getDb().groups[0].id,
+      name: "Өөр ажил",
+      code: "9.9.9",
+      unit: "м2",
+      level: "floor",
+    }).status === 422,
+  );
+
+  // Бүрдэл нь ялгаж өгвөл нэг кодыг хуваахыг ЗӨВШӨӨРНӨ.
+  const split = post("work-types", {
+    groupId: getDb().groups[0].id,
+    name: "Хуваасан ажил",
+    code: "9.9.9",
+    codePart: "Айлын тагт",
+    unit: "м2",
+    level: "floor",
+  });
+  t("Бүрдлээр ялгавал зөвшөөрнө", split.status === 201, String(split.status));
+
+  handleMock("DELETE", ["work-types", body<{ data: { id: string } }>(split).data.id], "", undefined);
+
+  /*
+   * Код нь АРИЛГАГДАЖ ч болох ёстой: буруу бичигдсэн код тогтоогдвол
+   * тэр төрөл рүү дахиж импорт орохгүй болно.
+   */
+  t(
+    "Хоосон илгээвэл код арилна",
+    body<{ data: { code: string | null } }>(patchType(newTypeId, { code: "  " })).data.code === null,
+  );
+}
+
 t(
   "Ашиглагдаагүй төрлийг устгана",
   handleMock("DELETE", ["work-types", newTypeId], "", undefined).status === 204,
@@ -639,7 +1589,7 @@ t(
   }).status === 403,
 );
 handleMock("POST", ["auth", "login"], "", {
-  email: "director@cpms.test",
+  email: "admin@cpms.test",
   password: "x",
 });
 
@@ -656,6 +1606,7 @@ interface Counts {
 interface Dash extends Counts {
   percentage: number;
   unmeasuredItems: number;
+  unassignedItems: number;
   plannedQty: number;
   reportedQty: number;
   acceptedQty: number;
@@ -663,6 +1614,7 @@ interface Dash extends Counts {
     id: string;
     percentage: number;
     unmeasuredItems: number;
+    unassignedItems: number;
     plannedQty: number;
     reportedQty: number;
     acceptedQty: number;
@@ -781,6 +1733,44 @@ t(
   "Самбарын нийт нь блокуудын нийлбэртэй таарна",
   dashboard.blocks.reduce((a, b) => a + b.pendingInspections, 0) === dashboard.pendingInspections,
 );
+
+// ---------------------------------------------------------------------------
+// Хариуцагчгүй ажил
+// ---------------------------------------------------------------------------
+/*
+ * Загвар буулгахад ажил ҮРГЭЛЖ хариуцагчгүй үүснэ — аль компани юу хийхийг
+ * зураг төсөл мэддэггүй.
+ *
+ * Гэвч хариуцагчгүй ажлыг туслан гүйцэтгэгч ХАРАХГҮЙ. Оноохоо мартвал тэр
+ * компани нэвтрээд хоосон дэлгэц харна. Тиймээс энэ тоо самбар дээр ил
+ * гарах ёстой — урьд нь зөвхөн оноох хуудсан дээр байсан.
+ */
+{
+  const dash = body<{ data: Dash }>(get("projects/prj-inel-01/dashboard")).data;
+  const db2 = getDb();
+  const expected = db2.workItems.filter((w) => !w.contractor).length;
+
+  t(
+    "Хариуцагчгүй ажлын тоо самбарт ирнэ",
+    dash.unassignedItems === expected,
+    `${dash.unassignedItems} vs ${expected}`,
+  );
+  t(
+    "Блок бүрийн нийлбэр төслийнхтэй таарна",
+    dash.blocks.reduce((a, b) => a + b.unassignedItems, 0) === dash.unassignedItems,
+  );
+
+  // Блокийн нэгтгэл мөн ижил тоог өгнө — хоёр дэлгэц зөрөх ёсгүй.
+  const page = body<{ data: { totals: { unassignedItems: number } } }>(
+    get("blocks/blk-a-01/summary"),
+  ).data.totals;
+  const blockA = dash.blocks.find((b) => b.id === "blk-a-01")!;
+  t(
+    "Самбар ба блокийн хуудасны хариуцагчгүй тоо таарна",
+    page.unassignedItems === blockA.unassignedItems,
+    `${page.unassignedItems} vs ${blockA.unassignedItems}`,
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Тоо хэмжээгүй ажил
@@ -937,7 +1927,7 @@ t(
 
   // Цэвэрлэгээ: хүрээг нь авч, захирлаар буцаж нэвтэрнэ.
   handleMock("POST", ["auth", "login"], "", {
-    email: "director@cpms.test",
+    email: "admin@cpms.test",
     password: "x",
   });
   handleMock("PATCH", ["users", engineer.id], "", { scopeBlockIds: [] });
@@ -1104,7 +2094,7 @@ const inspect = (payload: Record<string, unknown>) =>
 
 // 1. Хуудас бөглөхгүйгээр батлах — хориглоно. Энэ бол гол шалгалт.
 const noChecklist = inspect({
-  stage: "client",
+  stage: "site_check",
   result: "accepted",
   acceptedQty: 5,
 });
@@ -1112,7 +2102,7 @@ t("Хуудасгүйгээр батлахгүй", noChecklist.status === 422, S
 
 // 2. Дутуу бөглөвөл мөн хориглоно.
 const partialFill = inspect({
-  stage: "client",
+  stage: "site_check",
   result: "accepted",
   acceptedQty: 5,
   checklist: [{ itemId: required[0].id, result: "pass" }],
@@ -1125,7 +2115,7 @@ t(
 
 // 3. Заавал зүйл тэнцээгүй бол батлах боломжгүй.
 const withFail = inspect({
-  stage: "client",
+  stage: "site_check",
   result: "accepted",
   acceptedQty: 5,
   checklist: tmpl!.items.map((i, idx) => ({
@@ -1137,7 +2127,7 @@ t("Тэнцээгүй зүйлтэй бол батлахгүй", withFail.status
 
 // 4. Гэхдээ ТАТГАЛЗАХ боломжтой — тэнцээгүй байх нь яг буцаах шалтгаан.
 const rejectWithFail = inspect({
-  stage: "client",
+  stage: "site_check",
   result: "rejected",
   acceptedQty: 0,
   reason: "Хамгаалалтын давхарга хүрэлцэхгүй",
@@ -1150,7 +2140,7 @@ t("Тэнцээгүй үед татгалзаж болно", rejectWithFail.stat
 
 // 5. Танигдахгүй зүйл илгээвэл хориглоно — өөр загварын хариулт орж ирэх эрсдэл.
 const bogus = inspect({
-  stage: "client",
+  stage: "site_check",
   result: "accepted",
   acceptedQty: 1,
   checklist: [{ itemId: "cli-байхгүй", result: "pass" }],
@@ -1162,7 +2152,7 @@ handleMock("POST", ["work-items", guarded.id, "progress"], "", {
   completedQty: 3,
 });
 const okInspect = inspect({
-  stage: "client",
+  stage: "site_check",
   result: "accepted",
   acceptedQty: 1,
   checklist: tmpl!.items.map((i) => ({ itemId: i.id, result: "pass" })),
@@ -1185,7 +2175,7 @@ handleMock("POST", ["work-items", free.id, "progress"], "", {
   completedQty: 4,
 });
 const freeInspect = handleMock("POST", ["work-items", free.id, "inspections"], "", {
-  stage: "client",
+  stage: "site_check",
   result: "accepted",
   acceptedQty: 4,
 });
@@ -1259,13 +2249,12 @@ t(
 
 // 4. Батлагдсанаас бага болгох боломжгүй — хувь 100-аас давахаас сэргийлнэ.
 const ids = checklistItemIds(zeroItem.id);
-handleMock("POST", ["work-items", zeroItem.id, "inspections"], "", {
-  stage: "client",
-  result: "accepted",
-  acceptedQty: 10,
-  ...(ids ? { checklist: ids.map((id) => ({ itemId: id, result: "pass" })) } : {}),
-});
-t("Батлагдсан 10 боллоо", zeroItem.acceptedQty === 10, String(zeroItem.acceptedQty));
+approveFully(zeroItem.id, ids ? ids.map((id) => ({ itemId: id, result: "pass" })) : undefined);
+t(
+  "Мэдээлсэн бүх хэмжээ батлагдлаа",
+  zeroItem.acceptedQty === zeroItem.reportedQty && zeroItem.acceptedQty > 0,
+  `${zeroItem.acceptedQty} / ${zeroItem.reportedQty}`,
+);
 t(
   "Батлагдсанаас бага төлөвлөгөө 409",
   handleMock("PATCH", ["work-items", zeroItem.id], "", { plannedQty: 1 }).status === 409,
@@ -1299,7 +2288,7 @@ t(
   handleMock("PATCH", ["work-items", zeroItem.id], "", { plannedQty: 5 }).status === 403,
 );
 handleMock("POST", ["auth", "login"], "", {
-  email: "director@cpms.test",
+  email: "admin@cpms.test",
   password: "x",
 });
 
@@ -1424,7 +2413,7 @@ t(
   }).status === 403,
 );
 handleMock("POST", ["auth", "login"], "", {
-  email: "director@cpms.test",
+  email: "admin@cpms.test",
   password: "x",
 });
 
@@ -1460,9 +2449,15 @@ t(
 const emptyLocs = body<{ data: { level: string }[] }>(
   get(`blocks/${emptyBlock.id}/locations`),
 ).data;
+/*
+ * Хоосон блокийн хүлээлт — зарлагдсан 5 давхар, 4 айл дээр нэмэлт давхрууд
+ * ба техникийн давхрын зайнууд.
+ */
+const EMPTY_FLOORS = 5 + EXTRA_FLOORS;
+const EMPTY_UNITS = 5 * 4 + TECH_SPACES;
 t(
-  "Байршил үүссэн: 1 блок + 6 давхар + 20 айл = 27",
-  emptyLocs.length === 27,
+  `Байршил үүссэн: 1 блок + ${EMPTY_FLOORS} давхар + ${EMPTY_UNITS} айл`,
+  emptyLocs.length === 1 + EMPTY_FLOORS + EMPTY_UNITS,
   String(emptyLocs.length),
 );
 t(
@@ -1477,10 +2472,10 @@ const added = handleMock("POST", ["blocks", emptyBlock.id, "work-items"], "", {
   plannedQty: 30,
 });
 t("Ажлын төрөл нэмэгдлээ", added.status === 201, String(added.status));
-// Давхрын түвшний ажил — зоорь + 5 давхар = 6 мөр.
+// Давхрын түвшний ажил — давхрын байршил тутамд нэг мөр.
 t(
-  "Түвшний бүх байршилд мөр үүссэн",
-  body<{ data: { created: number } }>(added).data.created === 6,
+  `Түвшний бүх байршилд мөр үүссэн (${EMPTY_FLOORS})`,
+  body<{ data: { created: number } }>(added).data.created === EMPTY_FLOORS,
   String(body<{ data: { created: number } }>(added).data.created),
 );
 
@@ -1493,7 +2488,7 @@ t(
   }).status === 409,
 );
 
-// Айлын түвшний ажил — 5 давхар × 4 айл = 20 мөр.
+// Айлын түвшний ажил — 5 давхар × 4 айл + техникийн давхрын зайнууд.
 const unitType = getDb().workTypes.find((w) => w.level === "unit")!;
 const addedUnits = handleMock("POST", ["blocks", emptyBlock.id, "work-items"], "", {
   workTypeId: unitType.id,
@@ -1511,8 +2506,8 @@ const bulkAdd = handleMock("POST", ["blocks", emptyBlock.id, "work-items"], "", 
 });
 t("Олон төрлийг нэг дор нэмэв", bulkAdd.status === 201, String(bulkAdd.status));
 t(
-  "3 төрөл × 6 давхар = 18 мөр",
-  body<{ data: { created: number } }>(bulkAdd).data.created === floorTypes.length * 6,
+  `3 төрөл × ${EMPTY_FLOORS} давхар = ${floorTypes.length * EMPTY_FLOORS} мөр`,
+  body<{ data: { created: number } }>(bulkAdd).data.created === floorTypes.length * EMPTY_FLOORS,
   String(body<{ data: { created: number } }>(bulkAdd).data.created),
 );
 
@@ -1580,8 +2575,8 @@ if (partial.status === 201) {
   t("Алгассаныг мэдээлнэ", body<{ data: { skipped: unknown[] } }>(partial).data.skipped.length > 0);
 }
 t(
-  "Айлын түвшинд 20 мөр",
-  body<{ data: { created: number } }>(addedUnits).data.created === 20,
+  `Айлын түвшинд ${EMPTY_UNITS} мөр`,
+  body<{ data: { created: number } }>(addedUnits).data.created === EMPTY_UNITS,
   String(body<{ data: { created: number } }>(addedUnits).data.created),
 );
 
@@ -1658,7 +2653,7 @@ t(
   handleMock("DELETE", ["work-items", someItem.id], "", undefined).status === 403,
 );
 handleMock("POST", ["auth", "login"], "", {
-  email: "director@cpms.test",
+  email: "admin@cpms.test",
   password: "x",
 });
 
@@ -1677,16 +2672,16 @@ handleMock("POST", ["auth", "login"], "", {
     completedQty: planned,
   });
   t("Бүх хэмжээг мэдээлэв", target.reportedQty === planned, String(target.reportedQty));
-  t("Мэдээлсний дараа pending", target.reviewState === "pending", target.reviewState);
+  t("Мэдээлсний дараа шалгалт хүлээнэ", target.reviewState === "pending_check", target.reviewState);
 
   const rej = handleMock("POST", ["work-items", target.id, "inspections"], "", {
-    stage: "client",
+    stage: "site_check",
     result: "rejected",
     acceptedQty: 0,
     reason: "Гадаргуу тэгш бус",
   });
   t("Татгалзал 201", rej.status === 201, String(rej.status));
-  t("Татгалзсаны дараа returned", target.reviewState === "returned", target.reviewState);
+  t("Татгалзсаны дараа буцаагдсан", target.reviewState === "returned_by_site", target.reviewState);
   t(
     "Татгалзсан хэмжээ мэдээлсэн дүнгээс хасагдав",
     target.reportedQty === 0,
@@ -1710,15 +2705,12 @@ handleMock("POST", ["auth", "login"], "", {
   t("Дахин илгээх боломжтой", again.status === 201, String(again.status));
   t(
     "Дахин илгээвэл хянагдахаар дараалалд орно",
-    target.reviewState === "pending",
+    target.reviewState === "pending_check",
     target.reviewState,
   );
 
-  handleMock("POST", ["work-items", target.id, "inspections"], "", {
-    stage: "client",
-    result: "accepted",
-    acceptedQty: planned,
-  });
+  // Хоёр шатыг ч дамжуулж байж 100% болно — 1-р шат дангаараа хүрэлцэхгүй.
+  approveFully(target.id);
   t("Эцэст нь 100% болно", target.percentage === 100, `${target.percentage}%`);
   t("Төлөв нь дууссан", target.status === "completed", target.status);
 }
@@ -1804,7 +2796,7 @@ handleMock("POST", ["auth", "login"], "", {
   const foreign = [...ids].filter((id) => getDb().byId.get(id)?.contractor?.id !== "ctr-5");
   t("Гүйцэтгэгчийн актад бусдын ажил ороогүй", foreign.length === 0, String(foreign.length));
   handleMock("POST", ["auth", "login"], "", {
-    email: "director@cpms.test",
+    email: "admin@cpms.test",
     password: "x",
   });
 }
@@ -1880,7 +2872,16 @@ t(
     handleMock("POST", path, "", {
       plannedEndDate: "2000-01-01",
       category: "weather",
-      reason: "x",
+      reason: "Урагшлуулах гэсэн оролдлого.",
+    }).status === 422,
+  );
+  // Тайлбар хэт тодорхойгүй бол хүлээж авахгүй — «х» гэж бичээд өнгөрөхгүй.
+  t(
+    "Тайлбар хэт тодорхойгүй бол 422",
+    handleMock("POST", path, "", {
+      plannedEndDate: future,
+      category: "weather",
+      reason: "хүйтэн",
     }).status === 422,
   );
 
@@ -1892,8 +2893,24 @@ t(
   });
 
   t("Сунгалт 200", res.status === 200, String(res.status));
+  t("Батлагдсан гэж мэдэгдэнэ", body<{ meta: { applied: boolean } }>(res).meta.applied === true);
   t("Огноо шинэчлэгдэв", late.plannedEndDate === future, String(late.plannedEndDate));
   t("Хоцролт тэглэгдэв", late.overdueDays === 0, String(late.overdueDays));
+
+  /*
+   * ХАМГИЙН ЧУХАЛ ШАЛГУУР: гулсалтыг НУУХ арга байхгүй.
+   *
+   * `overdueDays` нь сунгалтаар тэглэгдэнэ — тэр нь зөв, амлалт хөдөлсөн.
+   * Гэвч `baselineEndDate` хэвээр үлдэх ёстой, эс бөгөөс «хэн ч хэзээ ч
+   * хоцроогүй» гэсэн зураг гарч, хоцролтын тайлан хэнийг ч хянахгүй.
+   */
+  t("Үндсэн огноо ХӨДӨЛСӨНГҮЙ", late.baselineEndDate === before, String(late.baselineEndDate));
+  t(
+    "Үндсэн төлөвлөгөөний гулсалт үлдэв",
+    (late.baselineOverdueDays ?? 0) > 0,
+    String(late.baselineOverdueDays),
+  );
+  t("Сунгасан хоногийг тоолов", (late.extendedDays ?? 0) > 0, String(late.extendedDays));
 
   const issuesAfter = body<{
     data: { description: string; categoryLabel: string }[];
@@ -1907,20 +2924,924 @@ t(
   );
   t("Ангилал хадгалагдав", issuesAfter[0].categoryLabel === "Материал дутсан");
 
-  // Гүйцэтгэгч төлөвлөгөө засах эрхгүй.
+  /*
+   * --- Хүсэлтийн урсгал ---
+   *
+   * Батлах эрхгүй хүн сунгавал ХҮЛЭЭГДЭНЭ, огноо хөдлөхгүй. Урьд нь
+   * `canEditPlan` эрхгүй хүн 403 авдаг байсан тул хуваарь хэтэрч байгааг
+   * хамгийн эрт мэддэг хүмүүс (талбайн инженер, гүйцэтгэгч) дуугарах зам
+   * ч байхгүй байв.
+   */
+  {
+    const other = getDb().workItems.find(
+      (w) => w.id !== late.id && w.blockId === "blk-a-01" && w.plannedEndDate,
+    )!;
+    const otherBefore = other.plannedEndDate;
+    const wanted = "2031-06-30";
+
+    handleMock("POST", ["auth", "login"], "", {
+      email: "site_engineer@cpms.test",
+      password: "x",
+    });
+
+    const asked = handleMock("POST", ["work-items", other.id, "extend"], "", {
+      plannedEndDate: wanted,
+      category: "weather",
+      reason: "Хасах 28 хэмд шавардлага хийх боломжгүй байв.",
+    });
+
+    t("Эрхгүй хүний сунгалт 202 (хүлээгдэнэ)", asked.status === 202, String(asked.status));
+    t("Хүлээгдэж байхад огноо ХӨДЛӨХГҮЙ", other.plannedEndDate === otherBefore);
+
+    const reqId = body<{ data: { id: string; status: string } }>(asked).data.id;
+    t("Төлөв нь pending", body<{ data: { status: string } }>(asked).data.status === "pending");
+
+    // Нэг ажилд хоёр хүлээгдэж буй хүсэлт байж болохгүй.
+    t(
+      "Хоёр дахь хүсэлт 422",
+      handleMock("POST", ["work-items", other.id, "extend"], "", {
+        plannedEndDate: "2031-07-31",
+        category: "weather",
+        reason: "Хоёр дахь хүсэлт гаргах оролдлого.",
+      }).status === 422,
+    );
+
+    // Талбайн инженер өөрийн хүсэлтээ батлах гэвэл 403.
+    t(
+      "Хүсэгч өөрөө батлахгүй",
+      handleMock("POST", ["extension-requests", reqId, "approve"], "", {}).status === 403,
+    );
+
+    handleMock("POST", ["auth", "login"], "", { email: "admin@cpms.test", password: "x" });
+
+    // Дараалалд харагдана — эс бөгөөс хүсэлт хэнд ч хүрэхгүй.
+    const queue = body<{ data: { id: string; requestedDays: number }[] }>(
+      get("projects/prj-inel-01/extension-requests"),
+    ).data;
+    t("Хүсэлт дараалалд харагдана", queue.some((x) => x.id === reqId), `${queue.length} хүсэлт`);
+
+    t(
+      "Татгалзахад шалтгаан заавал",
+      handleMock("POST", ["extension-requests", reqId, "reject"], "", {}).status === 422,
+    );
+
+    t(
+      "Батлахад огноо хөдөлнө",
+      handleMock("POST", ["extension-requests", reqId, "approve"], "", {}).status === 200,
+    );
+    t("Хүссэн огноо тавигдав", other.plannedEndDate === wanted, String(other.plannedEndDate));
+    t("Үндсэн огноо хэвээр", other.baselineEndDate === otherBefore, String(other.baselineEndDate));
+
+    t(
+      "Шийдэгдсэн хүсэлтийг дахин шийдэхгүй",
+      handleMock("POST", ["extension-requests", reqId, "approve"], "", {}).status === 422,
+    );
+  }
+
+  // Гүйцэтгэгч ӨӨРИЙН БИШ ажилд хүсэлт гаргахгүй.
   login("GOO-2026");
   t(
-    "Гүйцэтгэгч хугацаа сунгахгүй",
+    "Гүйцэтгэгч бусдын ажилд хүсэлт гаргахгүй",
     handleMock("POST", path, "", {
       plannedEndDate: "2031-01-01",
       category: "weather",
-      reason: "x",
+      reason: "Бусдын ажилд хүсэлт гаргах оролдлого.",
     }).status === 403,
   );
   handleMock("POST", ["auth", "login"], "", {
-    email: "director@cpms.test",
+    email: "admin@cpms.test",
     password: "x",
   });
+}
+
+// ---------------------------------------------------------------------------
+// Төсвийн импорт
+//
+// ГОЛ БАТАЛГАА: байршуулах нь ЮУ Ч ӨӨРЧЛӨХГҮЙ, батлах нь нэг л удаа
+// ажиллана. Mock нь xlsx задалдаггүй ч ЭНЭ ТӨЛӨВИЙН УРСГАЛ backend-тэй
+// ижил байх ёстой — дэлгэц түүн дээр баригддаг.
+// ---------------------------------------------------------------------------
+{
+  const login = (email: string) =>
+    handleMock("POST", ["auth", "login"], "", { email, password: "x" });
+
+  const upload = (name: string, types?: string[]) =>
+    handleMock("POST", ["blocks", "blk-a-01", "imports"], "", {
+      file: { name, size: 1_284_000 },
+      ...(types ? { types } : {}),
+    });
+
+  login("admin@cpms.test");
+
+  t(".xlsx биш файл 422", upload("tosov.csv").status === 422);
+
+  const created = upload("tosov-material.xlsx");
+  t("Байршуулахад 201", created.status === 201, String(created.status));
+
+  const env = body<{
+    data: { id: string; status: string; uploadedBy: string; types: string[] };
+    reports: {
+      type: string;
+      canApply: boolean;
+      summary: { planned: number; rejected: number };
+      errors: unknown[];
+    }[];
+  }>(created);
+
+  t("Төлөв нь pending", env.data.status === "pending", env.data.status);
+  t("Байршуулсан хүн тэмдэглэгдэв", Boolean(env.data.uploadedBy), env.data.uploadedBy);
+  t("Нэр нь материал гэвэл зөвхөн материал", env.data.types.join() === "materials", env.data.types.join());
+  t(
+    "Тайлан оруулах мөртэй",
+    env.reports[0].summary.planned > 0,
+    String(env.reports[0].summary.planned),
+  );
+  t(
+    "Татгалзсан мөрийг НУУХГҮЙ",
+    env.reports[0].summary.rejected > 0 && env.reports[0].errors.length > 0,
+    `${env.reports[0].summary.rejected} мөр`,
+  );
+
+  const importId = env.data.id;
+
+  t(
+    "Түүхэнд харагдана",
+    body<{ data: { id: string }[] }>(get("blocks/blk-a-01/imports")).data.some(
+      (x) => x.id === importId,
+    ),
+  );
+
+  const applied = handleMock("POST", ["imports", importId, "apply"], "", {});
+  t("Батлахад 200", applied.status === 200, String(applied.status));
+  t(
+    "Төлөв applied болов",
+    body<{ data: { status: string } }>(applied).data.status === "applied",
+  );
+  t(
+    "Бичилтийн үр дүн тайланд гарна",
+    body<{ reports: { result?: { items: number } }[] }>(applied).reports[0].result != null,
+  );
+
+  /*
+   * ГОРИМ нь үр дүнг өөрчилнө.
+   *
+   * `update` — гүйцэтгэл үлдэнэ, зөрчил гарч болно
+   * `replace` — бүгд шинээр үүснэ, зөрчил байхгүй
+   */
+  {
+    const draft = body<{ data: { id: string } }>(upload("ajliin-tosov.xlsx")).data;
+
+    const res = handleMock("POST", ["imports", draft.id, "apply"], "", { mode: "update" });
+    const result = body<{ reports: { result?: { updated?: number; conflicts?: unknown[] } }[] }>(res)
+      .reports[0].result;
+
+    t("Шинэчлэх горим ажиллана", res.status === 200, String(res.status));
+    t("Шинэчлэгдсэн тоо гарна", (result?.updated ?? 0) > 0, String(result?.updated));
+    t("Зөрчлийг жагсаана", (result?.conflicts?.length ?? 0) > 0);
+  }
+
+  t(
+    "Хоёр дахь батлалт 422",
+    handleMock("POST", ["imports", importId, "apply"], "", {}).status === 422,
+  );
+  t(
+    "Орсон импортыг цуцлахгүй",
+    handleMock("DELETE", ["imports", importId], "", undefined).status === 422,
+  );
+
+  /*
+   * НЭГ ФАЙЛ, ХОЁР ТӨСӨВ.
+   *
+   * Захиалагчийн жинхэнэ файл 29 хуудастай бөгөөд хоёр нь төсөв. Нэг л
+   * байршуулалтаар хоёулаа урьдчилан харагдана.
+   */
+  const both = body<{
+    data: { id: string; types: string[]; typeLabel: string; summary: { planned: number } };
+    reports: { type: string }[];
+  }>(upload("AJLIIN_TOO_HEMJEE_26_06_A1.xlsx"));
+
+  t("Хоёр төсөв танигдав", both.data.types.join() === "quantities,materials", both.data.types.join());
+  t("Тайлан хоёр хэсэгтэй", both.reports.length === 2, String(both.reports.length));
+  t(
+    "Ажлын төсөв ЭХЭЛНЭ",
+    both.reports[0].type === "quantities" && both.reports[1].type === "materials",
+  );
+  t(
+    "Нэр нь нэгтгэгдэв",
+    both.data.typeLabel === "Ажлын хөлсний төсөв + Материалын төсөв",
+    both.data.typeLabel,
+  );
+  t("Түүхийн дүн нийлбэр", both.data.summary.planned === 1991 + 155, String(both.data.summary.planned));
+
+  // Хоёрын НЭГИЙГ нь л оруулж болно.
+  const partial = handleMock("POST", ["imports", both.data.id, "apply"], "", {
+    types: ["quantities"],
+  });
+  t("Нэг хэсгийг оруулав", partial.status === 200, String(partial.status));
+  t(
+    "Бүртгэл ҮНЭХЭЭР орсныг л тэмдэглэнэ",
+    body<{ data: { types: string[] } }>(partial).data.types.join() === "quantities",
+  );
+  t(
+    "Тайлан ч нэг хэсэгтэй",
+    body<{ reports: unknown[] }>(partial).reports.length === 1,
+  );
+
+  // Цуцлах урсгал — зөвхөн хүлээгдэж буй файл.
+  const second = body<{ data: { id: string } }>(upload("tosov-2-material.xlsx")).data.id;
+  t(
+    "Хүлээгдэж буйг цуцална",
+    handleMock("DELETE", ["imports", second], "", undefined).status === 200,
+  );
+
+  /*
+   * Талбайн инженер төсөв оруулж ЧАДАХГҮЙ — импорт нь блокийн бүх мөрийг
+   * сольж гүйцэтгэлийг устгадаг.
+   */
+  login("site_engineer@cpms.test");
+  t("Талбайн инженер байршуулахгүй", upload("tosov.xlsx").status === 403);
+  t("Талбайн инженер түүх харахгүй", get("blocks/blk-a-01/imports").status === 403);
+
+  login("admin@cpms.test");
+}
+
+
+// ---------------------------------------------------------------------------
+// НЭГ ТҮЛХҮҮР — НЭГ ХЭЛБЭР
+//
+// TanStack Query нь түлхүүрээр кэшилдэг. Хоёр дэлгэц ижил түлхүүр
+// хэрэглээд НЭГ нь дугтуйг (`{ data, meta }`), НӨГӨӨ нь массивыг
+// хадгалбал аль нь түрүүлж ачаалснаас хамаарч нөгөөдөх нь унана.
+//
+// Энэ нь «заримдаа л гардаг» алдаа учраас хамгийн муу төрөл: хуудсыг
+// дахин ачаалахад кэш цэвэрлэгдэж, алдаа алга болдог. Яг ийм алдаа
+// `/imports` дэлгэц дээр гарсан.
+// ---------------------------------------------------------------------------
+{
+  const { readdirSync, readFileSync, statSync } = nodeFs;
+  const { join } = nodePath;
+
+  const files: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir)) {
+      if (entry === "node_modules" || entry === ".next" || entry.startsWith(".")) continue;
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) walk(full);
+      else if (/\.tsx?$/.test(entry)) files.push(full);
+    }
+  };
+  walk("app");
+  walk("components");
+  walk("lib");
+
+  /** түлхүүр → { дугтуй хадгалсан файлууд, задалсан файлууд } */
+  const shapes = new Map<string, { enveloped: string[]; unwrapped: string[] }>();
+
+  for (const file of files) {
+    const source = readFileSync(file, "utf8");
+
+    // `queryKey: ["нэр", …]` ба дараагийн `queryFn:` мөрийг хослуулна.
+    const re = /queryKey:\s*\[\s*"([^"]+)"[^\]]*\][\s\S]{0,200}?queryFn:\s*([^\n]*(?:\n[^\n]*){0,2})/g;
+
+    for (const m of source.matchAll(re)) {
+      const key = m[1];
+      const fn = m[2];
+
+      // Зөвхөн жагсаалтын дугтуй буцаадаг дуудлагуудыг шалгана.
+      if (!/listForProject|\.list\(/.test(fn)) continue;
+
+      const entry = shapes.get(key) ?? { enveloped: [], unwrapped: [] };
+      (/\.then\(\s*\(?r\)?\s*=>\s*r\.data/.test(fn) ? entry.unwrapped : entry.enveloped).push(
+        file,
+      );
+      shapes.set(key, entry);
+    }
+  }
+
+  let clashes = 0;
+
+  for (const [key, { enveloped, unwrapped }] of shapes) {
+    if (enveloped.length > 0 && unwrapped.length > 0) {
+      clashes++;
+      console.log(
+        `   «${key}» → дугтуй: ${enveloped.join(", ")} | задалсан: ${unwrapped.join(", ")}`,
+      );
+    }
+  }
+
+  t(
+    "Нэг queryKey дор нэг л хэлбэр",
+    clashes === 0,
+    clashes === 0 ? `${shapes.size} түлхүүр шалгав` : `${clashes} зөрчил`,
+  );
+}
+
+
+// ---------------------------------------------------------------------------
+// Бетон захиалга
+//
+// ГОЛ НЬ МАЯГТ БИШ, ҮЛДЭГДЭЛ. Цаасан бланк аль хэдийн байгаа — систем
+// нэмж байгаа цорын гагц зүйл нь «энэ давхарт төсвөөр хэд байсан, хэд
+// захиалсан, хэд үлдсэн» гэдэг.
+// ---------------------------------------------------------------------------
+{
+  const login = (email: string) =>
+    handleMock("POST", ["auth", "login"], "", { email, password: "x" });
+
+  const soon = new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10);
+
+  const balanceRows = () =>
+    body<{ data: { locationId: string; locationName: string; remaining: number }[] }>(
+      get("blocks/blk-a-01/concrete-balance"),
+    ).data;
+
+  const first = balanceRows()[0];
+  t("Үлдэгдлийн хүснэгт давхраар гарна", first != null, first?.locationName);
+
+  const create = (locationId: string, quantity: number, pourDate = soon) =>
+    handleMock("POST", ["blocks", "blk-a-01", "concrete-orders"], "", {
+      locationId,
+      materialId: "mat-m250",
+      pourDate,
+      pourHalf: "am",
+      pourTime: "08:30",
+      structure: "Хучилт",
+      concreteClass: "B25",
+      slumpCm: 12,
+      quantity,
+      needsPump: true,
+    });
+
+  login("site_engineer@cpms.test");
+
+  const draft = create(first.locationId, 180);
+  t("Захиалга үүсэв", draft.status === 201, String(draft.status));
+
+  const order = body<{ data: { id: string; status: string; number: string } }>(draft).data;
+  t("Драфтаар үүснэ", order.status === "draft", order.status);
+  t("Дугаар автоматаар", /^БЗ-\d{4}-\d{3}$/.test(order.number), order.number);
+
+  // ДРАФТ нь төсөв ИДДЭГГҮЙ.
+  t(
+    "Драфт төсөв иддэггүй",
+    balanceRows().find((r) => r.locationId === first.locationId)!.remaining === first.remaining,
+  );
+
+  t(
+    "Илгээхэд 200",
+    handleMock("POST", ["concrete-orders", order.id, "submit"], "", {}).status === 200,
+  );
+
+  const afterSubmit = balanceRows().find((r) => r.locationId === first.locationId)!;
+  t(
+    "Илгээсний дараа төсөв иднэ",
+    afterSubmit.remaining === first.remaining - 180,
+    String(afterSubmit.remaining),
+  );
+
+  // Захиалсан хүн ӨӨРӨӨ баталгаажуулахгүй.
+  login("admin@cpms.test");
+  const ownDraft = body<{ data: { id: string } }>(create(first.locationId, 10)).data;
+  handleMock("POST", ["concrete-orders", ownDraft.id, "submit"], "", {});
+  t(
+    "Захиалсан хүн өөрөө баталгаажуулахгүй",
+    handleMock("POST", ["concrete-orders", ownDraft.id, "confirm"], "", {}).status === 422,
+  );
+
+  t(
+    "Өөр инженер баталгаажуулна",
+    handleMock("POST", ["concrete-orders", order.id, "confirm"], "", {}).status === 200,
+  );
+
+  // Талбайн инженер баталгаажуулж чадахгүй.
+  login("site_engineer@cpms.test");
+  t(
+    "Талбайн инженер баталгаажуулахгүй",
+    handleMock("POST", ["concrete-orders", ownDraft.id, "confirm"], "", {}).status === 403,
+  );
+
+  /*
+   * Нийлүүлэлт нь БОДИТ хэмжээгээр иднэ — машин 7 м³-аар ирдэг тул
+   * 18 захиалбал 21 ирнэ.
+   */
+  const beforeDeliver = balanceRows().find((r) => r.locationId === first.locationId)!.remaining;
+  t(
+    "Нийлүүлэлт бүртгэнэ",
+    handleMock("POST", ["concrete-orders", order.id, "deliver"], "", { deliveredQty: 200 })
+      .status === 200,
+  );
+  t(
+    "Бодит хэмжээгээр иднэ",
+    balanceRows().find((r) => r.locationId === first.locationId)!.remaining ===
+      beforeDeliver - 20,
+    "180 → 200",
+  );
+
+  t(
+    "Нийлүүлэгдсэнийг цуцлахгүй",
+    handleMock("POST", ["concrete-orders", order.id, "cancel"], "", {
+      reason: "Шаардлагагүй болсон.",
+    }).status === 422,
+  );
+
+  // Цуцлах нь төсвийг СУЛЛАНА.
+  const beforeCancel = balanceRows().find((r) => r.locationId === first.locationId)!.remaining;
+  t(
+    "Цуцлахад шалтгаан заавал",
+    handleMock("POST", ["concrete-orders", ownDraft.id, "cancel"], "", {}).status === 422,
+  );
+  handleMock("POST", ["concrete-orders", ownDraft.id, "cancel"], "", {
+    reason: "Цутгалт хойшлогдлоо.",
+  });
+  t(
+    "Цуцлахад төсөв суллагдана",
+    balanceRows().find((r) => r.locationId === first.locationId)!.remaining ===
+      beforeCancel + 10,
+  );
+
+  // Хэтрэлтийг ТООГООР хэлнэ.
+  const over = body<{ data: { overBy: number; remainingQty: number } }>(
+    create(first.locationId, 1000),
+  ).data;
+  t("Хэтрэлтийг тоогоор хэлнэ", over.overBy > 0, String(over.overBy));
+
+  // Яаралтай захиалгыг ТЭМДЭГЛЭНЭ, хориглохгүй.
+  const rushDate = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+  const rush = create(first.locationId, 5, rushDate);
+  t("Яаралтай захиалга зөвшөөрөгдөнө", rush.status === 201, String(rush.status));
+  t("Яаралтайг тэмдэглэнэ", body<{ data: { isRush: boolean } }>(rush).data.isRush);
+
+  // Өнгөрсөн огноо.
+  const past = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+  t("Өнгөрсөн огноонд захиалахгүй", create(first.locationId, 5, past).status === 422);
+
+  // Гүйцэтгэгчид хаалттай. (Гүйцэтгэгч нь имэйлээр биш КОДООР нэвтэрнэ.)
+  handleMock("POST", ["auth", "contractor-login"], "", { code: "GOO-2026" });
+  t(
+    "Гүйцэтгэгч бетон захиалга харахгүй",
+    get("projects/prj-inel-01/concrete-orders").status === 403,
+  );
+  t("Гүйцэтгэгч захиалга бичихгүй", create(first.locationId, 5).status === 403);
+
+  handleMock("POST", ["auth", "login"], "", { email: "admin@cpms.test", password: "x" });
+}
+
+
+// ---------------------------------------------------------------------------
+// canCheck ба canInspect нь ӨӨР эрх
+//
+// 1-р шат (талбайн шалгалт) нь эцсийн батлахаас ӨРГӨН. Хоёрыг нэг
+// эрхээр хэмжвэл талбайн инженерт шалгах форм огт харагдахгүй болж,
+// хоёр шаттай урсгал гацна — яг тэр алдаа бодит системд гарсан.
+// ---------------------------------------------------------------------------
+{
+  const me = () => body<{ data: { role: string; canCheck: boolean; canInspect: boolean } }>(get("me")).data;
+
+  handleMock("POST", ["auth", "login"], "", { email: "site_engineer@cpms.test", password: "x" });
+  const site = me();
+  t("Талбайн инженер 1-р шат хийнэ", site.canCheck === true, String(site.canCheck));
+  t("Талбайн инженер эцсийн батлахгүй", site.canInspect === false, String(site.canInspect));
+
+  handleMock("POST", ["auth", "login"], "", { email: "inspector@cpms.test", password: "x" });
+  const insp = me();
+  t("Хяналтын инженер хоёуланг нь хийнэ", insp.canCheck && insp.canInspect);
+
+  handleMock("POST", ["auth", "contractor-login"], "", { code: "GOO-2026" });
+  const ctr = me();
+  t("Гүйцэтгэгч аль нь ч хийхгүй", !ctr.canCheck && !ctr.canInspect);
+
+  handleMock("POST", ["auth", "login"], "", { email: "admin@cpms.test", password: "x" });
+}
+
+
+// ---------------------------------------------------------------------------
+// Дарааллыг блокоор шүүх
+//
+// 75 барилгын цогцолборт бүх блокийн ажил нэг жагсаалтад холилдоно.
+// Шүүлтүүр нь ЖАГСААЛТ ба ТООНД хоёуланд нь үйлчлэх ёстой — зөвхөн
+// нэгэнд нь хэрэглэвэл таб дээр «12» гэж бичигдээд жагсаалтад 3 мөр
+// гарч, хэрэглэгч алдаа гэж бодно.
+// ---------------------------------------------------------------------------
+{
+  handleMock("POST", ["auth", "login"], "", { email: "admin@cpms.test", password: "x" });
+
+  const all = body<{ data: { blockName?: string | null }[]; meta: { total: number } }>(
+    get("projects/prj-inel-01/queue", "?type=inspection&pageSize=200"),
+  );
+
+  t("Дараалал блокийн НЭРийг буцаана", all.data.every((w) => Boolean(w.blockName)));
+
+  const filtered = body<{ data: { blockName?: string | null }[]; meta: { total: number } }>(
+    get("projects/prj-inel-01/queue", "?type=inspection&blockId=blk-a-01&pageSize=200"),
+  );
+
+  t(
+    "Шүүсэн жагсаалт нэг блоктой",
+    filtered.data.every((w) => w.blockName === all.data.find((x) => x.blockName)?.blockName) ||
+      new Set(filtered.data.map((w) => w.blockName)).size <= 1,
+  );
+  t("Шүүлт жагсаалтыг багасгана", filtered.meta.total <= all.meta.total);
+
+  const counts = body<{ data: { inspection: number } }>(
+    get("projects/prj-inel-01/queue/counts", "?blockId=blk-a-01"),
+  ).data;
+
+  t(
+    "Таб дээрх тоо жагсаалттай ТААРНА",
+    counts.inspection === filtered.meta.total,
+    `${counts.inspection} ↔ ${filtered.meta.total}`,
+  );
+}
+
+
+// ---------------------------------------------------------------------------
+// Select бүр `items` өгсөн байх
+//
+// Base UI-ийн `Select.Value` нь сонгогдсон УТГЫГ харуулдаг, шошгыг БИШ.
+// `items` мартвал товчин дээр UUID эсвэл «am» гэсэн түлхүүр шууд гарна —
+// хэрэглэгч систем эвдэрсэн гэж бодно. Яг тэр алдаа дарааллын дэлгэц
+// дээр гарсан.
+// ---------------------------------------------------------------------------
+{
+  const files: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of nodeFs.readdirSync(dir)) {
+      if (entry === "node_modules" || entry === ".next" || entry.startsWith(".")) continue;
+      const full = nodePath.join(dir, entry);
+      if (nodeFs.statSync(full).isDirectory()) walk(full);
+      else if (entry.endsWith(".tsx")) files.push(full);
+    }
+  };
+  walk("app");
+  walk("components");
+
+  const missing: string[] = [];
+
+  for (const file of files) {
+    if (file.endsWith("components/ui/select.tsx")) continue;
+
+    const source = nodeFs.readFileSync(file, "utf8");
+
+    // `<Select ...>` нээлтийн шошго бүрийг тусад нь шалгана.
+    for (const m of source.matchAll(/<Select(\s[^>]*?)>/g)) {
+      if (!/\bitems=/.test(m[1])) {
+        missing.push(`${file}: ${m[1].replace(/\s+/g, " ").trim().slice(0, 60)}`);
+      }
+    }
+  }
+
+  t(
+    "Select бүр `items`-тэй",
+    missing.length === 0,
+    missing.length === 0 ? "бүгд зөв" : missing.join(" | "),
+  );
+}
+
+
+// ---------------------------------------------------------------------------
+// Материалын захиалга
+//
+// Бетоноос ХОЁР зүйлээр ялгарна, хоёуланг нь шалгана:
+//   1. Үлдэгдэл БЛОКООР бодогдоно (давхраар биш)
+//   2. ЗӨВШӨӨРСӨН тоо нь захиалсанаас зөрж болно, төсвөөс тэр нь хасагдана
+// ---------------------------------------------------------------------------
+{
+  const login = (email: string) =>
+    handleMock("POST", ["auth", "login"], "", { email, password: "x" });
+
+  const balanceOf = (materialId: string) =>
+    body<{ data: { materialId: string; budget: number; ordered: number; remaining: number }[] }>(
+      get("blocks/blk-a-01/material-balance"),
+    ).data.find((r) => r.materialId === materialId)!;
+
+  const create = (lines: unknown[], kind = "main") =>
+    handleMock("POST", ["blocks", "blk-a-01", "material-orders"], "", { kind, lines });
+
+  login("site_engineer@cpms.test");
+
+  const start = balanceOf("mat-pum20");
+  t("Үлдэгдлийн хүснэгт төсөвтэй", start.budget > 0, String(start.budget));
+
+  const created = create([{ materialId: "mat-pum20", quantity: 300, stockQty: 20 }]);
+  t("Захиалга үүсэв", created.status === 201, String(created.status));
+
+  const order = body<{
+    data: { id: string; number: string; status: string; lines: { id: string }[] };
+  }>(created).data;
+
+  t("Дугаар автоматаар", /^МЗ-\d{4}-\d{3}$/.test(order.number), order.number);
+  t("Драфт төсөв иддэггүй", balanceOf("mat-pum20").ordered === start.ordered);
+
+  t(
+    "Илгээхэд 200",
+    handleMock("POST", ["material-orders", order.id, "submit"], "", {}).status === 200,
+  );
+  t(
+    "Илгээсний дараа төсөв иднэ",
+    balanceOf("mat-pum20").remaining === start.remaining - 300,
+    String(balanceOf("mat-pum20").remaining),
+  );
+
+  // ЗӨВШӨӨРСӨН тоо нь төсвөөс хасагдана, захиалсан нь БИШ.
+  login("inspector@cpms.test");
+  const confirmed = handleMock("POST", ["material-orders", order.id, "confirm"], "", {
+    approved: { [order.lines[0].id]: 180 },
+  });
+  t("Баталгаажуулахад 200", confirmed.status === 200, String(confirmed.status));
+  t(
+    "Зөвшөөрсөн тоо төсвөөс хасагдана",
+    balanceOf("mat-pum20").remaining === start.remaining - 180,
+    `${balanceOf("mat-pum20").remaining} (300 биш 180)`,
+  );
+
+  // Нийлүүлэлт нь зөвшөөрснийг ч дарна.
+  login("site_engineer@cpms.test");
+  handleMock("POST", ["material-orders", order.id, "deliver"], "", {
+    delivered: { [order.lines[0].id]: 200 },
+  });
+  t(
+    "Ирсэн тоо зөвшөөрснийг дарна",
+    balanceOf("mat-pum20").remaining === start.remaining - 200,
+    String(balanceOf("mat-pum20").remaining),
+  );
+
+  /*
+   * Захиалсан хүн ӨӨРӨӨ баталгаажуулахгүй.
+   *
+   * Бодит бүртгэлтэй и-мэйл: mock нь олдоогүй и-мэйлийг анхдагч
+   * (админ) сесс рүү унагадаг тул байхгүй хүнээр шалгавал огт өөр
+   * хүний эрхийг хэмжинэ.
+   */
+  login("admin@cpms.test");
+  const own = body<{ data: { id: string } }>(create([{ materialId: "mat-utas", quantity: 5 }])).data;
+  handleMock("POST", ["material-orders", own.id, "submit"], "", {});
+  t(
+    "Захиалсан хүн өөрөө баталгаажуулахгүй",
+    handleMock("POST", ["material-orders", own.id, "confirm"], "", {}).status === 422,
+  );
+
+  // Хэтрэлтийг мөрөөр хэлнэ, хориглохгүй.
+  login("site_engineer@cpms.test");
+  const over = body<{ data: { overLineCount: number; lines: { overBy: number }[] } }>(
+    create([{ materialId: "mat-utas", quantity: 99999 }]),
+  ).data;
+  t("Хэтрэлтийг мөрөөр хэлнэ", over.overLineCount === 1 && over.lines[0].overBy > 0);
+
+  // Төсөвт байхгүй зүйлийг гараар захиалж болно.
+  const free = body<{ data: { lines: { budgetQty: number | null; name: string }[] } }>(
+    create([{ name: "Шатны тор", unit: "ш", quantity: 12 }]),
+  ).data;
+  t("Гараар бичсэн мөр зөвшөөрөгдөнө", free.lines[0].name === "Шатны тор");
+  t("Төсөвгүй мөрөнд үлдэгдэл алга", free.lines[0].budgetQty === null);
+
+  // Арматурын нийт жин.
+  const rebar = body<{ data: { isRebar: boolean; lines: { totalWeightKg: number | null }[] } }>(
+    create([{ materialId: "mat-f12", quantity: 2000, unitWeightKg: 10.656 }], "rebar"),
+  ).data;
+  t("Арматурын нийт жин бодогдов", rebar.isRebar && rebar.lines[0].totalWeightKg === 21312);
+
+  // Эрх.
+  login("inspector@cpms.test");
+  t("Хяналтын инженер захиалга бичихгүй", create([{ materialId: "mat-utas", quantity: 1 }]).status === 403);
+
+  handleMock("POST", ["auth", "contractor-login"], "", { code: "GOO-2026" });
+  t(
+    "Гүйцэтгэгч материалын захиалга харахгүй",
+    get("projects/prj-inel-01/material-orders").status === 403,
+  );
+
+  handleMock("POST", ["auth", "login"], "", { email: "admin@cpms.test", password: "x" });
+}
+
+
+// ---------------------------------------------------------------------------
+// Блокийн ерөнхий тайлан
+//
+// Таван хэсэг зэрэг гарах ёстой: гүйцэтгэл, мөнгө, хугацаа, чанар,
+// материал. «Барилга хэр явж байна» гэдэгт нэг тоо хариулдаггүй.
+// ---------------------------------------------------------------------------
+{
+  handleMock("POST", ["auth", "login"], "", { email: "admin@cpms.test", password: "x" });
+
+  const report = body<{
+    data: Record<string, unknown> & {
+      progress: { workItems: number; percentage: number };
+      byGroup: unknown[];
+    };
+  }>(get("blocks/blk-a-01/report")).data;
+
+  for (const key of ["block", "progress", "byGroup", "money", "schedule", "quality", "materials"]) {
+    t(`Тайланд «${key}» хэсэг бий`, key in report);
+  }
+
+  t("Ажлын мөр тоологдов", report.progress.workItems > 0, String(report.progress.workItems));
+
+  // --- Орсон төсвийг харах ---
+  const budget = body<{
+    data: {
+      work: { name: string; works: number; plannedQty: number }[];
+      materials: { locations: unknown[] }[];
+    };
+  }>(get("blocks/blk-a-01/budget")).data;
+
+  t("Төсөв ажлын ТӨРЛӨӨР нэгтгэгдэв", budget.work.length > 0, `${budget.work.length} төрөл`);
+  t(
+    "Нэг төрөлд олон ажил багтав",
+    budget.work.some((r) => r.works > 1),
+    "нэгтгэл ажиллаж байна",
+  );
+  t(
+    "Материалд байршлын задаргаа бий",
+    budget.materials.every((m) => m.locations.length > 0),
+  );
+
+  // --- Үнийг ГАРААР тавих ---
+  {
+    /*
+     * ОЛОН ажилтай төрөл сонгоно.
+     *
+     * Эхний төрөл нь блокийн түвшний (ганц ажилтай) байж болно —
+     * тэр үед «бүх ажилд тавигдсан» гэдгийг шалгах утгагүй.
+     */
+    const row = body<{
+      data: { work: { workTypeId: string; works: number; unitPrice: number | null }[] };
+    }>(get("blocks/blk-a-01/budget")).data.work.find((r) => r.works > 1)!;
+
+    const setPrice = (unitPrice: number | null) =>
+      handleMock("PATCH", ["blocks", "blk-a-01", "budget", "work-price"], "", {
+        workTypeId: row.workTypeId,
+        unitPrice,
+      });
+
+    t("0 үнэ татгалзагдана", setPrice(0).status === 422);
+
+    const saved = setPrice(15000);
+    t("Үнэ хадгалагдана", saved.status === 200, String(saved.status));
+    // Жинхэнэ дүрэм: тэр төрлийн ажил БҮРД тавигдсан байх ёстой.
+    t(
+      "Тэр төрлийн БҮХ ажилд тавигдана",
+      body<{ data: { updated: number } }>(saved).data.updated === row.works,
+      `${body<{ data: { updated: number } }>(saved).data.updated} / ${row.works}`,
+    );
+
+    const after = body<{ data: { work: { workTypeId: string; unitPrice: number | null }[] } }>(
+      get("blocks/blk-a-01/budget"),
+    ).data.work.find((r) => r.workTypeId === row.workTypeId)!;
+
+    t("Төсөвт шинэ үнэ харагдана", after.unitPrice === 15000, String(after.unitPrice));
+
+    t("Хоосон үнэ арилгана", setPrice(null).status === 200);
+
+    // Засах эрх нь ХАРАХААС нарийн.
+    handleMock("POST", ["auth", "login"], "", { email: "inspector@cpms.test", password: "x" });
+    t("Хяналтын инженер үнэ засахгүй", setPrice(1000).status === 403);
+    handleMock("POST", ["auth", "login"], "", { email: "admin@cpms.test", password: "x" });
+  }
+  /*
+   * --- Материалын мөрийг ГАРААР нэмэх, хасах ---
+   *
+   * Импорт эвдэрсэн нүдтэй мөрийг унагаадаг (А1-д 109). Тэднийг
+   * нөхөх зам байхгүй бол төсөв дутуу хэвээр үлдэнэ.
+   */
+  {
+    const locs = body<{ data: { id: string; name: string }[] }>(
+      get("blocks/blk-a-01/locations", "level=floor"),
+    ).data;
+
+    const add = (patch: Record<string, unknown> = {}) =>
+      handleMock("POST", ["blocks", "blk-a-01", "material-budget-items"], "", {
+        code: "9.9.1",
+        name: "Гараар нэмсэн тор",
+        unit: "м2",
+        actualUnitPrice: 12000,
+        marketUnitPrice: 13000,
+        quantities: [
+          { locationId: locs[0].id, quantity: 40 },
+          { locationId: locs[1].id, quantity: 60 },
+        ],
+        ...patch,
+      });
+
+    t("Зөвшөөрөгдөөгүй нэгж татгалзагдана", add({ unit: "тонн" }).status === 422);
+    t("Задаргаагүй бол татгалзана", add({ quantities: [] }).status === 422);
+    t(
+      "Өөр блокийн байршил татгалзагдана",
+      add({ quantities: [{ locationId: "огт-байхгүй", quantity: 5 }] }).status === 422,
+    );
+
+    const addedId = body<{ data: { id: string } }>(add()).data.id;
+
+    const row = body<{
+      data: { materials: { id: string; totalQty: number; locations: unknown[] }[] };
+    }>(get("blocks/blk-a-01/budget")).data.materials.find((m) => m.id === addedId)!;
+
+    // Нийт нь задаргааны НИЙЛБЭР — тусад нь авдаггүй.
+    t("Нийт нь задаргаанаас бодогдов", row.totalQty === 100, String(row.totalQty));
+    t("Задаргаа хадгалагдав", row.locations.length === 2, String(row.locations.length));
+
+    // Нэг блокт нэг код хоёр удаа орвол үлдэгдэл хоёр хуваагдана.
+    t("Давхардсан код татгалзагдана", add().status === 422);
+
+    t(
+      "Хяналтын инженер мөр нэмэхгүй",
+      (() => {
+        handleMock("POST", ["auth", "login"], "", { email: "inspector@cpms.test", password: "x" });
+        const res = add({ code: "9.9.2" }).status === 403;
+        handleMock("POST", ["auth", "login"], "", { email: "admin@cpms.test", password: "x" });
+
+        return res;
+      })(),
+    );
+
+    const removed = handleMock("DELETE", ["material-budget-items", addedId], "", {});
+    t("Мөр хасагдана", removed.status === 200, String(removed.status));
+    t(
+      "Хассан мөр төсөвт үлдсэнгүй",
+      !body<{ data: { materials: { id: string }[] } }>(
+        get("blocks/blk-a-01/budget"),
+      ).data.materials.some((m) => m.id === addedId),
+    );
+
+    /*
+     * ЗАХИАЛГАТАЙ материалыг хасуулахгүй: үлдэгдэл нь төсөвтэй
+     * харьцуулж бодогддог тул төсөв алга болвол захиалга утгагүй
+     * болно.
+     */
+    const busy = body<{ data: { materialId: string; ordered: number }[] }>(
+      get("blocks/blk-a-01/material-balance"),
+    ).data.find((r) => r.ordered > 0);
+
+    t("Захиалгатай материал олдов", Boolean(busy), busy?.materialId ?? "алга");
+
+    t(
+      "Захиалгатай мөр хасагдахгүй",
+      handleMock("DELETE", ["material-budget-items", `mbi-${busy!.materialId}`], "", {}).status ===
+        422,
+    );
+  }
+
+  t("Бүлгээр задарсан", report.byGroup.length > 0, String(report.byGroup.length));
+
+  // Гүйцэтгэгч мөнгө агуулсан тайлан ХАРАХГҮЙ.
+  handleMock("POST", ["auth", "contractor-login"], "", { code: "GOO-2026" });
+  t("Гүйцэтгэгч тайлан харахгүй", get("blocks/blk-a-01/report").status === 403);
+  t("Гүйцэтгэгч төсөв харахгүй", get("blocks/blk-a-01/budget").status === 403);
+
+  handleMock("POST", ["auth", "login"], "", { email: "admin@cpms.test", password: "x" });
+}
+
+// ---------------------------------------------------------------------------
+// Блок устгах
+//
+// ХАМГИЙН АЮУЛТАЙ үйлдэл: байршил, ажлын мөр, явц, шалгалт, зураг,
+// төсөв, захиалга бүгд каскадаар дагаж устана. Хоёр түгжээ: зөвхөн
+// админ, бөгөөд блокийн нэрийг бичиж баталгаажуулна.
+//
+// ЭНЭ БҮЛЭГ ХАМГИЙН СҮҮЛД явна — блок устгадаг тул дараагийн шалгуурууд
+// түүнийг олохгүй болно.
+// ---------------------------------------------------------------------------
+{
+  const login = (email: string) =>
+    handleMock("POST", ["auth", "login"], "", { email, password: "x" });
+
+  const target = "blk-a-01";
+  const name = db.blocks.find((x) => x.id === target)!.name;
+
+  const del = (confirmName?: string) =>
+    handleMock("DELETE", ["blocks", target], "", confirmName ? { confirmName } : {});
+
+  /*
+   * Админ БИШ хүн устгахгүй.
+   *
+   * ЗӨВХӨН БОДИТ бүртгэлтэй и-мэйл хэрэглэнэ: mock нь олдоогүй
+   * и-мэйлийг анхдагч (АДМИН) сесс рүү унагадаг тул байхгүй хүнээр
+   * шалгавал «устгахгүй» гэсэн шалгуур админаар ажиллаж, блокийг
+   * үнэхээр устгачихна.
+   */
+  for (const email of ["inspector@cpms.test", "site_engineer@cpms.test"]) {
+    login(email);
+    t(`${email.split("@")[0]} устгахгүй`, del(name).status === 403);
+    t(`${email.split("@")[0]} тооллого харахгүй`, get(`blocks/${target}/deletion-impact`).status === 403);
+  }
+
+  login("admin@cpms.test");
+
+  const impact = body<{ data: { blockName: string; workItems: number } }>(
+    get(`blocks/${target}/deletion-impact`),
+  ).data;
+
+  t("Тооллого блокийн нэртэй", impact.blockName === name, impact.blockName);
+  t("Тооллого ажлын мөр тоолов", impact.workItems > 0, String(impact.workItems));
+
+  t("Нэргүй бол 422", del().status === 422);
+  t("Буруу нэр бол 422", del("Огт өөр нэр").status === 422);
+  t("Блок хэвээр байна", db.blocks.some((x) => x.id === target));
+
+  const removed = del(name);
+  t("Нэр таарвал устана", removed.status === 200, String(removed.status));
+  t("Блок жагсаалтаас алга", !db.blocks.some((x) => x.id === target));
+  t("Байршил нь ч устав", !db.locations.some((l) => l.blockId === target));
+  t("Ажлын мөр нь ч устав", !db.workItems.some((w) => w.blockId === target));
 }
 
 console.log("\nАмжилтгүй: " + fail);

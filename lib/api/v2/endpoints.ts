@@ -8,13 +8,30 @@
  */
 import { getToken } from "@/lib/auth";
 import { API_BASE } from "@/lib/config";
-import { request } from "../client";
+import { request, upload } from "../client";
 import type {
   AcceptanceReport,
   Block,
+  BlockBudget,
+  BlockDeletionImpact,
+  BudgetMaterialRow,
   BlockDesign,
+  BlockReport,
+  BudgetImport,
+  BudgetImportType,
+  ImportEnvelope,
+  ImportMode,
   BlockSummary,
+  Agreement,
+  AgreementDraftLine,
+  AgreementStatus,
+  ConcreteBalanceRow,
+  ConcreteOrder,
+  MaterialBalanceRow,
+  MaterialOrder,
   Contractor,
+  ExtensionRequest,
+  ExtensionStatus,
   Job,
   CreateInspectionRequest,
   CreateProgressRequest,
@@ -71,6 +88,50 @@ export const jobs = {
 };
 
 export const blocks = {
+  /** Блокт ОРСОН төсөв — ажлын хөлс ба материал. */
+  budget: (blockId: Uuid) =>
+    request<Item<BlockBudget>>("GET", `/blocks/${blockId}/budget`).then((r) => r.data),
+
+  /**
+   * Ажлын төрлийн төсвийн нэгж үнийг ГАРААР тавих.
+   *
+   * `null` нь үнийг арилгана. Үнэ нь блок доторх тэр төрлийн БҮХ
+   * ажилд тавигдана — төсөв дээр нэгж үнэ төрөл бүрт нэг байдаг.
+   */
+  setWorkPrice: (blockId: Uuid, workTypeId: Uuid, unitPrice: number | null) =>
+    request<Item<{ updated: number }>>("PATCH", `/blocks/${blockId}/budget/work-price`, {
+      body: { workTypeId, unitPrice },
+    }).then((r) => r.data),
+
+  /**
+   * Блокийн ЕРӨНХИЙ тайлан — гүйцэтгэл, мөнгө, хугацаа, чанар, материал.
+   *
+   * Актаас ялгаатай: акт нь нэг ХУГАЦААНЫ төлбөрийн баримт, энэ нь
+   * барилгын эхлэлээс өнөөдрийг хүртэлх бүтэн зураг.
+   */
+  report: (blockId: Uuid) =>
+    request<Item<BlockReport>>("GET", `/blocks/${blockId}/report`).then((r) => r.data),
+
+  reportSheet: (blockId: Uuid, buildingNo: string) =>
+    downloadFile(`/blocks/${blockId}/report.xlsx`, `blok-tailan-${buildingNo}.xlsx`),
+
+  /** Устгахаас ӨМНӨ юу алга болохыг тоогоор. Зөвхөн админ. */
+  deletionImpact: (blockId: Uuid) =>
+    request<Item<BlockDeletionImpact>>("GET", `/blocks/${blockId}/deletion-impact`).then(
+      (r) => r.data,
+    ),
+
+  /**
+   * Блок УСТГАХ — нэрийг бичиж баталгаажуулна.
+   *
+   * Байршил, ажлын мөр, явц, шалгалт, зураг, төсөв, захиалга бүгд
+   * каскадаар дагаж устана. Буцаах арга байхгүй.
+   */
+  destroy: (blockId: Uuid, confirmName: string) =>
+    request<Item<{ name: string; photosRemoved: number }>>("DELETE", `/blocks/${blockId}`, {
+      body: { confirmName },
+    }).then((r) => r.data),
+
   listForProject: (projectId: Uuid) =>
     request<ListEnvelope<Block>>("GET", `/projects/${projectId}/blocks`),
 
@@ -133,6 +194,7 @@ export const workItems = {
         workTypeId: filters.workTypeId,
         workTypeGroupId: filters.workTypeGroupId,
         contractorId: filters.contractorId,
+        inspectorId: filters.inspectorId,
         status: filters.status,
         reviewState: filters.reviewState,
         overdueDays: filters.overdueDays,
@@ -264,34 +326,11 @@ export const reports = {
    * `request()`-ийг тойрно: хариу нь JSON биш хоёртын файл. Token-ыг гараар
    * нэмж, blob болгон авч хөтчөөр хадгалуулна.
    */
-  acceptanceXlsx: async (projectId: Uuid, params: AcceptanceParams): Promise<void> => {
-    const token = getToken();
-    const response = await fetch(
-      `${API_BASE}/projects/${projectId}/reports/acceptance.xlsx?${acceptanceQuery(params)}`,
-      { headers: token ? { Authorization: `Bearer ${token}` } : undefined },
-    );
-
-    if (!response.ok) {
-      const json = (await response.json().catch(() => undefined)) as
-        { error?: { message?: string } } | undefined;
-      throw new Error(json?.error?.message ?? `Татах амжилтгүй (${response.status})`);
-    }
-
-    // Файлын нэрийг сервер `Content-Disposition`-оор өгнө.
-    const disposition = response.headers.get("Content-Disposition") ?? "";
-    const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
-    const name = match ? decodeURIComponent(match[1]) : "akt.xlsx";
-
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = name;
-    a.click();
-    // Хөтөч татаж дуустал хаяг амьд байх ёстой тул шууд биш, дараа нь
-    // чөлөөлнө — эс бөгөөс зарим хөтөч дээр файл хоосон татагдана.
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
-  },
+  acceptanceXlsx: (projectId: Uuid, params: AcceptanceParams): Promise<void> =>
+    downloadFile(
+      `/projects/${projectId}/reports/acceptance.xlsx?${acceptanceQuery(params)}`,
+      "akt.xlsx",
+    ),
 };
 
 // ---------------------------------------------------------------------------
@@ -315,6 +354,18 @@ export const users = {
     request<ListEnvelope<ManagedUser>>("GET", "/users", { query: params }),
 
   roles: () => request<{ data: RoleOption[] }>("GET", "/users/roles").then((r) => r.data),
+
+  /**
+   * Хяналтын инженерээр оноож болох хүмүүс.
+   *
+   * `list()`-ээс ТУСДАА: тэр нь зөвхөн админ, захиралд нээлттэй, энэ нь
+   * оноох эрхтэй бүх үүрэгт. Нэр, албан тушаалаас өөр юу ч буцаахгүй.
+   */
+  inspectors: () =>
+    request<{ data: { id: number | string; name: string; position: string | null; roleLabel: string }[] }>(
+      "GET",
+      "/users/inspectors",
+    ).then((r) => r.data),
 
   create: (body: Record<string, unknown>) =>
     request<{ data: ManagedUser; meta?: { temporaryPassword?: string } }>("POST", "/users", {
@@ -430,20 +481,53 @@ export const plan = {
  * нэвтрээд юу ч харахгүй — тэдний бүхэл функц өгөгдөлгүй болно.
  */
 /**
- * Хугацаа сунгах — шалтгаан ЗААВАЛ.
+ * Хугацаа сунгах — ХҮСЭЛТ, шалтгаан ЗААВАЛ.
  *
  * Огноог чимээгүй хойшлуулж болдог бол «хугацаа хэтэрсэн» гэсэн тоо утгагүй
- * болно. Шалтгаан нь асуудлын бүртгэлд хадгалагдаж, хоцролтын статистикт
- * ордог.
+ * болно. Батлах эрхтэй хүн (ерөнхий инженер, захирал) сунгавал тэр дор нь
+ * батлагдана; бусдын хүсэлт `pending` болж хүлээнэ.
  */
 export const schedule = {
   extend: (
     workItemId: Uuid,
     body: { plannedEndDate: string; category: IssueCategory; reason: string },
   ) =>
-    request<Item<WorkItem>>("POST", `/work-items/${workItemId}/extend`, { body }).then(
-      (r) => r.data,
+    request<{ data: ExtensionRequest; meta: { applied: boolean; workItem: WorkItem } }>(
+      "POST",
+      `/work-items/${workItemId}/extend`,
+      { body },
     ),
+
+  /** Тухайн ажлын сунгалтын түүх. */
+  extensionsFor: (workItemId: Uuid) =>
+    request<{ data: ExtensionRequest[] }>(
+      "GET",
+      `/work-items/${workItemId}/extension-requests`,
+    ).then((r) => r.data),
+};
+
+/**
+ * Сунгалтын хүсэлтийн дараалал.
+ *
+ * Хүсэлт хаана ч харагдахгүй бол урсгал нь байхгүйтэй адил: гүйцэтгэгч
+ * хүсэлт илгээгээд хариу хүлээж, ерөнхий инженер түүнийг хэзээ ч хардаггүй.
+ */
+export const extensions = {
+  list: (projectId: Uuid, status: ExtensionStatus | "all" = "pending") =>
+    request<{ data: ExtensionRequest[] }>("GET", `/projects/${projectId}/extension-requests`, {
+      query: { status },
+    }).then((r) => r.data),
+
+  approve: (id: Uuid, note?: string) =>
+    request<Item<ExtensionRequest>>("POST", `/extension-requests/${id}/approve`, {
+      body: { note },
+    }).then((r) => r.data),
+
+  /** Татгалзахад шалтгаан ЗААВАЛ — «болохгүй» гэж орхиж болохгүй. */
+  reject: (id: Uuid, note: string) =>
+    request<Item<ExtensionRequest>>("POST", `/extension-requests/${id}/reject`, {
+      body: { note },
+    }).then((r) => r.data),
 };
 
 export const assignments = {
@@ -478,6 +562,12 @@ export const assignments = {
     request<Item<WorkItem>>("PATCH", `/work-items/${workItemId}/contractor`, {
       body: { contractorId },
     }).then((r) => r.data),
+
+  /** Хяналт шалгалтыг хариуцах инженерийг солино. `null` = авна. */
+  assignInspector: (workItemId: Uuid, inspectorId: number | string | null) =>
+    request<Item<WorkItem>>("PATCH", `/work-items/${workItemId}/inspector`, {
+      body: { inspectorId },
+    }).then((r) => r.data),
 };
 
 export const checklists = {
@@ -504,13 +594,20 @@ export const checklists = {
 };
 
 export const queue = {
-  list: (projectId: Uuid, type: QueueType, params?: { page?: number; pageSize?: number }) =>
+  list: (
+    projectId: Uuid,
+    type: QueueType,
+    params?: { page?: number; pageSize?: number; blockId?: Uuid },
+  ) =>
     request<ListEnvelope<WorkItem>>("GET", `/projects/${projectId}/queue`, {
       query: { type, ...params },
     }),
 
-  counts: (projectId: Uuid) =>
-    request<Item<QueueCounts>>("GET", `/projects/${projectId}/queue/counts`).then((r) => r.data),
+  /** Табын тоонууд нь жагсаалттай ИЖИЛ шүүлтүүрийг дагана. */
+  counts: (projectId: Uuid, params?: { blockId?: Uuid }) =>
+    request<Item<QueueCounts>>("GET", `/projects/${projectId}/queue/counts`, {
+      query: params,
+    }).then((r) => r.data),
 };
 
 export interface IssueFilter {
@@ -543,8 +640,271 @@ export const issues = {
     ),
 };
 
+/**
+ * Ажил гүйцэтгэх тохиролцоо.
+ *
+ * Мөрүүд ТӨСВӨӨС татагдана (`draft`) — гэрээний мэргэжилтэн 64 мөрийг
+ * гараар бичих нь алдаа гаргах цорын гагц зам.
+ */
+
+/**
+ * Хоёртын файл татах — `request()`-ийг тойрно.
+ *
+ * Хариу нь JSON биш тул token-ыг гараар нэмж, blob болгон хөтчөөр
+ * хадгалуулна. Актын экспорт ба тохиролцооны хуудас ХОЁУЛАА үүнийг
+ * хэрэглэнэ: хоёр газар бичвэл нэг нь алдааны мессежийг барихаа болино.
+ */
+async function downloadFile(path: string, fallbackName: string): Promise<void> {
+  const token = getToken();
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+
+  if (!response.ok) {
+    const json = (await response.json().catch(() => undefined)) as
+      | { error?: { message?: string } }
+      | undefined;
+    throw new Error(json?.error?.message ?? `Татах амжилтгүй (${response.status})`);
+  }
+
+  // Файлын нэрийг сервер `Content-Disposition`-оор өгнө.
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+  const name = match ? decodeURIComponent(match[1]) : fallbackName;
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  // Хөтөч татаж дуустал хаяг амьд байх ёстой тул дараа нь чөлөөлнө.
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+export const agreements = {
+  list: (projectId: Uuid, params: { status?: AgreementStatus; contractorId?: Uuid } = {}) =>
+    request<{ data: Agreement[] }>("GET", `/projects/${projectId}/agreements`, {
+      query: params,
+    }).then((r) => r.data),
+
+  get: (id: Uuid) => request<Item<Agreement>>("GET", `/agreements/${id}`).then((r) => r.data),
+
+  /** Төсвөөс мөр татна — хадгалахгүй, дэлгэц дээр үнэ тавина. */
+  draftLines: (blockId: Uuid, groupIds: Uuid[] = []) =>
+    request<{
+      data: AgreementDraftLine[];
+      meta: { withoutPrice: number; priceConflicts: number };
+    }>("GET", `/blocks/${blockId}/agreement-draft`, {
+      query: groupIds.length ? { groupIds: groupIds.join(",") } : {},
+    }),
+
+  create: (blockId: Uuid, body: Record<string, unknown>) =>
+    request<Item<Agreement>>("POST", `/blocks/${blockId}/agreements`, { body }).then(
+      (r) => r.data,
+    ),
+
+  update: (id: Uuid, body: Record<string, unknown>) =>
+    request<Item<Agreement>>("PATCH", `/agreements/${id}`, { body }).then((r) => r.data),
+
+  approve: (id: Uuid) =>
+    request<Item<Agreement>>("POST", `/agreements/${id}/approve`).then((r) => r.data),
+
+  /** Бланкны хэлбэрийн xlsx — хэвлээд гарын үсэг зуруулна. */
+  sheet: (id: Uuid, number: string) =>
+    downloadFile(`/agreements/${id}/sheet.xlsx`, `tohirolcoo-${number}.xlsx`),
+};
+
 export const contractorsV2 = {
   list: () => request<ListEnvelope<Contractor>>("GET", "/contractors"),
+
+  /**
+   * Профайл засах.
+   *
+   * ЗӨВХӨН илгээсэн талбарыг хөндөнө. Бүх талбарыг дамжуулбал утас засахад
+   * РД, данс цэвэрлэгдэнэ.
+   */
+  update: (id: Uuid, body: Partial<Contractor>) =>
+    request<Item<Contractor>>("PATCH", `/contractors/${id}`, { body }).then((r) => r.data),
+};
+
+/**
+ * Төсвийн импорт — хоёр алхам, НЭГ файл.
+ *
+ * Байршуулах нь ЮУ Ч БИЧИХГҮЙ, зөвхөн тайлан буцаана. Файл сервер дээр
+ * үлдэх тул батлах алхамд дахин илгээхгүй — ингэснээр «харсан файл» ба
+ * «орсон файл» зөрөх боломжгүй.
+ */
+export const budgetImports = {
+  list: (blockId: Uuid) =>
+    request<ListEnvelope<BudgetImport>>("GET", `/blocks/${blockId}/imports`),
+
+  /**
+   * Энэ БЛОКТ тохируулсан загвар файл.
+   *
+   * Давхрын баганын толгойг блокийн байршлын нэрээр бичиж өгдөг тул
+   * «блокт байхгүй байршил» гэсэн алдааны ангилал бүхэлдээ арилна.
+   */
+  template: (blockId: Uuid, blockName: string) =>
+    downloadFile(`/blocks/${blockId}/budget-template.xlsx`, `tosov-zagvar-${blockName}.xlsx`),
+
+  /**
+   * Байршуулж урьдчилан харна.
+   *
+   * Төрөл ИЛГЭЭХГҮЙ: сервер файлын хуудсуудаас өөрөө таньна. Нэг файлд
+   * хоёр төсөв байвал хоёуланг нь буцаана.
+   */
+  upload: (blockId: Uuid, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+
+    return upload<ImportEnvelope>(`/blocks/${blockId}/imports`, form);
+  },
+
+  get: (id: Uuid) => request<ImportEnvelope>("GET", `/imports/${id}`),
+
+  /**
+   * ҮНЭХЭЭР бичнэ — бүхэлд нь эсвэл огт үгүй.
+   *
+   * `types` нь хоёр төсөвтэй файлаас нэгийг нь л оруулах боломж: нэг
+   * хэсэг нь эвдэрсэн байхад нөгөөг нь хүлээлгэх шаардлагагүй.
+   */
+  apply: (id: Uuid, types: BudgetImportType[], prune = false, mode: ImportMode = "replace") =>
+    request<ImportEnvelope>("POST", `/imports/${id}/apply`, { body: { types, prune, mode } }),
+
+  discard: (id: Uuid) => request<Item<BudgetImport>>("DELETE", `/imports/${id}`).then((r) => r.data),
+};
+
+/**
+ * Бетон зуурмагийн захиалга.
+ *
+ * `balance` нь энэ бүлгийн ГОЛ дуудлага: байршил × марк бүрийн төсөв,
+ * захиалсан, үлдэгдэл. Цаасан бланкаас ялгарах цорын гагц зүйл.
+ */
+export const concreteOrders = {
+  list: (projectId: Uuid, params?: { status?: string; blockId?: Uuid }) =>
+    request<ListEnvelope<ConcreteOrder>>("GET", `/projects/${projectId}/concrete-orders`, {
+      query: params,
+    }),
+
+  balance: (blockId: Uuid) =>
+    request<ListEnvelope<ConcreteBalanceRow>>("GET", `/blocks/${blockId}/concrete-balance`),
+
+  get: (id: Uuid) =>
+    request<Item<ConcreteOrder>>("GET", `/concrete-orders/${id}`).then((r) => r.data),
+
+  create: (blockId: Uuid, body: Record<string, unknown>) =>
+    request<Item<ConcreteOrder>>("POST", `/blocks/${blockId}/concrete-orders`, { body }).then(
+      (r) => r.data,
+    ),
+
+  update: (id: Uuid, body: Record<string, unknown>) =>
+    request<Item<ConcreteOrder>>("PATCH", `/concrete-orders/${id}`, { body }).then((r) => r.data),
+
+  submit: (id: Uuid) =>
+    request<Item<ConcreteOrder>>("POST", `/concrete-orders/${id}/submit`).then((r) => r.data),
+
+  confirm: (id: Uuid) =>
+    request<Item<ConcreteOrder>>("POST", `/concrete-orders/${id}/confirm`).then((r) => r.data),
+
+  deliver: (id: Uuid, deliveredQty: number, deliveredAt?: string) =>
+    request<Item<ConcreteOrder>>("POST", `/concrete-orders/${id}/deliver`, {
+      body: { deliveredQty, deliveredAt },
+    }).then((r) => r.data),
+
+  cancel: (id: Uuid, reason: string) =>
+    request<Item<ConcreteOrder>>("POST", `/concrete-orders/${id}/cancel`, {
+      body: { reason },
+    }).then((r) => r.data),
+
+  /** Захиалагчийн бланкны хэлбэрээр — хэвлээд гарын үсэг зуруулна. */
+  sheet: (id: Uuid, number: string) =>
+    downloadFile(`/concrete-orders/${id}/sheet.xlsx`, `beton-zahialga-${number}.xlsx`),
+};
+
+/**
+ * Материалын захиалга — дөрвөн бланк НЭГ урсгалаар.
+ *
+ * Бетон ЭНД ОРОХГҮЙ: түүний үлдэгдэл давхраар бодогддог, маягт нь
+ * нэг цутгалтын талбаруудтай. Хоёр өөр баримт.
+ */
+export const materialOrders = {
+  list: (projectId: Uuid, params?: { status?: string; kind?: string; blockId?: Uuid }) =>
+    request<ListEnvelope<MaterialOrder>>("GET", `/projects/${projectId}/material-orders`, {
+      query: params,
+    }),
+
+  balance: (blockId: Uuid) =>
+    request<ListEnvelope<MaterialBalanceRow>>("GET", `/blocks/${blockId}/material-balance`),
+
+  get: (id: Uuid) =>
+    request<Item<MaterialOrder>>("GET", `/material-orders/${id}`).then((r) => r.data),
+
+  create: (blockId: Uuid, body: Record<string, unknown>) =>
+    request<Item<MaterialOrder>>("POST", `/blocks/${blockId}/material-orders`, { body }).then(
+      (r) => r.data,
+    ),
+
+  update: (id: Uuid, body: Record<string, unknown>) =>
+    request<Item<MaterialOrder>>("PATCH", `/material-orders/${id}`, { body }).then((r) => r.data),
+
+  submit: (id: Uuid) =>
+    request<Item<MaterialOrder>>("POST", `/material-orders/${id}/submit`).then((r) => r.data),
+
+  /** `approved` нь мөрийн id → зөвшөөрсөн тоо. Өгөөгүй мөр хэвээрээ батлагдана. */
+  confirm: (id: Uuid, approved: Record<string, number> = {}) =>
+    request<Item<MaterialOrder>>("POST", `/material-orders/${id}/confirm`, {
+      body: { approved },
+    }).then((r) => r.data),
+
+  deliver: (id: Uuid, delivered: Record<string, number>, deliveredAt?: string) =>
+    request<Item<MaterialOrder>>("POST", `/material-orders/${id}/deliver`, {
+      body: { delivered, deliveredAt },
+    }).then((r) => r.data),
+
+  cancel: (id: Uuid, reason: string) =>
+    request<Item<MaterialOrder>>("POST", `/material-orders/${id}/cancel`, {
+      body: { reason },
+    }).then((r) => r.data),
+
+  sheet: (id: Uuid, number: string) =>
+    downloadFile(`/material-orders/${id}/sheet.xlsx`, `material-zahialga-${number}.xlsx`),
+};
+
+/** Материалын төсвийн мөрийг гараар нэмэх, засах, хасах. */
+export const materialBudget = {
+  /**
+   * Төсөвт БАЙХГҮЙ материалыг нэмэх.
+   *
+   * Тоо хэмжээг БАЙРШЛААР өгнө — нийт дүн задаргаанаас бодогдоно.
+   * Бүхэл барилгад хамаарах материалыг блокийн үндэс байршилд бичнэ.
+   */
+  create: (
+    blockId: Uuid,
+    body: {
+      code: string;
+      name: string;
+      grade?: string | null;
+      unit: string;
+      actualUnitPrice?: number | null;
+      marketUnitPrice?: number | null;
+      quantities: { locationId: Uuid; quantity: number }[];
+    },
+  ) =>
+    request<Item<{ id: Uuid }>>("POST", `/blocks/${blockId}/material-budget-items`, {
+      body,
+    }).then((r) => r.data),
+
+  /** Захиалгатай мөрийг устгах боломжгүй — сервер татгалзана. */
+  destroy: (itemId: Uuid) =>
+    request<Item<{ deleted: boolean }>>("DELETE", `/material-budget-items/${itemId}`).then(
+      (r) => r.data,
+    ),
+
+  setPrice: (itemId: Uuid, prices: { actualUnitPrice?: number | null; marketUnitPrice?: number | null }) =>
+    request<Item<BudgetMaterialRow>>("PATCH", `/material-budget-items/${itemId}/price`, {
+      body: prices,
+    }).then((r) => r.data),
 };
 
 export const apiV2 = {
@@ -561,5 +921,10 @@ export const apiV2 = {
   workTypes,
   workItems,
   projects: projectsV2,
+  agreements,
   contractors: contractorsV2,
+  budgetImports,
+  concreteOrders,
+  materialOrders,
+  materialBudget,
 };

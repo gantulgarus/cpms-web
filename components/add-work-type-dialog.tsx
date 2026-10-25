@@ -247,7 +247,7 @@ export function AddWorkTypeDialog({
         ) : (
           <>
             <strong>{picked.size} төрөл</strong> × <strong>{locationCount} байршил</strong> ={" "}
-            <strong>{willCreate} ажлын мөр</strong> үүснэ. Аль хэдийн нэмэгдсэн нь алгасагдана.
+            <strong>{willCreate} ажил</strong> үүснэ. Аль хэдийн нэмэгдсэн нь алгасагдана.
           </>
         )}
       </p>

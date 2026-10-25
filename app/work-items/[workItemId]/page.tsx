@@ -11,7 +11,7 @@
  * үүргийн жагсаалтыг давхардуулж мэдэхгүй.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -34,14 +34,12 @@ import {
   toChecklistPayload,
   type ChecklistAnswers,
 } from "@/components/checklist-form";
+import { AssignContractorDialog } from "@/components/assign-contractor-dialog";
+import { AssignInspectorDialog } from "@/components/assign-inspector-dialog";
 import { ExtendDeadlineDialog } from "@/components/extend-deadline-dialog";
 import { IssuePanel } from "@/components/issue-panel";
 import { PhotoGallery } from "@/components/photo-gallery";
-import {
-  downscale,
-  PhotoPicker,
-  type PickedPhoto,
-} from "@/components/photo-picker";
+import { downscale, PhotoPicker, type PickedPhoto } from "@/components/photo-picker";
 import { PlanQuantityDialog } from "@/components/plan-quantity-dialog";
 import { ProgressBar } from "@/components/progress-bar";
 import { ErrorState, LoadingRows } from "@/components/states";
@@ -50,24 +48,89 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { checklists, photoUrl, plan, workItems } from "@/lib/api/v2/endpoints";
+import { checklists, photoUrl, plan, queue, workItems } from "@/lib/api/v2/endpoints";
 import type {
   Inspection,
   InspectionStage,
   PhotoType,
   ProgressEntry,
+  QueueType,
   WorkItem,
 } from "@/lib/api/v2/types";
-import { useMe } from "@/lib/api/v2/use-me";
-import { formatDate, formatDateTime, formatQty } from "@/lib/domain";
+import { type Me, useMe } from "@/lib/api/v2/use-me";
+import { useProject } from "@/lib/api/v2/use-project";
+import {
+  formatDate,
+  formatDateTime,
+  formatQty,
+  INSPECTION_ACTION,
+  INSPECTION_STAGE,
+} from "@/lib/domain";
+
+/** Буцаагдсан төлвүүд — backend-ийн `WorkItem::RETURNED_STATES`. */
+const RETURNED_STATES: string[] = ["returned_by_site", "returned_by_final"];
 import { cn } from "@/lib/utils";
 
 export default function WorkItemDetailPage() {
   const { workItemId } = useParams<{ workItemId: string }>();
   const router = useRouter();
+  const search = useSearchParams();
+
+  /*
+   * ДАРААЛСАН ГОРИМ.
+   *
+   * Дарааллаас орж ирсэн бол ажлыг шийдсэний дараа дэлгэц ДАРААГИЙНХ
+   * руу өөрөө үсэрнэ. Эс бөгөөс 550 мөртэй дараалал дээр мөр бүрийн
+   * дараа буцаж, гүйлгэж, дахин хайх болно — тэр нь дарааллыг
+   * хэрэглэх боломжгүй болгоно.
+   */
+  const fromQueue = search.get("from") === "queue";
+  const queueType = (search.get("type") ?? "approval") as QueueType;
+  const queueBlockId = search.get("blockId") ?? "";
+  const { project } = useProject();
+
+  /**
+   * Дарааллын ДАРААГИЙН ажил руу шилжинэ.
+   *
+   * Серверээс шинэчлэгдсэн дарааллыг нэг мөрөөр татна — дөнгөж шийдсэн
+   * ажил түүнээс аль хэдийн хасагдсан байна. Хоосон бол дараалал руу
+   * буцаж, дууссаныг хэлнэ.
+   */
+  const goToNext = async () => {
+    if (!fromQueue || !project) return;
+
+    const href = `/queue?type=${queueType}`;
+
+    try {
+      const next = await queue.list(project.id, queueType, {
+        page: 1,
+        pageSize: 1,
+        ...(queueBlockId ? { blockId: queueBlockId } : {}),
+      });
+
+      const first = next.data[0];
+
+      if (!first) {
+        toast.success("Дараалал хоосон боллоо.");
+        router.push(href);
+
+        return;
+      }
+
+      const params = new URLSearchParams({ from: "queue", type: queueType });
+      if (queueBlockId) params.set("blockId", queueBlockId);
+
+      router.push(`/work-items/${first.id}?${params.toString()}`);
+    } catch {
+      // Дараагийнхыг олж чадсангүй — жагсаалт руу буцаах нь гацахаас дээр.
+      router.push(href);
+    }
+  };
   const qc = useQueryClient();
   const { me } = useMe();
   const [editingQty, setEditingQty] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+  const [assigningInspector, setAssigningInspector] = useState(false);
   const [extending, setExtending] = useState(false);
 
   const itemQuery = useQuery({
@@ -116,8 +179,15 @@ export default function WorkItemDetailPage() {
     );
   if (!item) return null;
 
-  /** Хянагдаагүй тоо хэмжээ — хянагчийн батлах дээд хязгаар. */
-  const pendingQty = Math.max(item.reportedQty - item.acceptedQty, 0);
+  /**
+   * Дараагийн шатаар дамжуулж болох хэмжээ — СЕРВЕРЭЭС ирнэ.
+   *
+   * Дэлгэц энийг ӨӨРӨӨ бодож болохгүй. Хоёр шаттай ажилд батлах сан нь
+   * `шалгасан − баталсан` болохоос `мэдээлсэн − баталсан` БИШ. Хуучин
+   * томьёогоор бодвол дэлгэц 40 санал болгоод сервер 10-аас илүүг
+   * татгалзаж, хэрэглэгч шалтгааныг нь ойлгохгүй.
+   */
+  const pendingQty = Math.max(item.stagePool ?? 0, 0);
 
   return (
     <div>
@@ -127,17 +197,29 @@ export default function WorkItemDetailPage() {
             {item.workType.name}
             <ReviewStateBadge state={item.reviewState} />
             {item.overdueDays > 0 && (
-              <ToneBadge tone="red">
-                {item.overdueDays} хоног хоцорсон
-              </ToneBadge>
+              <ToneBadge tone="red">{item.overdueDays} хоног хоцорсон</ToneBadge>
             )}
           </span>
         }
-        crumbs={[
-          { label: "Блокууд", href: "/blocks" },
-          { label: "Блок", href: `/blocks/${item.blockId}` },
-          { label: item.workType.name },
-        ]}
+        /*
+          Дарааллаас орж ирсэн бол ТЭР ЗАМААР буцна. «Блокууд → Блок»
+          гэж буцаах нь хэрэглэгчийг огт өөр газар аваачина.
+        */
+        crumbs={
+          fromQueue
+            ? [
+                {
+                  label: "Ажлын дараалал",
+                  href: `/queue?type=${queueType}`,
+                },
+                { label: item.workType.name },
+              ]
+            : [
+                { label: "Блокууд", href: "/blocks" },
+                { label: "Блок", href: `/blocks/${item.blockId}` },
+                { label: item.workType.name },
+              ]
+        }
         description={item.location.path}
       />
 
@@ -146,39 +228,36 @@ export default function WorkItemDetailPage() {
           {/* Хугацаа хэтэрсэн бол шалтгааныг нь бүртгүүлж, огноог сунгах
               зам тэр дор нь өгнө — эс бөгөөс хоцролтын тоо хуримтлагдсаар
               байгаад утгагүй болно. */}
-          {item.overdueDays > 0 &&
-            item.status !== "completed" &&
-            me?.canEditPlan && (
-              <Card className="border-amber-500/40">
-                <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
-                  <div className="text-sm">
-                    <div className="font-medium">
-                      Хугацаа {item.overdueDays} хоногоор хэтэрсэн
-                    </div>
-                    <div className="text-muted-foreground text-xs">
-                      Төлөвлөсөн дуусах огноо: {formatDate(item.plannedEndDate)}
-                    </div>
+          {item.overdueDays > 0 && item.status !== "completed" && me?.canEditPlan && (
+            <Card className="border-amber-500/40">
+              <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
+                <div className="text-sm">
+                  <div className="font-medium">Хугацаа {item.overdueDays} хоногоор хэтэрсэн</div>
+                  <div className="text-muted-foreground text-xs">
+                    Төлөвлөсөн дуусах огноо: {formatDate(item.plannedEndDate)}
                   </div>
-                  <Button variant="outline" onClick={() => setExtending(true)}>
-                    <CalendarPlus className="size-4" /> Хугацаа сунгах
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
+                </div>
+                <Button variant="outline" onClick={() => setExtending(true)}>
+                  <CalendarPlus className="size-4" /> Хугацаа сунгах
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Буцаагдсан ажил дээр «одоо яах вэ» гэдэг нь хамгийн эхний
               асуулт — тиймээс бүх зүйлийн дээр. */}
-          {item.reviewState === "returned" && (
-            <ReturnedNotice
-              item={item}
-              inspections={inspectionsQuery.data?.data}
-            />
+          {RETURNED_STATES.includes(item.reviewState) && (
+            <ReturnedNotice item={item} inspections={inspectionsQuery.data?.data} />
           )}
 
           <QuantityCard
             item={item}
             canEditPlan={Boolean(me?.canEditPlan)}
             onEditQty={() => setEditingQty(true)}
+            canAssign={Boolean(me?.canManageContractors)}
+            onAssign={() => setAssigning(true)}
+            canAssignInspector={Boolean(me?.canAssignInspectors)}
+            onAssignInspector={() => setAssigningInspector(true)}
           />
 
           {/* Хяналтын инженер батлахаасаа өмнө нотолгоог харах ёстой тул
@@ -189,22 +268,37 @@ export default function WorkItemDetailPage() {
             onChange={refreshAll}
           />
 
-          <Timeline
-            progress={progressQuery.data?.data}
-            inspections={inspectionsQuery.data?.data}
-          />
+          <Timeline progress={progressQuery.data?.data} inspections={inspectionsQuery.data?.data} />
         </div>
 
         <aside className="space-y-4">
-          {me?.canReportProgress && (
-            <ReportProgressCard item={item} onDone={refreshAll} />
-          )}
+          {me?.canReportProgress && <ReportProgressCard item={item} onDone={refreshAll} />}
 
-          {me?.canInspect && (
+          {/*
+            Шалгах форм харуулах эсэхийг АЖЛЫН ДАРААГИЙН ШАТ шийднэ.
+
+            `canInspect` дангаараа буруу: тэр нь ЭЦСИЙН батлах эрх бөгөөд
+            талбайн инженер түүнд ордоггүй. Тиймээс 1-р шатанд хүлээж
+            байгаа ажил дээр талбайн инженерт форм огт харагдахгүй байв —
+            backend зөвшөөрдөг атлаа дэлгэц нуудаг байсан.
+          */}
+          {canActOnStage(me, item.nextStage) && (
             <InspectionCard
               item={item}
               pendingQty={pendingQty}
               onDone={refreshAll}
+              /*
+               * 2-р шатыг ӨӨР хүн хийх ёстой. Энэ хэрэглэгч 1-р шатыг
+               * хийсэн бол сервер татгалзана — формыг бөглүүлээд дараа
+               * нь 403 өгөх нь хэрэглэгчийн цагийг дэмий үрнэ.
+               */
+              onNext={fromQueue ? goToNext : undefined}
+              checkedByMe={(inspectionsQuery.data?.data ?? []).some(
+                (i) =>
+                  i.stage === "site_check" &&
+                  i.acceptedQty > 0 &&
+                  String(i.inspector.id) === String(me?.id),
+              )}
             />
           )}
 
@@ -218,16 +312,14 @@ export default function WorkItemDetailPage() {
             <Card>
               <CardContent className="space-y-2 pt-6">
                 <p className="text-muted-foreground text-sm">
-                  Энэ ажил буруу нэмэгдсэн эсвэл энэ барилгад хамаарахгүй бол
-                  устгаж болно.
+                  Энэ ажил буруу нэмэгдсэн эсвэл энэ барилгад хамаарахгүй бол устгаж болно.
                 </p>
                 <Button
                   variant="destructive"
                   size="sm"
                   disabled={remove.isPending}
                   onClick={() => {
-                    if (confirm(`«${item.name}» ажлыг устгах уу?`))
-                      remove.mutate();
+                    if (confirm(`«${item.name}» ажлыг устгах уу?`)) remove.mutate();
                   }}
                 >
                   <Trash2 className="size-3.5" /> Ажлыг устгах
@@ -236,7 +328,7 @@ export default function WorkItemDetailPage() {
             </Card>
           )}
 
-          {me && !me.canReportProgress && !me.canInspect && (
+          {me && !me.canReportProgress && !canActOnStage(me, item.nextStage) && (
             <Card>
               <CardContent className="text-muted-foreground pt-6 text-sm">
                 Танд энэ ажилд үйлдэл хийх эрх байхгүй — зөвхөн харах боломжтой.
@@ -266,6 +358,24 @@ export default function WorkItemDetailPage() {
           onDone={refreshAll}
         />
       )}
+
+      {me?.canManageContractors && (
+        <AssignContractorDialog
+          item={item}
+          open={assigning}
+          onOpenChange={setAssigning}
+          onDone={refreshAll}
+        />
+      )}
+
+      {me?.canAssignInspectors && (
+        <AssignInspectorDialog
+          item={item}
+          open={assigningInspector}
+          onOpenChange={setAssigningInspector}
+          onDone={refreshAll}
+        />
+      )}
     </div>
   );
 }
@@ -276,14 +386,32 @@ function QuantityCard({
   item,
   canEditPlan,
   onEditQty,
+  canAssign,
+  onAssign,
+  canAssignInspector,
+  onAssignInspector,
 }: {
   item: WorkItem;
   canEditPlan: boolean;
   onEditQty: () => void;
+  canAssign: boolean;
+  onAssign: () => void;
+  canAssignInspector: boolean;
+  onAssignInspector: () => void;
 }) {
+  /*
+   * Хоёр шаттай ажилд ГУРВАН тоо хэрэгтэй.
+   *
+   * «40 мэдээлсэн, 10 баталсан» гэж хоёрыг харуулбал дунд нь 30 хаана
+   * байгаа нь ойлгомжгүй: шалгагдсан уу, хүлээж байна уу? Нэг шаттай
+   * ажилд шалгасан гэсэн багана утгагүй тул ХАРУУЛАХГҮЙ.
+   */
+  const twoStage = (item.inspectionStages ?? 2) >= 2;
+
   const rows = [
     { label: "Төлөвлөсөн", value: item.plannedQty },
     { label: "Мэдээлсэн", value: item.reportedQty, muted: true },
+    ...(twoStage ? [{ label: "Шалгагдсан", value: item.checkedQty, muted: true }] : []),
     { label: "Батлагдсан", value: item.acceptedQty, strong: true },
     { label: "Үлдэгдэл", value: item.remainingQty },
   ];
@@ -294,19 +422,14 @@ function QuantityCard({
         <CardTitle className="text-sm">Тоо хэмжээ</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className={cn("grid grid-cols-2 gap-4", twoStage ? "sm:grid-cols-5" : "sm:grid-cols-4")}>
           {rows.map((r) => (
             <div key={r.label}>
               <div
-                className={cn(
-                  "text-xl font-semibold tabular-nums",
-                  r.strong && "text-emerald-600",
-                )}
+                className={cn("text-xl font-semibold tabular-nums", r.strong && "text-emerald-600")}
               >
                 {formatQty(r.value)}{" "}
-                <span className="text-muted-foreground text-sm font-normal">
-                  {item.unit}
-                </span>
+                <span className="text-muted-foreground text-sm font-normal">{item.unit}</span>
               </div>
               <div className="text-muted-foreground text-sm">{r.label}</div>
             </div>
@@ -338,17 +461,15 @@ function QuantityCard({
           <div className="bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-200 flex flex-wrap items-start gap-2 rounded-lg p-3 text-xs">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" />
             <span className="min-w-0 flex-1">
-              Энэ ажилд төлөвлөгөөт тоо хэмжээ оруулаагүй байна. Тоо хэмжээгүй
-              бол үлдэгдэл 0 тул <strong>гүйцэтгэл бүртгэх боломжгүй</strong>.
+              Энэ ажилд төлөвлөгөөт тоо хэмжээ оруулаагүй байна. Тоо хэмжээгүй бол үлдэгдэл 0 тул{" "}
+              <strong>гүйцэтгэл бүртгэх боломжгүй</strong>.
             </span>
             {canEditPlan ? (
               <Button size="sm" variant="outline" onClick={onEditQty}>
                 <Pencil className="size-3.5" /> Тоо хэмжээ оруулах
               </Button>
             ) : (
-              <span className="w-full">
-                Ерөнхий инженер эсвэл төслийн менежерт хандана уу.
-              </span>
+              <span className="w-full">Ерөнхий инженер эсвэл төслийн менежерт хандана уу.</span>
             )}
           </div>
         )}
@@ -356,10 +477,54 @@ function QuantityCard({
         <dl className="text-muted-foreground grid grid-cols-2 gap-x-8 gap-y-2 border-t pt-4 text-sm">
           <Detail label="Байршил" value={item.location.path} />
           <Detail label="Ажлын бүлэг" value={item.workType.groupName ?? "—"} />
-          <Detail
-            label="Гүйцэтгэгч"
-            value={item.contractor?.name ?? "Хариуцагчгүй"}
-          />
+          {/* Хариуцагчийг солих зам ЭНД байх ёстой: блокийн бүлгээр оноох нь
+              1,889 мөрийг хөдөлгөдөг тул нэг айлын хаалгыг өөр компанид
+              өгөхөд тохиромжгүй. */}
+          <div>
+            <dt className="text-xs">Гүйцэтгэгч</dt>
+            <dd className="text-foreground flex items-center gap-2">
+              <span className={item.contractor ? undefined : "text-amber-700 dark:text-amber-500"}>
+                {item.contractor?.name ?? "Хариуцагчгүй"}
+              </span>
+              {canAssign && (
+                <button
+                  type="button"
+                  onClick={onAssign}
+                  className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-2"
+                >
+                  солих
+                </button>
+              )}
+            </dd>
+          </div>
+          {/* Хяналтын инженер — төсвөөс оногддог.
+
+              ЯАГААД ХАРУУЛАХ ЁСТОЙ ВЭ: гүйцэтгэл батлахыг хүлээхэд ХЭН рүү
+              явахыг зөвхөн энэ мэдээлэл хэлнэ. Харуулахгүй бол батлах эрхтэй
+              дөрвөн хүн бүгд бүх ажлыг хардаг — хэн ч өөрийнх гэж үзэхгүй.
+
+              Төсвийн 64 мөрийн 36-д заагаагүй тул «хариуцагчгүй» нь ердийн
+              төлөв: анхааруулга өнгөөр тэмдэглээд, засах замыг нь өгнө. */}
+          <div>
+            <dt className="text-xs">Хяналтын инженер</dt>
+            <dd className="text-foreground flex items-center gap-2">
+              <span className={item.inspector ? undefined : "text-amber-700 dark:text-amber-500"}>
+                {item.inspector?.name ?? "Хариуцагчгүй"}
+              </span>
+              {item.inspector?.position && (
+                <span className="text-muted-foreground text-xs">{item.inspector.position}</span>
+              )}
+              {canAssignInspector && (
+                <button
+                  type="button"
+                  onClick={onAssignInspector}
+                  className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-2"
+                >
+                  солих
+                </button>
+              )}
+            </dd>
+          </div>
           <Detail
             label="Хугацаа"
             value={`${item.plannedStartDate ?? "—"} — ${item.plannedEndDate ?? "—"}`}
@@ -381,13 +546,7 @@ function Detail({ label, value }: { label: string; value: string }) {
 
 // ---------------------------------------------------------------------------
 
-function ReportProgressCard({
-  item,
-  onDone,
-}: {
-  item: WorkItem;
-  onDone: () => void;
-}) {
+function ReportProgressCard({ item, onDone }: { item: WorkItem; onDone: () => void }) {
   const [qty, setQty] = useState("");
   const [workers, setWorkers] = useState("");
   const [remarks, setRemarks] = useState("");
@@ -396,12 +555,19 @@ function ReportProgressCard({
   const [confirmedNoPhoto, setConfirmedNoPhoto] = useState(false);
 
   // Урьдчилан харах хаягууд нь хөтчийн санах ойд үлддэг — салахдаа чөлөөлнө.
-  useEffect(
-    () => () => picked.forEach((p) => URL.revokeObjectURL(p.previewUrl)),
-    [picked],
-  );
+  useEffect(() => () => picked.forEach((p) => URL.revokeObjectURL(p.previewUrl)), [picked]);
 
   const remaining = reportableQty(item);
+
+  /*
+   * ШАЛГАЛТЫН ЦЭГ — хоригийг товч дарахаас ӨМНӨ харуулна.
+   *
+   * Серверийн валидаци нь тоог бичээд «Илгээх» дарсны дараа л ажиллана.
+   * Тэр үед гүйцэтгэгч аль хэдийн ажлаа хийчихсэн байдаг — «болохгүй»
+   * гэж хэлэх мөч нь оройтсон. Шалтгааныг нь эхнээс нь харуулж, маягтыг
+   * бүхэлд нь хаана.
+   */
+  const held = item.holdPointReason ?? null;
 
   const reset = () => {
     setQty("");
@@ -434,12 +600,7 @@ function ReportProgressCard({
       let failed = 0;
       for (const p of picked) {
         try {
-          await workItems.addPhoto(
-            item.id,
-            await downscale(p.file),
-            photoType,
-            entry.id,
-          );
+          await workItems.addPhoto(item.id, await downscale(p.file), photoType, entry.id);
         } catch {
           failed++;
         }
@@ -448,14 +609,8 @@ function ReportProgressCard({
       return { count: picked.length - failed, failed };
     },
     onSuccess: ({ count, failed }) => {
-      toast.success(
-        "Гүйцэтгэл бүртгэгдлээ" +
-          (count > 0 ? ` · ${count} зураг хавсаргав` : ""),
-      );
-      if (failed > 0)
-        toast.error(
-          `${failed} зураг илгээгдсэнгүй. Галерейгаас дахин нэмнэ үү.`,
-        );
+      toast.success("Гүйцэтгэл бүртгэгдлээ" + (count > 0 ? ` · ${count} зураг хавсаргав` : ""));
+      if (failed > 0) toast.error(`${failed} зураг илгээгдсэнгүй. Галерейгаас дахин нэмнэ үү.`);
       reset();
       onDone();
     },
@@ -464,11 +619,34 @@ function ReportProgressCard({
 
   const value = Number(qty);
   const invalid =
-    qty !== "" &&
-    (!Number.isFinite(value) || value <= 0 || value > remaining + 0.001);
+    qty !== "" && (!Number.isFinite(value) || value <= 0 || value > remaining + 0.001);
   // Тоо хэмжээ бичсэн атлаа зураг сонгоогүй үед л анхааруулна — хоосон
   // маягт дээр анхааруулга гаргах нь зүгээр л шуугиан.
   const needsPhotoWarning = Boolean(qty) && !invalid && picked.length === 0;
+
+  /*
+   * Хоригтой бол МАЯГТЫГ ОГТ харуулахгүй.
+   *
+   * Талбар нь идэвхгүй болоод үлдвэл хэрэглэгч тоогоо бичээд товч нь
+   * яагаад ажиллахгүйг хайна. Шалтгаан ба засах зам нь л харагдах ёстой.
+   */
+  if (held) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <ClipboardCheck className="size-4" /> Гүйцэтгэл бүртгэх
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-200 flex items-start gap-2 rounded-lg p-3 text-sm">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+            <span>{held}</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -482,7 +660,7 @@ function ReportProgressCard({
           label={`Хийсэн тоо хэмжээ (${item.unit})`}
           required
           hint={
-            item.reviewState === "returned"
+            RETURNED_STATES.includes(item.reviewState)
               ? `Татгалзсан хэмжээ буцаж нэмэгдсэн — мэдээлэх боломжтой ${formatQty(remaining, item.unit)}`
               : `Мэдээлэх боломжтой ${formatQty(remaining, item.unit)}`
           }
@@ -508,12 +686,7 @@ function ReportProgressCard({
             onChange={(e) => {
               const raw = e.target.value;
               const next = Number(raw);
-              if (
-                raw !== "" &&
-                Number.isFinite(next) &&
-                next > remaining + 0.001
-              )
-                return;
+              if (raw !== "" && Number.isFinite(next) && next > remaining + 0.001) return;
               setQty(raw);
             }}
             aria-invalid={invalid || undefined}
@@ -522,8 +695,7 @@ function ReportProgressCard({
 
         {invalid && (
           <p className="text-destructive text-xs" role="alert">
-            0-ээс их, хамгийн ихдээ {formatQty(remaining, item.unit)} байх
-            ёстой.
+            0-ээс их, хамгийн ихдээ {formatQty(remaining, item.unit)} байх ёстой.
           </p>
         )}
 
@@ -537,11 +709,7 @@ function ReportProgressCard({
         </FormField>
 
         <FormField label="Тайлбар">
-          <Textarea
-            rows={2}
-            value={remarks}
-            onChange={(e) => setRemarks(e.target.value)}
-          />
+          <Textarea rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} />
         </FormField>
 
         <PhotoPicker
@@ -574,8 +742,8 @@ function ReportProgressCard({
             <p className="flex gap-1.5 text-xs">
               <ImageOff className="mt-0.5 size-3.5 shrink-0 text-amber-600" />
               <span>
-                Зураггүй гүйцэтгэлийг хяналтын инженер батлахад хүндрэлтэй —
-                нотолгоо байхгүй тул талбай дээр очиж шалгах шаардлагатай болно.
+                Зураггүй гүйцэтгэлийг хяналтын инженер батлахад хүндрэлтэй — нотолгоо байхгүй тул
+                талбай дээр очиж шалгах шаардлагатай болно.
               </span>
             </p>
             <label className="flex items-center gap-2 text-xs">
@@ -605,14 +773,13 @@ function ReportProgressCard({
 
         {remaining <= 0 && (
           <p className="text-muted-foreground text-xs">
-            {item.reviewState === "returned" ? (
+            {RETURNED_STATES.includes(item.reviewState) ? (
               // Буцаагдсан атлаа үлдэгдэл 0 гэдэг нь тооцоо хуучирсны шинж —
               // хэрэглэгчийг «яагаад ч юм болохгүй байна» гэж орхиж болохгүй.
               <>
-                Энэ ажил буцаагдсан ч мэдээлэх зай 0 харагдаж байна. Тооцоо
-                хуучирсан байж болзошгүй — админд хандаж{" "}
-                <code>php artisan cpms:recalculate</code> ажиллуулахыг хүсэх,
-                эсвэл хуудсыг дахин ачаална уу.
+                Энэ ажил буцаагдсан ч мэдээлэх зай 0 харагдаж байна. Тооцоо хуучирсан байж болзошгүй
+                — админд хандаж <code>php artisan cpms:recalculate</code> ажиллуулахыг хүсэх, эсвэл
+                хуудсыг дахин ачаална уу.
               </>
             ) : (
               <>Энэ ажлын нийт тоо хэмжээ мэдээлэгдсэн байна.</>
@@ -652,13 +819,7 @@ function reportableQty(item: WorkItem): number {
  * үлдэгдэл эргэж бүтэн болно. Гүйцэтгэгч засвараа ЯГ ЭНЭ МӨРӨН дээр дахин
  * мэдээлнэ — тусдаа «дахин хийх» ажил хайх шаардлагагүй.
  */
-function ReturnedNotice({
-  item,
-  inspections,
-}: {
-  item: WorkItem;
-  inspections?: Inspection[];
-}) {
+function ReturnedNotice({ item, inspections }: { item: WorkItem; inspections?: Inspection[] }) {
   const rejection = (inspections ?? []).find((i) => i.rejectedQty > 0);
 
   return (
@@ -688,9 +849,8 @@ function ReturnedNotice({
           <strong className="text-foreground tabular-nums">
             {formatQty(reportableQty(item), item.unit)}
           </strong>
-          . Засвараа хийсний дараа гүйцэтгэлээ{" "}
-          <strong>энэ хуудсан дээр дахин</strong> бүртгэнэ үү — тэр дор нь
-          хяналтын инженерийн дараалалд орно.
+          . Засвараа хийсний дараа гүйцэтгэлээ <strong>энэ хуудсан дээр дахин</strong> бүртгэнэ үү —
+          тэр дор нь хяналтын инженерийн дараалалд орно.
         </p>
       </CardContent>
     </Card>
@@ -699,16 +859,51 @@ function ReturnedNotice({
 
 // ---------------------------------------------------------------------------
 
+/**
+ * Энэ хэрэглэгч тухайн ажлын ДАРААГИЙН шатыг хийж чадах уу.
+ *
+ * Шат бүр өөрийн үүргийн жагсаалттай (`Inspection::STAGE_ROLES`):
+ *   1-р шат — талбайн инженер, хяналтын инженер, дээш
+ *   2-р шат — ЗӨВХӨН хяналтын инженер, дээш
+ *
+ * Дараагийн шат мэдэгдэхгүй (хүлээгдэж буй ажил алга) бол батлах
+ * эрхтэй хүнд форм харуулна — тэнд хоосон төлөв нь өөрөө тайлбарладаг.
+ */
+function canActOnStage(me: Me | null, nextStage?: InspectionStage | null): boolean {
+  if (!me) return false;
+
+  if (nextStage === "site_check") return me.canCheck || me.canInspect;
+
+  return me.canInspect;
+}
+
 function InspectionCard({
   item,
   pendingQty,
   onDone,
+  checkedByMe,
+  onNext,
 }: {
   item: WorkItem;
   pendingQty: number;
   onDone: () => void;
+  checkedByMe: boolean;
+  /** Дарааллаас орж ирсэн бол — шийдсэний дараа дараагийнх руу. */
+  onNext?: () => void;
 }) {
-  const [stage, setStage] = useState<InspectionStage>("general_contractor");
+  /*
+   * Хяналт НЭГ шаттай.
+   *
+   * Шатыг ДЭЛГЭЦ сонгохгүй — СЕРВЕР хэлнэ (`item.nextStage`).
+   *
+   * Урьд нь хэрэглэгч шатаа өөрөө сонгодог байв. Хоёр шат нэг сангаас
+   * иддэг байсан тул буруу шат сонгоход ажил мөнхөд гацдаг, шалтгаан нь
+   * хаана ч харагддаггүй байв. Одоо шат бүр өөрийн сангаас иддэг бөгөөд
+   * дараалал нь хатуу: шалгаагүй ажлыг батлах боломжгүй.
+   */
+  const stage: InspectionStage = item.nextStage ?? "final_approval";
+  // Шатаас хамаарсан үйлдлийн үгс — «шалгах» ба «батлах» хоёр ӨӨР үйлдэл.
+  const words = INSPECTION_ACTION[stage] ?? INSPECTION_ACTION.final_approval;
   const [acceptedQty, setAcceptedQty] = useState("");
   const [reason, setReason] = useState("");
   const [answers, setAnswers] = useState<ChecklistAnswers>({});
@@ -727,24 +922,49 @@ function InspectionCard({
       workItems.addInspection(item.id, {
         stage,
         result,
-        acceptedQty:
-          result === "rejected" ? 0 : Number(acceptedQty || pendingQty),
+        acceptedQty: result === "rejected" ? 0 : Number(acceptedQty || pendingQty),
         reason: reason.trim() || undefined,
         checklist: template ? toChecklistPayload(answers) : undefined,
       }),
     onSuccess: (_data, result) => {
-      toast.success(
-        result === "rejected"
-          ? "Буцаагдлаа — дахин хийх ажил үүслээ"
-          : "Батлагдлаа",
-      );
+      toast.success(result === "rejected" ? "Буцаагдлаа — дахин хийх ажил үүслээ" : words.done);
       setAcceptedQty("");
       setReason("");
       setAnswers({});
       onDone();
+
+      /*
+       * ДАРААГИЙНХ РУУ. Хэрэглэгч буцаж, гүйлгэж, дахин хайх ёсгүй —
+       * 550 мөртэй дараалал дээр тэр нь ажлыг боломжгүй болгоно.
+       */
+      onNext?.();
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  /*
+   * НЭГ хүн ХОЁР шатыг ч хийж болохгүй.
+   *
+   * Сервер үүнийг татгалздаг (`StoreInspectionRequest`). Дэлгэц дээр
+   * урьдчилж хэлэхгүй бол хэрэглэгч чанарын хуудсыг бүтнээр бөглөөд
+   * сүүлд нь л татгалзал харна.
+   */
+  if (stage === "final_approval" && checkedByMe) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">2-р шат · Батлах</CardTitle>
+        </CardHeader>
+        <CardContent className="text-muted-foreground space-y-2 text-sm">
+          <p>Та энэ ажлыг 1-р шатад шалгасан тул 2-р шатад батлах боломжгүй.</p>
+          <p className="text-xs">
+            Шалгасан ба баталсан хүн нэг байвал баталгаажуулалт утга учраа алдана. Өөр хяналтын
+            инженер батлах шаардлагатай.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (pendingQty <= 0) {
     return (
@@ -765,44 +985,32 @@ function InspectionCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm">Баталгаажуулалт</CardTitle>
+        <CardTitle className="text-sm">{words.title}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
+        {/* Хоёр шаттай ажилд ХЭН ямар шатыг хийж байгааг хэлнэ — эс бөгөөс
+            талбайн инженер «би батлав» гэж ойлгоно. */}
+        {stage === "site_check" ? (
+          <p className="text-muted-foreground text-xs">
+            Энэ бол <strong>1-р шат</strong> — та ЗӨВХӨН шалгаж байна, батлахгүй. Таны шалгасан
+            хэмжээг дараа нь ӨӨР хяналтын инженер батална. Актад зөвхөн 2-р шат орно.
+          </p>
+        ) : (
+          <p className="text-muted-foreground text-xs">
+            Энэ бол <strong>2-р шат</strong> — эцсийн батлалт. Батлагдсан хэмжээ актад орж,
+            төлбөр тооцоонд ордог.
+          </p>
+        )}
         <p className="text-muted-foreground text-sm">
-          Шалгах ажил:{" "}
+          {words.pool}:{" "}
           <span className="text-foreground font-medium tabular-nums">
             {formatQty(pendingQty, item.unit)}
           </span>
         </p>
 
-        <FormField label="Шалгалтын шат">
-          <div className="grid grid-cols-2 gap-2">
-            {(
-              [
-                ["general_contractor", "Ерөнхий гүйцэтгэгч"],
-                ["client", "Захиалагч"],
-              ] as [InspectionStage, string][]
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setStage(value)}
-                className={cn(
-                  "rounded-md border px-2 py-1.5 text-xs font-medium transition-colors",
-                  stage === value
-                    ? "border-primary bg-accent"
-                    : "text-muted-foreground hover:bg-accent/40",
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </FormField>
-
         <FormField
-          label={`Батлах тоо хэмжээ (${item.unit})`}
-          hint="Хоосон бол бүгдийг батална."
+          label={`${words.qty} (${item.unit})`}
+          hint={`Хоосон бол бүгдийг ${stage === "site_check" ? "шалгана" : "батална"}.`}
         >
           <Input
             type="number"
@@ -816,35 +1024,19 @@ function InspectionCard({
         </FormField>
 
         {/* Чанарын хуудас — зөвхөн зурагт үндэслэн батлахыг хориглоно. */}
-        {template && (
-          <ChecklistForm
-            template={template}
-            answers={answers}
-            onChange={setAnswers}
-          />
-        )}
+        {template && <ChecklistForm template={template} answers={answers} onChange={setAnswers} />}
 
-        <FormField
-          label="Тайлбар"
-          hint="Буцаах эсвэл хэсэгчлэн батлахад заавал."
-        >
-          <Textarea
-            rows={2}
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-          />
+        <FormField label="Тайлбар" hint="Буцаах эсвэл хэсэгчлэн батлахад заавал.">
+          <Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
         </FormField>
 
         <div className="flex gap-2">
           <Button
             className="flex-1"
-            disabled={
-              act.isPending || (partial && !reason.trim()) || Boolean(blocker)
-            }
+            disabled={act.isPending || (partial && !reason.trim()) || Boolean(blocker)}
             onClick={() => act.mutate(partial ? "partial" : "accepted")}
           >
-            <Check className="size-4" />{" "}
-            {partial ? "Хэсэгчлэн батлах" : "Батлах"}
+            <Check className="size-4" /> {partial ? words.partial : words.verb}
           </Button>
           {/* Буцаахад checklist хаалт хамаарахгүй — тэнцээгүй зүйл байгаа
               нь яг буцаах шалтгаан. */}
@@ -864,8 +1056,7 @@ function InspectionCard({
           <p className="text-destructive text-xs">{blocker}</p>
         ) : (
           <p className="text-muted-foreground text-xs">
-            Буцаахад дахин хийх ажил автоматаар үүсэж, зардал нь тусад нь
-            бүртгэгдэнэ.
+            Буцаахад дахин хийх ажил автоматаар үүсэж, зардал нь тусад нь бүртгэгдэнэ.
           </p>
         )}
       </CardContent>
@@ -932,17 +1123,12 @@ function Timeline({
                     <>
                       <div className="text-sm font-medium tabular-nums">
                         {formatQty(e.entry.completedQty)} мэдээлсэн
-                        {e.entry.workersCount
-                          ? ` · ${e.entry.workersCount} ажилтан`
-                          : ""}
+                        {e.entry.workersCount ? ` · ${e.entry.workersCount} ажилтан` : ""}
                       </div>
                       <div className="text-muted-foreground text-xs">
-                        {e.entry.reportedBy?.name ?? "—"} ·{" "}
-                        {formatDateTime(e.at)}
+                        {e.entry.reportedBy?.name ?? "—"} · {formatDateTime(e.at)}
                       </div>
-                      {e.entry.remarks && (
-                        <p className="mt-1 text-sm">{e.entry.remarks}</p>
-                      )}
+                      {e.entry.remarks && <p className="mt-1 text-sm">{e.entry.remarks}</p>}
 
                       {/* ЯГ ЭНЭ мэдээллийн нотолгоо. Урьд нь бүх зураг нэг
                           овоо болж, аль нь алиныхыг ялгах арга байгаагүй. */}
@@ -950,11 +1136,7 @@ function Timeline({
                         <ul className="mt-2 flex flex-wrap gap-1.5">
                           {e.entry.photos.map((photo) => (
                             <li key={photo.id}>
-                              <a
-                                href={photoUrl(photo)}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
+                              <a href={photoUrl(photo)} target="_blank" rel="noreferrer">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={photoUrl(photo)}
@@ -978,24 +1160,17 @@ function Timeline({
                         {e.entry.result === "rejected"
                           ? "Буцаагдсан"
                           : `${formatQty(e.entry.acceptedQty)} батлагдсан`}
-                        {e.entry.rejectedQty > 0 &&
-                        e.entry.result !== "rejected"
+                        {e.entry.rejectedQty > 0 && e.entry.result !== "rejected"
                           ? ` · ${formatQty(e.entry.rejectedQty)} татгалзсан`
                           : ""}
                       </div>
                       <div className="text-muted-foreground text-xs">
-                        {e.entry.stage === "client"
-                          ? "Захиалагчийн хяналт"
-                          : "Ерөнхий гүйцэтгэгчийн хяналт"}
-                        {e.entry.inspector
-                          ? ` · ${e.entry.inspector.name}`
-                          : ""}{" "}
-                        · {formatDateTime(e.at)}
+                        {e.entry.stageLabel ?? INSPECTION_STAGE[e.entry.stage]}
+                        {e.entry.inspector ? ` · ${e.entry.inspector.name}` : ""} ·{" "}
+                        {formatDateTime(e.at)}
                       </div>
                       {e.entry.reason && (
-                        <p className="text-destructive mt-1 text-sm">
-                          {e.entry.reason}
-                        </p>
+                        <p className="text-destructive mt-1 text-sm">{e.entry.reason}</p>
                       )}
                     </>
                   )}

@@ -21,7 +21,9 @@ import {
   ArrowRight,
   ChevronRight,
   RotateCcw,
+  Search,
   Stamp,
+  Users,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
@@ -32,16 +34,21 @@ import { Input } from "@/components/ui/input";
 import { projectsV2, queue } from "@/lib/api/v2/endpoints";
 import type { DashboardBlock, ItemCounts } from "@/lib/api/v2/types";
 import { useMe } from "@/lib/api/v2/use-me";
+import { isObserver } from "@/lib/domain";
 import { useProject } from "@/lib/api/v2/use-project";
 import { cn } from "@/lib/utils";
 
 export default function DashboardPage() {
-  const {
-    project,
-    isLoading: projectLoading,
-    error: projectError,
-  } = useProject();
+  const { project, isLoading: projectLoading, error: projectError } = useProject();
   const { me } = useMe();
+  /*
+   * Зөвхөн харах үүрэг (захирал).
+   *
+   * Тоонууд нь ҮЛДЭНЭ — тэдгээр нь төслийн эрүүл мэндийн үзүүлэлт.
+   * Харин ДАРАГДДАГ хайрцаг байхаа болино: дарвал хийж чадахгүй
+   * дараалал руу аваачих нь «энэ чиний ажил» гэж худал хэлж байгаа хэрэг.
+   */
+  const observer = isObserver(me);
   const isRep = me?.role === "contractor";
 
   const dash = useQuery({
@@ -57,8 +64,7 @@ export default function DashboardPage() {
 
   const d = dash.data;
 
-  if (projectError)
-    return <ErrorState message={(projectError as Error).message} />;
+  if (projectError) return <ErrorState message={(projectError as Error).message} />;
 
   return (
     <div>
@@ -78,15 +84,9 @@ export default function DashboardPage() {
       {projectLoading || dash.isLoading ? (
         <LoadingRows rows={4} />
       ) : dash.error ? (
-        <ErrorState
-          message={(dash.error as Error).message}
-          onRetry={() => dash.refetch()}
-        />
+        <ErrorState message={(dash.error as Error).message} onRetry={() => dash.refetch()} />
       ) : !d ? (
-        <EmptyState
-          title="Өгөгдөл алга"
-          description="Төсөлд блок үүсээгүй байна."
-        />
+        <EmptyState title="Өгөгдөл алга" description="Төсөлд блок үүсээгүй байна." />
       ) : (
         <div className="space-y-6">
           {/* --- Анхаарал шаардсан тоонууд — бүгд дарагдана ---
@@ -98,29 +98,70 @@ export default function DashboardPage() {
               45% гэсэн тоо хоёрын алиныг нь ч тодорхойлохгүй.
 
               Эдгээр гурван тоо нь эсрэгээрээ шууд ажил заана. */}
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {/*
+              ХОЁР ШАТЫГ САЛГАНА.
+
+              Урьд нь нэг «Батлахыг хүлээж буй» хайрцаг хоёр шатыг
+              нийлүүлж харуулдаг байв. Тэр тоо нь ХЭНИЙХ ч биш: шалгах
+              нь талбайн инженерийн, батлах нь хяналтын инженерийн ажил.
+              Дээрээс нь холбоос нь `?type=inspection` гэж явдаг байсан —
+              дараалал тийм таб хүлээж авдаггүй тул өөр жагсаалт нээгдэж,
+              тоо нь зөрдөг байв.
+            */}
+            {/*
+              Шат бүр нь ТЭР ШАТЫГ ХИЙХ эрхтэй хүнд л дарагдана.
+              Талбайн инженерт «батлах» жагсаалт руу холбоос өгвөл
+              хийж чадахгүй ажлын жагсаалт нээгдэнэ.
+            */}
             <AttentionTile
-              href="/queue?type=inspection"
-              icon={Stamp}
-              label="Батлахыг хүлээж буй"
-              value={counts.data?.inspection ?? d.pendingInspections}
+              href={me?.canCheck ? "/queue?type=check" : null}
+              icon={Search}
+              label="Шалгахыг хүлээж буй"
+              value={counts.data?.check ?? 0}
               tone="amber"
             />
             <AttentionTile
-              href="/queue?type=overdue"
+              href={me?.canInspect ? "/queue?type=approval" : null}
+              icon={Stamp}
+              label="Батлахыг хүлээж буй"
+              value={counts.data?.approval ?? 0}
+              tone="amber"
+            />
+            <AttentionTile
+              href={observer ? null : "/queue?type=overdue"}
               icon={AlertTriangle}
               label="Хугацаа хэтэрсэн"
               value={counts.data?.overdue ?? d.overdueWorkItems}
               tone="red"
             />
             <AttentionTile
-              href="/queue?type=returned"
+              href={observer ? null : "/queue?type=returned"}
               icon={RotateCcw}
               label="Буцаагдсан"
               value={counts.data?.returned ?? 0}
               tone="amber"
             />
           </div>
+
+          {/* Эдгээр нь даалгавар БИШ гэдгийг тодорхой хэлнэ — эс бөгөөс
+              захирал «би юу хийх ёстой юм бол» гэж эргэлзэнэ. */}
+          {observer && (
+            <p className="text-muted-foreground -mt-3 text-xs">
+              Дээрх тоонууд нь төслийн байдлын үзүүлэлт. Баталгаажуулалтыг хяналтын
+              инженерүүд гүйцэтгэнэ.
+            </p>
+          )}
+
+          {/* --- Тохируулга дутуу байна гэсэн анхааруулга ---
+
+              ЯАГААД ТООН ХАЙРЦАГ БИШ ВЭ: дээрх гурван тоо нь ӨДӨР ТУТМЫН
+              ажил. Хариуцагч оноох нь өдөр тутмын ажил биш, НЭГ УДААГИЙН
+              тохируулга — дуусмагц бүрмөсөн алга болно. Хооронд нь холивол
+              «анхаарал шаардсан» гэсэн эгнээ хэзээ ч тэглэгдэхгүй болно. */}
+          {me?.canManageContractors && (d.unassignedItems ?? 0) > 0 && (
+            <UnassignedNotice blocks={d.blocks} total={d.unassignedItems} />
+          )}
 
           {/* --- Барилгууд ---
               Явц нь ЗӨВХӨН энд харагдана. Барилга бүр өөрийн хувьтай — нэг
@@ -134,9 +175,7 @@ export default function DashboardPage() {
                 <div className="mb-3 flex items-center gap-2 text-sm font-medium">
                   <AlertOctagon className="size-4" />
                   Нээлттэй саатал
-                  <span className="text-muted-foreground tabular-nums">
-                    {d.openIssues}
-                  </span>
+                  <span className="text-muted-foreground tabular-nums">{d.openIssues}</span>
                   <Link
                     href="/issues"
                     className="text-muted-foreground hover:text-foreground ml-auto text-xs font-normal"
@@ -182,6 +221,39 @@ export default function DashboardPage() {
 }
 
 /**
+ * «Хариуцагч оноогоогүй ажил байна» гэсэн анхааруулга.
+ *
+ * Урьд нь энэ тоо ЗӨВХӨН оноох хуудсан дээр харагддаг байв — тийш орсон хүн
+ * л мэддэг. Гэтэл оноохоо мартсан хүн яг тийш ордоггүй: туслан гүйцэтгэгч
+ * нэвтрээд «юу ч харагдахгүй байна» гэж залгах хүртэл мэдэгддэггүй.
+ */
+function UnassignedNotice({ blocks, total }: { blocks: DashboardBlock[]; total: number }) {
+  const affected = blocks.filter((b) => (b.unassignedItems ?? 0) > 0);
+
+  return (
+    <div className="flex flex-wrap items-start gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+      <Users className="mt-0.5 size-4 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <strong className="tabular-nums">{total.toLocaleString("mn-MN")} ажил</strong> хариуцагчгүй
+        байна. Туслан гүйцэтгэгч эдгээрийг харахгүй, гүйцэтгэл оруулах боломжгүй.
+        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+          {affected.map((b) => (
+            <Link
+              key={b.id}
+              href={`/blocks/${b.id}/assignments`}
+              className="underline underline-offset-2"
+            >
+              {b.name}{" "}
+              <span className="tabular-nums">{b.unassignedItems.toLocaleString("mn-MN")}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Эрэмбэ: хоцорсон нь эхэнд, дараа нь батлах хүлээж буй, эцэст нь нэрээр.
  *
  * Цагаан толгойн дараалал бол хамгийн муу сонголт — 75 барилгад "А-1" нь
@@ -197,8 +269,7 @@ function sortByAttention(blocks: DashboardBlock[]): DashboardBlock[] {
 }
 
 /** Анхаарал шаардаж байна уу — хоцорсон эсвэл батлах хүлээж буй ажилтай. */
-const needsAttention = (b: DashboardBlock) =>
-  b.overdue > 0 || b.pendingInspections > 0;
+const needsAttention = (b: DashboardBlock) => b.overdue > 0 || b.pendingInspections > 0;
 
 /** Хэдэн барилгаас эхлээд хайлт харуулах вэ. */
 const SEARCH_THRESHOLD = 12;
@@ -223,20 +294,12 @@ const AUTO_EXPAND_MAX = 6;
  * хэвийн нь эвхэгдсэн нягт мөрөөр. "Хэвийн" гэдгийг ЗӨВХӨН нуухгүй — тоог нь
  * харуулж, дарж дэлгэх боломжтой.
  */
-function BlockSection({
-  blocks,
-  counts,
-}: {
-  blocks: DashboardBlock[];
-  counts: ItemCounts;
-}) {
+function BlockSection({ blocks, counts }: { blocks: DashboardBlock[]; counts: ItemCounts }) {
   const [search, setSearch] = useState("");
   const [showAll, setShowAll] = useState(blocks.length <= AUTO_EXPAND_MAX);
 
   const q = search.trim().toLowerCase();
-  const matched = q
-    ? blocks.filter((b) => b.name.toLowerCase().includes(q))
-    : blocks;
+  const matched = q ? blocks.filter((b) => b.name.toLowerCase().includes(q)) : blocks;
 
   const attention = sortByAttention(matched.filter(needsAttention));
   const calm = sortByAttention(matched.filter((b) => !needsAttention(b)));
@@ -272,10 +335,7 @@ function BlockSection({
       <ItemLegend counts={counts} />
 
       {matched.length === 0 ? (
-        <EmptyState
-          title="Барилга олдсонгүй"
-          description="Хайлтаа өөрчилж үзнэ үү."
-        />
+        <EmptyState title="Барилга олдсонгүй" description="Хайлтаа өөрчилж үзнэ үү." />
       ) : (
         <>
           {attention.length > 0 && (
@@ -294,10 +354,7 @@ function BlockSection({
                 className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-sm"
               >
                 <ChevronRight
-                  className={cn(
-                    "size-4 transition-transform",
-                    showAll && "rotate-90",
-                  )}
+                  className={cn("size-4 transition-transform", showAll && "rotate-90")}
                 />
                 Хэвийн явж буй {calm.length} барилга
               </button>
@@ -331,9 +388,7 @@ function BlockCard({ block }: { block: DashboardBlock }) {
     >
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <span className="truncate font-medium">{block.name}</span>
-        <span className="shrink-0 text-lg font-semibold tabular-nums">
-          {block.percentage}%
-        </span>
+        <span className="shrink-0 text-lg font-semibold tabular-nums">{block.percentage}%</span>
       </div>
 
       <ProgressBar value={block.percentage} className="h-2" />
@@ -343,8 +398,7 @@ function BlockCard({ block }: { block: DashboardBlock }) {
       <p className="text-muted-foreground mt-2 text-xs tabular-nums">
         {block.totalItems.toLocaleString("mn-MN")} ажлаас{" "}
         {block.completedItems.toLocaleString("mn-MN")} дууссан
-        {block.inProgressItems > 0 &&
-          `, ${block.inProgressItems.toLocaleString("mn-MN")} явцтай`}
+        {block.inProgressItems > 0 && `, ${block.inProgressItems.toLocaleString("mn-MN")} явцтай`}
       </p>
 
       <div className="mt-2 flex flex-wrap gap-3 text-xs">
@@ -374,7 +428,8 @@ function AttentionTile({
   value,
   tone,
 }: {
-  href: string;
+  /** `null` бол ДАРАГДАХГҮЙ — үйлдэл хийх эрхгүй хүнд зориулав. */
+  href: string | null;
   icon: typeof Stamp;
   label: string;
   value: number;
@@ -382,14 +437,8 @@ function AttentionTile({
 }) {
   const empty = value === 0;
 
-  return (
-    <Link
-      href={href}
-      className={cn(
-        "group flex items-center justify-between rounded-xl border p-4 transition-colors",
-        empty ? "opacity-60" : "hover:bg-accent",
-      )}
-    >
+  const body = (
+    <>
       <div>
         <div
           className={cn(
@@ -403,9 +452,28 @@ function AttentionTile({
         </div>
         <div className="text-muted-foreground text-sm">{label}</div>
       </div>
-      {!empty && (
+      {href && !empty && (
         <ArrowRight className="text-muted-foreground size-4 transition-transform group-hover:translate-x-0.5" />
       )}
+    </>
+  );
+
+  const shell = cn(
+    "flex items-center justify-between rounded-xl border p-4",
+    empty && "opacity-60",
+  );
+
+  /*
+   * Холбоосгүй бол `div` — `Link` биш.
+   *
+   * Хулганы заагч, hover өнгө, сум гурав нь «дар» гэж хэлдэг. Дарахад
+   * юу ч болохгүй бол хэрэглэгч эвдэрсэн гэж бодно.
+   */
+  if (!href) return <div className={shell}>{body}</div>;
+
+  return (
+    <Link href={href} className={cn(shell, "group transition-colors", !empty && "hover:bg-accent")}>
+      {body}
     </Link>
   );
 }

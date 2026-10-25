@@ -4,7 +4,6 @@
  * `tone` maps to a Tailwind color family consumed by <ToneBadge>.
  */
 import type { DependencyType, ProjectStatus, WorkStatus } from "@/lib/api";
-import type { ReviewState } from "@/lib/approval";
 
 export type Tone = "gray" | "blue" | "amber" | "green" | "red";
 
@@ -24,11 +23,72 @@ export const WORK_STATUS: Record<WorkStatus, { label: string; tone: Tone }> = {
   cancelled: { label: "Cancelled", tone: "red" },
 };
 
-export const REVIEW_STATE: Record<ReviewState, { label: string; tone: Tone }> = {
+/**
+ * Хяналтын төлвийн нэр.
+ *
+ * Хоёр шаттай каскадын зургаан төлөв, дээр нь хуучин v1 дэлгэцийн хоёр
+ * (`pending`, `returned`). Нэрийг ТОДОРХОЙ бичнэ: «Хүлээгдэж буй» гэвэл
+ * хэрэглэгч хэнийг хүлээж байгааг мэдэхгүй — талбайн инженер үү, хяналтын
+ * инженер үү гэдэг нь өөр хүний ажил.
+ */
+export const REVIEW_STATE: Record<string, { label: string; tone: Tone }> = {
   none: { label: "Явцгүй", tone: "gray" },
-  pending: { label: "Хүлээгдэж буй", tone: "amber" },
+  pending_check: { label: "Шалгалт хүлээж буй", tone: "amber" },
+  pending_approval: { label: "Батлалт хүлээж буй", tone: "blue" },
+  returned_by_site: { label: "Талбайн инженер буцаасан", tone: "red" },
+  returned_by_final: { label: "Хяналтын инженер буцаасан", tone: "red" },
   approved: { label: "Батлагдсан", tone: "green" },
+
+  // Хуучин v1 дэлгэц (даалгавар, үйл ажиллагаа) эдгээрийг хэрэглэсээр байна.
+  pending: { label: "Хүлээгдэж буй", tone: "amber" },
   returned: { label: "Буцаагдсан", tone: "red" },
+};
+
+/**
+ * Шалгалтын шатны нэр.
+ *
+ * Сервер `stageLabel`-ээр өгдөг; энэ нь зөвхөн хуучин бичлэг эсвэл
+ * сервер талбарыг нь ачаалаагүй үед хэрэглэгдэх НӨӨЦ.
+ */
+export const INSPECTION_STAGE: Record<string, string> = {
+  site_check: "Талбайн инженер шалгасан",
+  final_approval: "Хяналтын инженер баталсан",
+};
+
+/**
+ * Шат бүрийн ҮЙЛДЛИЙН үг.
+ *
+ * `INSPECTION_STAGE` нь ӨНГӨРСӨН цагийн шошго (түүхэнд «шалгасан»).
+ * Товч, талбарын нэр, мэдэгдэлд ОДООГИЙН үйлдлийн үг хэрэгтэй.
+ *
+ * ЯАГААД САЛГАВ: 1-р шатанд ч товч «Батлах» гэж бичигдсэн байсан тул
+ * дарсны дараа төлөв «шалгасан» болоход хэрэглэгч систем буруу
+ * ажиллаж байна гэж ойлгодог байв. Үйлдэл зөв, үг худал байсан.
+ */
+export const INSPECTION_ACTION: Record<string, {
+  title: string;
+  verb: string;
+  partial: string;
+  done: string;
+  pool: string;
+  qty: string;
+}> = {
+  site_check: {
+    title: "1-р шат · Шалгах",
+    verb: "Шалгасан",
+    partial: "Хэсэгчлэн шалгах",
+    done: "Шалгалаа — хяналтын инженер рүү шилжлээ",
+    pool: "Шалгах ажил",
+    qty: "Шалгасан тоо хэмжээ",
+  },
+  final_approval: {
+    title: "2-р шат · Батлах",
+    verb: "Батлах",
+    partial: "Хэсэгчлэн батлах",
+    done: "Батлагдлаа — актад орох боломжтой",
+    pool: "Батлах ажил",
+    qty: "Батлах тоо хэмжээ",
+  },
 };
 
 export const DEPENDENCY_TYPE: Record<DependencyType, { label: string; full: string }> = {
@@ -160,3 +220,150 @@ export function formatShortDate(isoDate: string | null): string | null {
   if (!m) return isoDate;
   return `${Number(m[2])}-р сарын ${Number(m[3])}`;
 }
+
+/**
+ * Мөнгөн дүн — төгрөгөөр, хоёр орны бутархайгүй.
+ *
+ * Гэрээний дүн 16,200,000₮ шиг том тоо тул бутархай нь шуугиан. Нэгж үнэ
+ * хэрэгтэй үед `formatMoney(x, true)` гэж бутархайтай гаргана.
+ */
+export function formatMoney(value?: number | null, withCents = false): string {
+  if (value === undefined || value === null || Number.isNaN(value)) return "—";
+
+  return (
+    new Intl.NumberFormat(PROJECT_LOCALE, {
+      minimumFractionDigits: withCents ? 2 : 0,
+      maximumFractionDigits: withCents ? 2 : 0,
+    }).format(value) + "₮"
+  );
+}
+
+/** Ажлын ангилал — backend-ийн `Contractor::CATEGORIES`. */
+export const CONTRACTOR_CATEGORIES: Record<string, string> = {
+  structure: "Угсралт, бетон",
+  masonry: "Өрлөг, шавардлага",
+  finishing: "Дотор засал",
+  facade: "Фасад, цонх",
+  mep: "Цахилгаан, сантехник, ХАС",
+  stone_floor: "Чулуу, шал",
+  doors: "Хаалга, төмөр хийц",
+  exterior: "Гадна ажил, тохижилт",
+  survey: "Геодези, хэмжилт",
+  other: "Бусад",
+};
+
+/** Төлөв — backend-ийн `Contractor::STATUSES`. */
+export const CONTRACTOR_STATUSES: Record<string, string> = {
+  active: "Ажиллаж байгаа",
+  suspended: "Түр зогссон",
+  terminated: "Гэрээ цуцлагдсан",
+};
+
+/**
+ * Тохиролцоо бичихэд дутуу талбарууд — backend-ийн
+ * `Contractor::missingContractFields()`-тэй ИЖИЛ дараалал.
+ */
+export function missingContractFields(c: {
+  registrationNo?: string | null;
+  bankAccount?: string | null;
+  bankName?: string | null;
+  phone?: string | null;
+}): string[] {
+  const out: string[] = [];
+  if (!c.registrationNo) out.push("Регистрийн дугаар");
+  if (!c.bankAccount) out.push("Дансны дугаар");
+  if (!c.bankName) out.push("Банк");
+  if (!c.phone) out.push("Холбоо барих утас");
+
+  return out;
+}
+
+/**
+ * Бетон захиалга БИЧИХ эрхтэй үүргүүд — backend-ийн
+ * `ConcreteOrder::REQUESTER_ROLES`-тэй ижил байх ёстой.
+ *
+ * Гүйцэтгэгч ОРООГҮЙ: бетон бол захиалагчийн зардал.
+ */
+export const CONCRETE_ORDER_WRITER_ROLES = [
+  "site_engineer",
+  "project_manager",
+  "general_engineer",
+  "admin",
+];
+
+/**
+ * БАТАЛГААЖУУЛАХ эрхтэй үүргүүд — `ConcreteOrder::CONFIRMER_ROLES`.
+ *
+ * Бланк дээр «Захиалагч талын хяналтын инженер» гэж бичигдсэн. Эрх
+ * байсан ч ЗАХИАЛСАН ХҮН ӨӨРӨӨ баталгаажуулж чадахгүй — түүнийг сервер
+ * шалгана.
+ */
+export const CONCRETE_ORDER_CONFIRMER_ROLES = ["inspector", "general_engineer", "admin"];
+
+/**
+ * ЗӨВХӨН ХАРАХ үүрэг эсэх (захирал).
+ *
+ * Серверийн ЭРХЭЭС гарна, үүргийн нэрээс биш: эрх өөрчлөгдвөл дэлгэц
+ * дагаж өөрчлөгдөнө, хоёр газар жагсаалт бичихгүй.
+ *
+ * ЮУНД ХЭРЭГЛЭДЭГ ВЭ: үйлдлийн цэс, дарагддаг хайрцгийг нуух. Тоонууд
+ * нь ҮЛДЭНЭ — «27 ажил батлахыг хүлээж байна» гэдэг нь захиралд
+ * даалгавар биш, урсгал бөглөрч байгаагийн ДОХИО. Харин түүнийг
+ * дарагддаг болговол хийж чадахгүй жагсаалт руу аваачна.
+ */
+export function isObserver(
+  me: {
+    canReportProgress: boolean;
+    canCheck: boolean;
+    canInspect: boolean;
+    canApproveExtensions: boolean;
+  } | null,
+): boolean {
+  if (!me) return false;
+
+  return (
+    !me.canReportProgress && !me.canCheck && !me.canInspect && !me.canApproveExtensions
+  );
+}
+
+/**
+ * Зөвшөөрөгдөх хэмжих нэгж — backend-ийн `MaterialBudgetImport::UNITS`-ийн толь.
+ *
+ * Энэ жагсаалтаас гадуур нэгжийг импорт татгалздаг тул гараар нэмэх үед
+ * ч мөн адил хязгаарлана. Хоёр тал зөрвөл verify-mock барина.
+ */
+export const MATERIAL_UNITS = [
+  "м",
+  "м2",
+  "м3",
+  "ш",
+  "тн",
+  "кг",
+  "литр",
+  "шуудай",
+  "б",
+  "ж/х",
+] as const;
+
+/** Материалын захиалгын бланкны төрлүүд — backend-ийн `MaterialOrder::KINDS`. */
+export const MATERIAL_ORDER_KINDS: Record<string, string> = {
+  main: "Угсралтын үндсэн материал",
+  aux: "Угсралтын туслах материал",
+  timber: "Угсралтын модон материал",
+  rebar: "Арматур",
+};
+
+/**
+ * Материалын захиалга БИЧИХ эрх — `MaterialOrder::REQUESTER_ROLES`.
+ *
+ * Бетонтой ижил, зөвхөн захирал хасагдсан (тэр юу ч батлахгүй).
+ */
+export const MATERIAL_ORDER_WRITER_ROLES = [
+  "site_engineer",
+  "project_manager",
+  "general_engineer",
+  "admin",
+];
+
+/** БАТАЛГААЖУУЛАХ эрх — `MaterialOrder::CONFIRMER_ROLES`. */
+export const MATERIAL_ORDER_CONFIRMER_ROLES = ["inspector", "general_engineer", "admin"];

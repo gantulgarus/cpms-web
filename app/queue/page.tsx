@@ -11,7 +11,14 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { AlertTriangle, CalendarPlus, ChevronRight, RotateCcw, Stamp } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarPlus,
+  ChevronRight,
+  RotateCcw,
+  Search,
+  Stamp,
+} from "lucide-react";
 
 import { ExtendDeadlineDialog } from "@/components/extend-deadline-dialog";
 import { PageHeader } from "@/components/page-header";
@@ -20,6 +27,13 @@ import { ToneBadge } from "@/components/tone-badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -27,7 +41,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { queue } from "@/lib/api/v2/endpoints";
+import { blocks as blocksApi, queue } from "@/lib/api/v2/endpoints";
 import type { QueueType, WorkItem } from "@/lib/api/v2/types";
 import { useMe } from "@/lib/api/v2/use-me";
 import { useProject } from "@/lib/api/v2/use-project";
@@ -36,12 +50,39 @@ import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 50;
 
+/**
+ * Байршлын замаас блокийн нэрийг хасна.
+ *
+ * `location.path` нь «А1 блок › 5-р давхар › B2» гэж ирдэг. Блокийг
+ * дээр нь тусдаа мөрөнд тод бичсэн тул замд давтагдах нь зай иддэг.
+ */
+function stripBlock(path: string, blockName?: string | null): string {
+  if (!blockName) return path;
+
+  const prefix = `${blockName} › `;
+
+  return path.startsWith(prefix) ? path.slice(prefix.length) : path;
+}
+
 const TABS: { value: QueueType; label: string; icon: typeof Stamp; hint: string }[] = [
+  /*
+   * Хоёр шат — хоёр дараалал.
+   *
+   * Нэг жагсаалт хуваалцвал талбайн инженер ба хяналтын инженер хоёулаа
+   * 3,711 мөрийг шүүж өөрийнхөө ажлыг хайх болно. Дараалал гэдэг үгийн
+   * утга нь яг тэр хайлтыг арилгах байсан.
+   */
   {
-    value: "inspection",
+    value: "check",
+    label: "Шалгахыг хүлээж буй",
+    icon: Search,
+    hint: "Гүйцэтгэгч мэдээлсэн — талбайн инженер газар дээр нь шалгах ёстой.",
+  },
+  {
+    value: "approval",
     label: "Батлахыг хүлээж буй",
     icon: Stamp,
-    hint: "Гүйцэтгэл мэдээлэгдсэн ч хараахан баталгаажаагүй ажлууд.",
+    hint: "Талбайн инженер шалгасан — хяналтын инженер батлах ёстой.",
   },
   {
     value: "returned",
@@ -75,28 +116,67 @@ function QueueContent() {
   // Хянах самбараас `?type=overdue` гэж ирж болно — тэр таб шууд нээгдэнэ.
   const params = useSearchParams();
   const initial = params.get("type");
-  const [tab, setTab] = useState<QueueType>(
-    initial === "returned" || initial === "overdue" ? initial : "inspection",
+  /*
+   * Анхдагч таб нь ҮҮРГЭЭС хамаарна.
+   *
+   * Талбайн инженер нэвтрэхэд «батлахыг хүлээж буй» жагсаалт нээгдвэл
+   * түүний хийж чадахгүй ажлууд харагдана. Хүн бүр өөрийн дараалалд
+   * ормоор байна.
+   */
+  const defaultTab: QueueType = me?.role === "site_engineer" ? "check" : "approval";
+  const [tab, setTab] = useState<QueueType | null>(
+    initial === "returned" || initial === "overdue" || initial === "check" || initial === "approval"
+      ? (initial as QueueType)
+      : null,
   );
+  const activeTab: QueueType = tab ?? defaultTab;
   const [page, setPage] = useState(1);
   const [extending, setExtending] = useState<WorkItem | null>(null);
 
+  /*
+   * БЛОКООР ШҮҮХ.
+   *
+   * «Өнөөдөр юу батлах вэ» гэдэгт блок хамаагүй нь үнэн — гэхдээ «А1 рүү
+   * явж байгаа тул А1-ийнхээ ажлыг нэг дор дуусгая» гэдэг нь бас үнэн.
+   * 75 барилгын цогцолборт хоёр дахь нь илүү түгээмэл.
+   */
+  const [blockId, setBlockId] = useState<string>("");
+
+  const blockList = useQuery({
+    queryKey: ["v2-blocks", project?.id],
+    queryFn: () => blocksApi.listForProject(project!.id),
+    enabled: Boolean(project),
+  });
+
+  const blockOptions = blockList.data?.data ?? [];
+
+  /*
+   * `Select.Value` нь УТГЫГ харуулдаг тул UUID → нэр гэсэн хүснэгт
+   * өгөхгүй бол товчин дээр UUID гарна.
+   */
+  const blockLabels = Object.fromEntries(blockOptions.map((b) => [b.id, b.name]));
+
   const counts = useQuery({
-    queryKey: ["v2-queue-counts", project?.id],
-    queryFn: () => queue.counts(project!.id),
+    queryKey: ["v2-queue-counts", project?.id, blockId],
+    queryFn: () => queue.counts(project!.id, blockId ? { blockId } : {}),
     enabled: Boolean(project),
   });
 
   const list = useQuery({
-    queryKey: ["v2-queue", project?.id, tab, page],
-    queryFn: () => queue.list(project!.id, tab, { page, pageSize: PAGE_SIZE }),
+    queryKey: ["v2-queue", project?.id, activeTab, page, blockId],
+    queryFn: () =>
+      queue.list(project!.id, activeTab, {
+        page,
+        pageSize: PAGE_SIZE,
+        ...(blockId ? { blockId } : {}),
+      }),
     enabled: Boolean(project),
     placeholderData: keepPreviousData,
   });
 
   const total = list.data?.meta.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const active = TABS.find((t) => t.value === tab)!;
+  const active = TABS.find((t) => t.value === activeTab)!;
 
   return (
     <div>
@@ -123,7 +203,7 @@ function QueueContent() {
               }}
               className={cn(
                 "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors",
-                tab === t.value
+                activeTab === t.value
                   ? "bg-primary text-primary-foreground border-transparent"
                   : "hover:bg-accent",
               )}
@@ -136,7 +216,44 @@ function QueueContent() {
         })}
       </div>
 
-      <p className="text-muted-foreground mb-3 text-xs">{active.hint}</p>
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <div className="w-52">
+          <Select
+            value={blockId}
+            items={blockLabels}
+            onValueChange={(v) => {
+              setBlockId(v ?? "");
+              setPage(1);
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Бүх блок" />
+            </SelectTrigger>
+            <SelectContent>
+              {blockOptions.map((b) => (
+                <SelectItem key={b.id} value={b.id}>
+                  {b.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {blockId && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setBlockId("");
+              setPage(1);
+            }}
+          >
+            Бүх блок харах
+          </Button>
+        )}
+
+        <p className="text-muted-foreground text-xs">{active.hint}</p>
+      </div>
 
       {list.isLoading ? (
         <LoadingRows rows={6} />
@@ -146,9 +263,11 @@ function QueueContent() {
         <EmptyState
           title="Хүлээгдэж буй зүйл алга"
           description={
-            tab === "inspection"
-              ? "Бүх мэдээлэгдсэн ажил баталгаажсан байна."
-              : "Энэ жагсаалтад ажил алга."
+            activeTab === "check"
+              ? "Шалгах зүйл алга — мэдээлэгдсэн бүх ажил шалгагдсан байна."
+              : activeTab === "approval"
+                ? "Батлах зүйл алга — шалгагдсан бүх ажил баталгаажсан байна."
+                : "Энэ жагсаалтад ажил алга."
           }
         />
       ) : (
@@ -158,7 +277,7 @@ function QueueContent() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Ажил</TableHead>
-                  <TableHead>Байршил</TableHead>
+                  <TableHead>Блок, байршил</TableHead>
                   <TableHead>Гүйцэтгэгч</TableHead>
                   <TableHead className="text-right">Хүлээгдэж буй</TableHead>
                   <TableHead className="text-right">Хугацаа</TableHead>
@@ -169,9 +288,35 @@ function QueueContent() {
                 {(list.data?.data ?? []).map((w) => (
                   <TableRow key={w.id}>
                     <TableCell className="font-medium">
-                      <Link href={`/work-items/${w.id}`}>{w.name}</Link>
+                      {/*
+                        Дарааллын ХҮРЭЭГ холбоосоор дамжуулна.
+                        Нэг ажлыг шийдсэний дараа дэлгэц дараагийнх руу
+                        өөрөө үсрэхийн тулд «ямар дараалал, ямар блок»
+                        гэдгийг мэдэх ёстой.
+                      */}
+                      <Link
+                        href={{
+                          pathname: `/work-items/${w.id}`,
+                          query: {
+                            from: "queue",
+                            type: activeTab,
+                            ...(blockId ? { blockId } : {}),
+                          },
+                        }}
+                      >
+                        {w.name}
+                      </Link>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{w.location.path}</TableCell>
+                    {/* Блокийг ТУСДАА мөрөнд, тод. Урьд нь «А1 блок › 5-р
+                        давхар › B2» гэсэн урт зам нэг мөрөнд багтаж, олон
+                        блокийн ажил холилдоход аль барилгынх болох нь
+                        харцаар ялгагдахгүй байв. */}
+                    <TableCell>
+                      <div className="font-medium">{w.blockName ?? "—"}</div>
+                      <div className="text-muted-foreground text-xs">
+                        {stripBlock(w.location.path, w.blockName)}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {w.contractor?.name ?? "—"}
                     </TableCell>
@@ -192,7 +337,11 @@ function QueueContent() {
                       <div className="flex items-center justify-end gap-1">
                         {/* Хугацаа хэтэрсэн табад л утгатай — бусад табад
                             огноо нь хараахан өнгөрөөгүй. */}
-                        {tab === "overdue" && me?.canEditPlan && (
+                        {/* Сунгах хүсэлт гаргах эрх нь ӨРГӨН: хуваарь хэтэрч
+                            байгааг хамгийн эрт мэддэг хүн нь талбай дээрх
+                            хүн. Шийдвэрийг ерөнхий инженер гаргана. */}
+                        {activeTab === "overdue" &&
+                          (me?.canEditPlan || me?.canReportProgress) && (
                           <Button
                             variant="outline"
                             size="sm"

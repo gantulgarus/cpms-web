@@ -32,7 +32,13 @@ export function WorkStatusBadge({ status }: { status: WorkStatus }) {
   return <ToneBadge tone={s.tone}>{s.label}</ToneBadge>;
 }
 
-export function ReviewStateBadge({ state }: { state: ReviewState }) {
-  const s = REVIEW_STATE[state];
+/**
+ * v1 ба v2 хоёр өөр `ReviewState` төрөлтэй тул string-ээр авна.
+ *
+ * Танихгүй төлөв ирвэл хоосон биш, өөрийг нь харуулна — шинэ төлөв
+ * нэмэгдэхэд дэлгэц чимээгүй хоосон болох нь хамгийн муу.
+ */
+export function ReviewStateBadge({ state }: { state: ReviewState | string }) {
+  const s = REVIEW_STATE[state] ?? { label: state, tone: "gray" as Tone };
   return <ToneBadge tone={s.tone}>{s.label}</ToneBadge>;
 }

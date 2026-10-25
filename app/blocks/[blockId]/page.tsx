@@ -21,12 +21,16 @@ import {
   CalendarClock,
   ChevronRight,
   Plus,
+  FileBarChart,
   Ruler,
+  Trash2,
   Users,
+  Wallet,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
 import { AddWorkTypeDialog } from "@/components/add-work-type-dialog";
+import { DeleteBlockDialog } from "@/components/delete-block-dialog";
 import { FloorDurationDialog } from "@/components/floor-duration-dialog";
 import { EmptyBlockSetup } from "@/components/empty-block-setup";
 import { MissingQuantitiesDialog } from "@/components/missing-quantities-dialog";
@@ -64,9 +68,20 @@ const GROUP_TABS: { value: SummaryGroupBy; label: string }[] = [
   { value: "contractor", label: "Гүйцэтгэгчээр" },
 ];
 
-const REVIEW_FILTERS: { value: ReviewState | ""; label: string }[] = [
+/**
+ * Хоёр шаттай каскадын шүүлтүүр.
+ *
+ * «Хүлээгдэж буй» нь хоёр төлвийг нэгтгэсэн БҮЛЭГ — дээр нь шат тус бүр
+ * тусдаа. Талбайн инженер «юуг би шалгах вэ», хяналтын инженер «юуг би
+ * батлах вэ» гэдгээ нэг дарж олох ёстой.
+ */
+type ReviewFilter = ReviewState | "pending" | "returned" | "";
+
+const REVIEW_FILTERS: { value: ReviewFilter; label: string }[] = [
   { value: "", label: "Бүгд" },
-  { value: "pending", label: "Батлахыг хүлээж буй" },
+  { value: "pending", label: "Хүлээгдэж буй" },
+  { value: "pending_check", label: "Шалгалт хүлээж буй" },
+  { value: "pending_approval", label: "Батлалт хүлээж буй" },
   { value: "returned", label: "Буцаагдсан" },
   { value: "approved", label: "Батлагдсан" },
   { value: "none", label: "Эхлээгүй" },
@@ -83,10 +98,11 @@ export default function BlockProgressPage() {
   const { blockId } = useParams<{ blockId: string }>();
 
   const { me } = useMe();
+  const [deleting, setDeleting] = useState(false);
 
   const [groupBy, setGroupBy] = useState<SummaryGroupBy>("floor");
   const [selected, setSelected] = useState<Selection | null>(null);
-  const [reviewState, setReviewState] = useState<ReviewState | "">("");
+  const [reviewState, setReviewState] = useState<ReviewFilter>("");
   const [page, setPage] = useState(1);
 
   /**
@@ -134,7 +150,7 @@ export default function BlockProgressPage() {
     next: Partial<{
       groupBy: SummaryGroupBy;
       selected: Selection | null;
-      reviewState: ReviewState | "";
+      reviewState: ReviewFilter;
     }>,
   ) => {
     if (next.groupBy !== undefined) {
@@ -152,7 +168,7 @@ export default function BlockProgressPage() {
   };
 
   /** Дээд талын тоон дээр дарахад — тэр ажлуудыг шууд нээнэ. */
-  const focusOn = (label: string, filter: WorkItemFilters, review: ReviewState | "" = "") => {
+  const focusOn = (label: string, filter: WorkItemFilters, review: ReviewFilter = "") => {
     const same = focus?.label === label;
     setFocus(same ? null : { key: label, label, filter });
     setSelected(null);
@@ -222,7 +238,9 @@ export default function BlockProgressPage() {
                 )}
               </Button>
             )}
-            {/* Хариуцагч оноохгүй бол гүйцэтгэгч нэвтрээд юу ч харахгүй. */}
+            {/* Хариуцагч оноохгүй бол гүйцэтгэгч нэвтрээд юу ч харахгүй.
+                Тиймээс тоог ТОВЧ ДЭЭР нь гаргана — оноох хуудас руу орсон
+                хүн л мэддэг байх ёсгүй. */}
             {me?.canManageContractors && (
               <Button
                 variant="outline"
@@ -230,6 +248,52 @@ export default function BlockProgressPage() {
                 render={<Link href={`/blocks/${blockId}/assignments`} />}
               >
                 <Users className="size-4" /> Хариуцагч оноох
+                {(totals?.unassignedItems ?? 0) > 0 && (
+                  <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-xs font-medium text-amber-700 tabular-nums dark:text-amber-400">
+                    {totals!.unassignedItems.toLocaleString("mn-MN")}
+                  </span>
+                )}
+              </Button>
+            )}
+
+            {/* Орсон төсвийг харах — импортын дараа «би юу оруулсан
+                бэ» гэдгийг шалгах цорын гагц газар. */}
+            {me?.canSeeMoney && (
+              <Button
+                variant="outline"
+                nativeButton={false}
+                render={<Link href={`/blocks/${blockId}/budget`} />}
+              >
+                <Wallet className="size-4" /> Төсөв
+              </Button>
+            )}
+
+            {/* Блокийн ерөнхий тайлан — мөнгө агуулдаг тул
+                гүйцэтгэгчид харагдахгүй. */}
+            {me?.canSeeMoney && (
+              <Button
+                variant="outline"
+                nativeButton={false}
+                render={<Link href={`/blocks/${blockId}/report`} />}
+              >
+                <FileBarChart className="size-4" /> Тайлан
+              </Button>
+            )}
+
+            {/*
+              БЛОК УСТГАХ — зөвхөн админ.
+
+              Хамгийн сүүлд, бусад товчноос тусгаарлаж байрлуулав:
+              «Ажил нэмэх»-ийн хажууд улаан товч байвал санамсаргүй
+              дарах магадлал нэмэгдэнэ. Цонх нь нэр бичүүлж баталгаажуулна.
+            */}
+            {me?.role === "admin" && blockQuery.data && (
+              <Button
+                variant="ghost"
+                className="text-destructive hover:bg-destructive/10 ml-2"
+                onClick={() => setDeleting(true)}
+              >
+                <Trash2 className="size-4" /> Блок устгах
               </Button>
             )}
           </div>
@@ -459,6 +523,17 @@ export default function BlockProgressPage() {
           />
         </>
       )}
+
+      {/* Устгах цонх нь блокийн өгөгдөл ачаалагдсан үед л утгатай —
+          баталгаажуулахын тулд НЭР хэрэгтэй. */}
+      {me?.role === "admin" && blockQuery.data && (
+        <DeleteBlockDialog
+          open={deleting}
+          onOpenChange={setDeleting}
+          blockId={blockId}
+          blockName={blockQuery.data.name}
+        />
+      )}
     </div>
   );
 }
@@ -471,8 +546,8 @@ function GroupDetail({
   meta,
   onPage,
 }: {
-  reviewState: ReviewState | "";
-  onReviewState: (value: ReviewState | "") => void;
+  reviewState: ReviewFilter;
+  onReviewState: (value: ReviewFilter) => void;
   query: ReturnType<typeof useQuery<Awaited<ReturnType<typeof workItems.listForBlock>>>>;
   meta?: { total: number; page: number; pageSize: number };
   onPage: (updater: (page: number) => number) => void;

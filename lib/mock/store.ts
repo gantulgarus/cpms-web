@@ -12,6 +12,11 @@
  * WorkItem-ийн seed-ээс дахин үүсгэнэ.
  */
 import rawWorkTypes from "./work-types.json";
+import {
+  CONTRACTOR_CATEGORIES,
+  CONTRACTOR_STATUSES,
+  missingContractFields,
+} from "@/lib/domain";
 import type {
   Block,
   BlockDesign,
@@ -37,6 +42,10 @@ interface RawWorkType {
   level: string;
   plannedQty: number;
   estimated: boolean;
+  holdPoint?: boolean;
+  /** Төсвийн файлтай холбох түлхүүр — 58-аас 49 нь кодтой. */
+  code?: string | null;
+  codePart?: string | null;
 }
 
 const PROJECT_ID = "prj-inel-01";
@@ -163,24 +172,83 @@ const ACCESS_CODE_EXPIRES = "2027-08-17";
  * кодгүй харагддаг байв — жинхэнэ сервер дээр бүгд кодтой байхад mock худлаа
  * хэлж байсан хэрэг.
  */
+/**
+ * Гүйцэтгэгчид — ангилал, төлөв, РД-тэйгээр.
+ *
+ * ХОЁР нь зориуд ДУТУУ: `ctr-5` РД-гүй, `ctr-6` гэрээ цуцлагдсан. Demo
+ * бүх мөр нь төгс байвал «тохиролцоо бичих боломжгүй» ба «шинэ ажил
+ * оноогдохгүй» гэсэн хоёр дэлгэц хэзээ ч шалгагдахгүй.
+ */
+
 const CONTRACTORS: Contractor[] = (
   [
-    ["ctr-1", "Түшиг Констракшн", "Бетон, угсралт", "9911-2233", "TSH-2026"],
-    ["ctr-2", "Мөнх Хишиг ХХК", "Өрлөг, шавардлага", "9922-3344", "MNH-2026"],
-    ["ctr-3", "Сүлд Фасад", "Фасад, цонх", "9933-4455", "SLD-2026"],
-    ["ctr-4", "Эрчим Инженеринг", "Цахилгаан, сантехник", "9944-5566", "ERH-2026"],
-    ["ctr-5", "Гоо Засал ХХК", "Дотор засал", "9955-6677", "GOO-2026"],
-    ["ctr-6", "Ногоон Тохижилт", "Гадна ажил", "9966-7788", "NGN-2026"],
+    ["ctr-1", "Түшиг Констракшн", "Бетон, угсралт", "structure", "9911-2233", "TSH-2026", "1234567", "active"],
+    ["ctr-2", "Мөнх Хишиг ХХК", "Өрлөг, шавардлага", "masonry", "9922-3344", "MNH-2026", "2345678", "active"],
+    ["ctr-3", "Сүлд Фасад", "Фасад, цонх", "facade", "9933-4455", "SLD-2026", "3456789", "active"],
+    ["ctr-4", "Эрчим Инженеринг", "Цахилгаан, сантехник", "mep", "9944-5566", "ERH-2026", "4567890", "active"],
+    ["ctr-5", "Гоо Засал ХХК", "Дотор засал", "finishing", "9955-6677", "GOO-2026", null, "active"],
+    ["ctr-6", "Ногоон Тохижилт", "Гадна ажил", "exterior", "9966-7788", "NGN-2026", "6789012", "terminated"],
   ] as const
-).map(([id, name, tradeSpecialty, phone, accessCode]) => ({
+).map(([id, name, tradeSpecialty, category, phone, accessCode, registrationNo, status]) => ({
   id,
   name,
+  companyName: name,
+  registrationNo,
   tradeSpecialty,
+  category,
+  categoryLabel: CONTRACTOR_CATEGORIES[category],
+  status,
+  statusLabel: CONTRACTOR_STATUSES[status],
+  canTakeWork: status === "active",
   phone,
+  bankName: registrationNo ? "Хаан банк" : null,
+  bankAccount: registrationNo ? `50${registrationNo}` : null,
   accessCode,
   accessCodeExpiresAt: ACCESS_CODE_EXPIRES,
   hasValidAccessCode: true,
+  missingContractFields: missingContractFields({
+    registrationNo,
+    phone,
+    bankName: registrationNo ? "Хаан банк" : null,
+    bankAccount: registrationNo ? `50${registrationNo}` : null,
+  }),
 }));
+
+/**
+ * Хяналт шалгалт хариуцдаг инженерүүд.
+ *
+ * Нэр, албан тушаал нь `cpms-api/database/data/staff.json`-оос — тэнд
+ * «Тамир» нь гэрээний мэргэжилтэн атлаа хяналт хариуцдаг гэсэн БОДИТ
+ * онцгой тохиолдол бий. Mock түүнийг хуулбарлах ёстой: эс бөгөөс дэлгэц
+ * «хяналтын инженер» гэсэн нэг төрлийн хүнтэй тулгарна гэж бүтээгдэж,
+ * жинхэнэ өгөгдөл дээр албан тушаал зөрөхөд ойлгомжгүй болно.
+ *
+ * `handler.ts` эдгээрийг хэрэглэгчийн жагсаалтад нэмнэ — хоёр файлд
+ * тусад нь бичвэл id зөрж, оноолт чимээгүй тасарна.
+ */
+export const MOCK_INSPECTORS = [
+  { id: "usr-insp-1", name: "Ц.Хулан", position: "Хяналтын инженер" },
+  { id: "usr-insp-2", name: "Б.Сайхантамир", position: "Гэрээний мэргэжилтэн" },
+  { id: "usr-insp-3", name: "Н.Сандагдорж", position: "Цахилгааны инженер" },
+] as const;
+
+/**
+ * Ажлын бүлэг → хяналтын инженер.
+ *
+ * Төсвийн 64 мөрийн 36-д инженер ЗААГААГҮЙ. Тиймээс mock-д ч бүх бүлэг
+ * хамрагдах ёсгүй — «Хариуцагчгүй» самбар хоосон байвал тэр дэлгэц хэзээ ч
+ * шалгагдахгүй.
+ */
+const GROUP_INSPECTOR: Record<string, string | null> = {
+  Угсралт: "usr-insp-1",
+  Өрлөг: "usr-insp-1",
+  Засал: "usr-insp-1",
+  шал: "usr-insp-1",
+  цахилгаан: "usr-insp-3",
+  холбоо: "usr-insp-3",
+  сантехник: "usr-insp-2",
+  ХАС: "usr-insp-2",
+};
 
 /** Ажлын бүлэг → гүйцэтгэгч. Оноогдоогүй бүлэг null болно. */
 const GROUP_CONTRACTOR: Record<string, string | null> = {
@@ -202,7 +270,7 @@ const GROUP_CONTRACTOR: Record<string, string | null> = {
 };
 
 /** Барилгын дараалал — эрт эхэлдэг бүлэг илүү дууссан байна. */
-const GROUP_ORDER: Record<string, number> = {
+export const GROUP_ORDER: Record<string, number> = {
   "Газар шороо": 0,
   Угсралт: 1,
   Дээвэр: 2,
@@ -317,6 +385,14 @@ interface MockDb {
 
 let db: MockDb | null = null;
 
+/** Техникийн давхрын зайнууд — төсвийн задаргааны хуудаснаас. */
+const TECHNICAL_SPACES = [
+  "Сууцны бус талбай-1",
+  "Сууцны бус талбай-2",
+  "Нийтийн эдэлбэр",
+  "Шатны хонгил",
+];
+
 function buildLocations(
   blockId: string,
   blockName: string,
@@ -369,14 +445,65 @@ function buildLocations(
       });
     }
   }
+
+  /*
+   * Техникийн давхар ба түүний дөрвөн зай — backend-ийн
+   * `BlockLocationBuilder`-тэй ижил.
+   *
+   * ЯАГААД АЙЛ БИШ ВЭ: тэнд орон сууц байхгүй. Гэвч төсөвт тэр давхарт
+   * шавардлага, замаска, эмульс зэрэг АЙЛЫН ТҮВШНИЙ ажил бүртгэгддэг тул
+   * байршилгүй бол тоо хэмжээ нь хаана ч буухгүй.
+   *
+   * Дарааллын дугаар нь дээд давхраас хойш — байгаа давхруудынх хөдлөхгүй.
+   */
+  const techId = `loc-${blockId}-f-tech`;
+  out.push({
+    id: techId,
+    blockId,
+    parentId: rootId,
+    level: "floor",
+    name: "Техникийн давхар",
+    path: `${blockName} › Техникийн давхар`,
+    sequenceNumber: floors + 1,
+  });
+
+  /*
+   * АЙЛГҮЙ барилгад зайнуудыг үүсгэхгүй — backend-ийн
+   * `BlockLocationBuilder`-тэй ижил.
+   *
+   * Зайнууд нь АЙЛЫН түвшний байршил. Үйлчилгээний барилгад үүсгэвэл
+   * «айлгүй блокт айлын ажил нэмж болохгүй» гэсэн дүрэм хүчингүй болно.
+   */
+  if (unitsPerFloor <= 0) return out;
+
+  TECHNICAL_SPACES.forEach((name, i) => {
+    out.push({
+      id: `loc-${blockId}-t-${i}`,
+      blockId,
+      parentId: techId,
+      level: "unit",
+      name,
+      path: `${blockName} › Техникийн давхар › ${name}`,
+      sequenceNumber: i,
+    });
+  });
+
   return out;
 }
 
+/**
+ * Demo өгөгдлийн төлөв.
+ *
+ * Demo-д ШАЛГАСАН нь баталсантай тэнцүү (эдгээр нь баталгаажсан ажлууд)
+ * тул хүлээгдэж буй хэсэг нь 1-Р ШАТАД байна: мэдээлсэн ч хараахан
+ * шалгагдаагүй. Хэрэв `pending_approval` гэж тавибал «шалгасан нь
+ * баталснаас бага» гэсэн боломжгүй төлөв үүснэ.
+ */
 function deriveState(planned: number, reported: number, accepted: number, returned: boolean) {
   let reviewState: ReviewState = "none";
-  if (returned) reviewState = "returned";
+  if (returned) reviewState = "returned_by_final";
   else if (reported <= 0) reviewState = "none";
-  else if (accepted < reported) reviewState = "pending";
+  else if (accepted < reported) reviewState = "pending_check";
   else reviewState = "approved";
 
   /*
@@ -434,6 +561,14 @@ function generateWorkItems(
      */
     const contractorId = simulateProgress ? (GROUP_CONTRACTOR[wt.groupName] ?? null) : null;
 
+    /*
+     * Хяналтын инженер нь ТӨСВӨӨС оногддог (`cpms:import-quantities`), загвар
+     * буулгахаас биш. Тиймээс шинэ блокт хоосон — backend-ийн
+     * `ApplyBlockDesign` ч `inspector_id` тавьдаггүй.
+     */
+    const inspectorId = simulateProgress ? (GROUP_INSPECTOR[wt.groupName] ?? null) : null;
+    const inspector = MOCK_INSPECTORS.find((i) => i.id === inspectorId) ?? null;
+
     for (const loc of targets) {
       const id = `wi-${blockId}-${wt.id}-${loc.id}`;
       const r = rng(hash(id));
@@ -460,11 +595,29 @@ function generateWorkItems(
        * мөр болно — ойролцоо тоотой байх нь дээр.
        */
       const plannedQty = round(spec.plannedQty);
-      const reportedQty = round(plannedQty * ratio);
+
+      /*
+       * ШАЛГАЛТЫН ЦЭГ нь demo-д БҮРЭН БАТЛАГДСАН байна.
+       *
+       * Далд ажил (цахилгаан, сантехник, ХАС, гипсэн хана, угсралт)
+       * батлагдаагүй бол түүний дараах БҮХ ажил хоригдоно. Demo нь
+       * заслын шатанд явж байгаа төслийг харуулдаг тул далд ажил нь аль
+       * хэдийн дууссан байх ёстой — эс бөгөөс demo өгөгдөл өөртэйгөө
+       * зөрчилдөж, бараг бүх мөр «гүйцэтгэл оруулах боломжгүй» болно.
+       */
+      // ЗӨВХӨН demo блокт — шинэ блок ҮРГЭЛЖ 0%-ээс эхэлнэ.
+      const holdPoint = simulateProgress && wt.isHoldPoint === true && plannedQty > 0;
+
+      const reportedQty = holdPoint ? plannedQty : round(plannedQty * ratio);
       // Мэдээлсэн ажлын 2/3 нь бүрэн батлагдсан, үлдсэн нь хяналт хүлээж байна.
-      const acceptedQty =
-        reportedQty <= 0 ? 0 : r() < 0.66 ? reportedQty : round(reportedQty * (0.7 + r() * 0.25));
-      const returned = reportedQty > 0 && r() < 0.05;
+      const acceptedQty = holdPoint
+        ? plannedQty
+        : reportedQty <= 0
+          ? 0
+          : r() < 0.66
+            ? reportedQty
+            : round(reportedQty * (0.7 + r() * 0.25));
+      const returned = !holdPoint && reportedQty > 0 && r() < 0.05;
       const { reviewState, status } = deriveState(plannedQty, reportedQty, acceptedQty, returned);
 
       const startOffset = order * 26 + floorNo * 11;
@@ -485,10 +638,41 @@ function generateWorkItems(
         plannedQty,
         reportedQty,
         acceptedQty,
+        /*
+         * Demo-д ШАЛГАСАН нь баталсантай тэнцүү: эдгээр нь аль хэдийн
+         * баталгаажсан ажлууд. Үүнгүйгээр «баталсан нь шалгаснаас их»
+         * гэсэн боломжгүй төлөв үүсч, дараагийн шалгалт бүр татгалзана.
+         */
+        /*
+         * Төсвийн нэгж үнэ — тохиролцооны үнэтэй харьцуулахад.
+         *
+         * Бодит төсөвт үнэ нь ажлын төрлөөс хамаарч 1,200₮-өөс 450,000₮
+         * хооронд хэлбэлздэг. Mock-д тогтмол тоо тавибал «зөрүү» гэсэн
+         * багана ямагт 0 гарч, тэр дэлгэц шалгагдахгүй.
+         */
+        budgetUnitPrice: 1000 + ((hash(wt.id) % 60) + 1) * 500,
+        checkedQty: acceptedQty,
+        inspectionStages: 2,
+        /*
+         * Дараагийн шат ба сан — backend-ийн `WorkItemResource`-тэй ижил.
+         *
+         * Demo-д шалгасан нь баталсантай тэнцүү тул хүлээгдэж буй хэсэг нь
+         * ҮРГЭЛЖ 1-р шатад байна.
+         */
+        nextStage: reviewState === "pending_check" ? "site_check" : null,
+        stagePool:
+          reviewState === "pending_check" ? round(Math.max(reportedQty - acceptedQty, 0)) : 0,
         remainingQty: round(Math.max(plannedQty - acceptedQty, 0)),
         percentage: plannedQty > 0 ? Math.round((acceptedQty / plannedQty) * 100) : 0,
         plannedStartDate,
         plannedEndDate,
+        /*
+         * ҮНДСЭН огноо нь үүсгэх үед амлалттай ТЭНЦҮҮ — backend-ийн
+         * `WorkItem::booted()`-тэй ижил. Сунгалт л тэднийг салгана.
+         */
+        baselineEndDate: plannedEndDate,
+        baselineOverdueDays: overdueDays,
+        extendedDays: 0,
         status,
         reviewState,
         overdueDays,
@@ -499,6 +683,9 @@ function generateWorkItems(
               id: contractorId,
               name: CONTRACTORS.find((c) => c.id === contractorId)!.name,
             }
+          : null,
+        inspector: inspector
+          ? { id: inspector.id, name: inspector.name, position: inspector.position }
           : null,
       });
     }
@@ -528,8 +715,14 @@ function rebuildDescendants(locations: Location[]): Map<string, Set<string>> {
 
 /** Загварт хэдэн WorkItem үүсэхийг урьдчилж бодно — дэлгэц дээр харуулна. */
 function countItems(spec: DesignSpec, raw: RawWorkType[]): number {
-  const floors = spec.floors + 1; // + зоорь
-  const units = spec.floors * spec.unitsPerFloor;
+  // Байршлын тоо нь `buildLocations`-тэй ЯГ таарах ёстой: зоорь, давхрууд,
+  // техникийн давхар; айлууд дээр нь техникийн давхрын дөрвөн зай.
+  const floors = spec.floors + 2; // + зоорь + техникийн давхар
+  // Айлгүй барилгад техникийн давхрын зайнууд ч үүсэхгүй.
+  const units =
+    spec.unitsPerFloor > 0
+      ? spec.floors * spec.unitsPerFloor + TECHNICAL_SPACES.length
+      : 0;
   return raw.reduce((sum, w) => {
     if (spec.excludeLevels?.includes(w.level as LocationLevel)) return sum;
     if (w.level === "block") return sum + 1;
@@ -554,8 +747,11 @@ function build(): MockDb {
     groupId: groupId.get(w.group)!,
     groupName: w.group,
     name: w.name,
+    code: w.code ?? null,
+    codePart: w.codePart ?? null,
     unit: w.unit,
     level: w.level as LocationLevel,
+    isHoldPoint: w.holdPoint === true,
   }));
 
   const designs: BlockDesign[] = DESIGN_SPECS.map((s) => ({
@@ -878,18 +1074,20 @@ export function progressFor(item: WorkItem): ProgressEntry[] {
   return entries;
 }
 
+const RETURNED: ReviewState[] = ["returned_by_site", "returned_by_final"];
+
 export function inspectionsFor(item: WorkItem): Inspection[] {
-  if (item.acceptedQty <= 0 && item.reviewState !== "returned") return [];
+  if (item.acceptedQty <= 0 && !RETURNED.includes(item.reviewState)) return [];
   const r = rng(hash(`${item.id}:inspection`));
   const rejectedQty = round(item.reportedQty - item.acceptedQty);
   const out: Inspection[] = [];
 
   const base = Date.parse(`${item.plannedStartDate}T00:00:00Z`) + 20 * 86400000;
-  const stages = ["general_contractor", "client"] as const;
+  const stages = ["site_check", "final_approval"] as const;
 
   for (const [i, stage] of stages.entries()) {
-    if (i === 1 && r() < 0.4) break; // захиалагчийн хяналт хараахан ороогүй
-    const isReturned = item.reviewState === "returned" && i === stages.length - 1;
+    if (i === 1 && r() < 0.4) break; // хяналтын инженер хараахан батлаагүй
+    const isReturned = RETURNED.includes(item.reviewState) && i === stages.length - 1;
     out.push({
       id: `insp-${item.id}-${stage}`,
       workItemId: item.id,
@@ -899,10 +1097,17 @@ export function inspectionsFor(item: WorkItem): Inspection[] {
       rejectedQty: isReturned ? item.reportedQty : rejectedQty,
       reason: isReturned ? "Гадаргуугийн тэгш байдал зөрсөн — дахин хийх" : undefined,
       inspectedAt: new Date(base + i * 2 * 86400000).toISOString(),
-      inspector: {
-        id: stage === "client" ? "usr-insp-cl" : "usr-insp-gc",
-        name: stage === "client" ? "Д.Хулан (захиалагч)" : "С.Ганбат (ерөнхий гүйцэтгэгч)",
-      },
+      stageLabel:
+        stage === "site_check" ? "Талбайн инженер шалгасан" : "Хяналтын инженер баталсан",
+      /*
+       * Хоёр шатыг ӨӨР хүн хийнэ — backend нь нэг хүнийг хоёуланд нь
+       * оруулахыг 403-аар хориглодог. Mock-д нэг нэр тавибал дэлгэц тэр
+       * хоригийг харгалзахгүй бүтээгдэнэ.
+       */
+      inspector:
+        stage === "site_check"
+          ? { id: "usr-site-1", name: "С.Ганзориг (талбайн инженер)" }
+          : { id: "usr-insp-1", name: "Ц.Хулан (хяналтын инженер)" },
     });
   }
   return out.reverse();

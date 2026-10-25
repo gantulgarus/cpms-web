@@ -33,10 +33,33 @@ async function handler(
     if (photo) return Response.redirect(new URL(photo, req.url), 302);
 
     const { handleMock } = await import("@/lib/mock/handler");
-    const body =
-      req.method === "GET" || req.method === "HEAD"
-        ? undefined
-        : await req.text().then((t) => (t ? JSON.parse(t) : undefined));
+
+    /*
+     * Multipart-ыг ТУСДАА уншина.
+     *
+     * `req.text()` дээр `JSON.parse` дуудвал файл байршуулах хүсэлт
+     * «Unexpected token» гэж унана. Mock нь xlsx задалдаггүй тул
+     * файлын НЭР, ХЭМЖЭЭ хоёрыг л дамжуулна — дэлгэц барихад
+     * тэр хоёр хангалттай.
+     */
+    const contentType = req.headers.get("content-type") ?? "";
+    let body: unknown;
+
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      if (contentType.includes("multipart/form-data")) {
+        const form = await req.formData();
+        const fields: Record<string, unknown> = {};
+
+        for (const [key, value] of form.entries()) {
+          fields[key] =
+            value instanceof File ? { name: value.name, size: value.size } : value;
+        }
+
+        body = fields;
+      } else {
+        body = await req.text().then((t) => (t ? JSON.parse(t) : undefined));
+      }
+    }
     const res = handleMock(req.method, path, req.nextUrl.search, body);
     return Response.json(res.body, { status: res.status });
   }

@@ -20,6 +20,7 @@ import { ISSUE_CATEGORIES } from "@/components/issue-panel";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { schedule } from "@/lib/api/v2/endpoints";
+import { useMe } from "@/lib/api/v2/use-me";
 import type { IssueCategory, Uuid } from "@/lib/api/v2/types";
 import { formatDate, todayInProjectZone } from "@/lib/domain";
 
@@ -57,10 +58,17 @@ export function ExtendDeadlineDialog({
   const [endDate, setEndDate] = useState(() =>
     addDays(todayInProjectZone(), DEFAULT_EXTENSION_DAYS),
   );
+  const { me } = useMe();
   const [category, setCategory] = useState<IssueCategory>("material_shortage");
   const [reason, setReason] = useState("");
 
-  const valid = Boolean(endDate) && reason.trim().length > 0;
+  /*
+   * Тайлбар нь дор хаяж 10 тэмдэгт — серверийн дүрэм.
+   *
+   * Урьд нь зөвхөн «хоосон биш» гэж шалгадаг байсан тул «х» гэж бичээд
+   * өнгөрдөг байв. Тэр нь шалтгаан биш, зүгээр л хоригийг тойрсон хэлбэр.
+   */
+  const valid = Boolean(endDate) && reason.trim().length >= 10;
   const later = !currentEndDate || endDate > currentEndDate;
 
   const extend = useMutation({
@@ -70,8 +78,20 @@ export function ExtendDeadlineDialog({
         category,
         reason: reason.trim(),
       }),
-    onSuccess: () => {
-      toast.success("Хугацаа сунгагдлаа");
+    onSuccess: (res) => {
+      /*
+       * Батлагдсан ба хүлээгдэж байгааг ЯЛГАЖ хэлнэ.
+       *
+       * Нэг мессеж харуулбал хүсэлт гаргасан хүн хуваариа өөрчлөгдсөн гэж
+       * бодоод явна — дараа нь хоцролт хэвээр байхад яагаад гэдгийг
+       * ойлгохгүй.
+       */
+      toast.success(
+        res.meta.applied
+          ? "Хугацаа сунгагдлаа"
+          : "Хүсэлт илгээгдлээ — ерөнхий инженер батлахыг хүлээж байна",
+      );
+      qc.invalidateQueries({ queryKey: ["v2-extensions"] });
       onOpenChange(false);
       setReason("");
       qc.invalidateQueries({ queryKey: ["v2-queue"] });
@@ -142,9 +162,20 @@ export function ExtendDeadlineDialog({
         />
       </FormField>
 
+      {/* Хэрэглэгч товч дарахаас ӨМНӨ юу болохыг мэдэх ёстой: огноо
+          хөдлөх үү, эсвэл хүсэлт хүлээх үү. */}
       <p className="text-muted-foreground text-xs">
-        Шалтгаан нь <strong>асуудлын бүртгэлд</strong> хадгалагдана. Хуучин огноо тайлбарт
-        үлдэх тул хэдэн хоногоор сунгасныг хожим тоолж болно.
+        {me?.canApproveExtensions ? (
+          <>
+            Та батлах эрхтэй тул хугацаа <strong>тэр дор нь</strong> хойшилно.
+          </>
+        ) : (
+          <>
+            Энэ нь <strong>хүсэлт</strong>. Ерөнхий инженер батлах хүртэл хугацаа хөдлөхгүй.
+          </>
+        )}{" "}
+        Шалтгаан нь <strong>асуудлын бүртгэлд</strong> хадгалагдана.{" "}
+        <strong>Үндсэн төлөвлөгөө</strong> хөндөгдөхгүй — хуваарийн гулсалт тайланд үлдэнэ.
       </p>
     </FormDialog>
   );

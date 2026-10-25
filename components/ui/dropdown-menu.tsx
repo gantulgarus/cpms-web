@@ -53,6 +53,13 @@ function DropdownMenuGroup({ ...props }: MenuPrimitive.Group.Props) {
   return <MenuPrimitive.Group data-slot="dropdown-menu-group" {...props} />
 }
 
+/**
+ * ЗААВАЛ `DropdownMenuGroup` ДОТОР байрлуулна.
+ *
+ * Энэ нь Base UI-ийн `Menu.GroupLabel` бөгөөд бүлгийн контекст шаарддаг.
+ * Гадна нь тавивал зөвхөн АЖИЛЛАХ ҮЕД «MenuGroupContext is missing» гэж
+ * унах тул орчуулга, төрлийн шалгалт хоёр ч барьж авахгүй.
+ */
 function DropdownMenuLabel({
   className,
   inset,

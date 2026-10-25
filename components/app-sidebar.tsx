@@ -17,10 +17,15 @@ import { usePathname } from "next/navigation";
 import { useCallback, useState, useSyncExternalStore } from "react";
 import {
   AlertOctagon,
+  CalendarClock,
   AlertTriangle,
   Building2,
   ChevronLeft,
   FileSpreadsheet,
+  FileText,
+  FileUp,
+  PackageSearch,
+  Truck,
   LayoutDashboard,
   ListChecks,
   LogOut,
@@ -29,6 +34,9 @@ import {
   Users,
   X,
 } from "lucide-react";
+
+import { BrandMark } from "@/components/brand-mark";
+import { isObserver } from "@/lib/domain";
 
 import { Button } from "@/components/ui/button";
 import { queue } from "@/lib/api/v2/endpoints";
@@ -114,6 +122,18 @@ export function AppSidebar() {
   const pending = (counts.data?.inspection ?? 0) + (counts.data?.returned ?? 0);
   const isRep = me?.role === "contractor";
 
+  /*
+   * ЗӨВХӨН ХАРАХ ҮҮРЭГ (захирал).
+   *
+   * Юу ч батлахгүй тул «Дараалал», «Хугацаа сунгалт», «Бетон захиалга»
+   * гэсэн ҮЙЛДЛИЙН цэснүүд түүнд утгагүй — дарвал хоосон эсвэл
+   * хийх зүйлгүй жагсаалт гарна. Явц, зардлын цэс нь үлдэнэ.
+   *
+   * Эх сурвалж нь СЕРВЕРИЙН эрх, үүргийн нэр биш: эрх өөрчлөгдвөл цэс
+   * дагаж өөрчлөгдөнө.
+   */
+  const observer = isObserver(me);
+
   const groups: NavGroup[] = [
     {
       title: "Өдөр тутам",
@@ -124,13 +144,22 @@ export function AppSidebar() {
           icon: LayoutDashboard,
           match: (p) => p === "/" || p.startsWith("/dashboard"),
         },
-        {
-          href: "/queue",
-          label: "Дараалал",
-          icon: ListChecks,
-          match: (p) => p.startsWith("/queue"),
-          badge: pending || undefined,
-        },
+        /*
+         * Дараалал нь «НАДААС юу хүлээж байна» гэсэн жагсаалт. Юу ч
+         * батлахгүй хүнд энэ нь хэзээ ч хоосрохгүй жагсаалт болно —
+         * анхаарал татаад хийх зүйл өгөхгүй.
+         */
+        ...(observer
+          ? []
+          : [
+              {
+                href: "/queue",
+                label: "Дараалал",
+                icon: ListChecks,
+                match: (p: string) => p.startsWith("/queue"),
+                badge: pending || undefined,
+              },
+            ]),
         {
           href: "/blocks",
           label: isRep ? "Миний ажлууд" : "Блокууд",
@@ -143,11 +172,73 @@ export function AppSidebar() {
           icon: AlertOctagon,
           match: (p) => p.startsWith("/issues"),
         },
+        /*
+         * Сунгалтын хүсэлт нь ТУСДАА цэс — дараалалд нуувал ерөнхий
+         * инженер түүнийг хэзээ ч олохгүй, хүсэлт хариугүй хэвээр үлдэнэ.
+         */
+        ...(me?.canApproveExtensions || me?.canReportProgress
+          ? [
+              {
+                href: "/extensions",
+                label: "Хугацаа сунгалт",
+                icon: CalendarClock,
+                match: (p: string) => p.startsWith("/extensions"),
+              },
+            ]
+          : []),
+        /*
+         * Бетон захиалга нь ӨДӨР ТУТМЫН ажил — «Ажил» бүлэгт байна.
+         * Тохиргоо руу нуувал талбайн инженер олохгүй.
+         *
+         * ГҮЙЦЭТГЭГЧИД ХАРАГДАХГҮЙ: бетон бол захиалагчийн зардал тул
+         * сервер 403 буцаадаг. Цэсэнд үлдээвэл дарах бүрт алдаа гарах
+         * бөгөөд хэрэглэгч систем эвдэрсэн гэж бодно.
+         */
+        ...(isRep || observer
+          ? []
+          : [
+              {
+                href: "/concrete-orders",
+                label: "Бетон захиалга",
+                icon: Truck,
+                match: (p: string) => p.startsWith("/concrete-orders"),
+              },
+              /*
+               * Материалын захиалга нь бетоноос ТУСДАА цэс.
+               *
+               * Хоёрын маягт өөр: бетон нь нэг цутгалт (огноо, цаг,
+               * марк, помп), материал нь олон мөр. Нэг цэс дотор
+               * нуувал талбайн инженер аль нь юу болохыг санахгүй.
+               */
+              {
+                href: "/material-orders",
+                label: "Материалын захиалга",
+                icon: PackageSearch,
+                match: (p: string) => p.startsWith("/material-orders"),
+              },
+            ]),
       ],
     },
     {
       title: "Тайлан",
       items: [
+        /*
+         * Тохиролцоо нь АКТТАЙ хамт байх ёстой — хоёр нь нэг гинж: гэрээний
+         * нэгж үнэ дээр акт тогтдог.
+         *
+         * Урьд нь «Тохиргоо» бүлэгт байсан тул хэрэглэгч олдоггүй байв:
+         * тохиролцоо нь өдөр тутмын ажил, тохиргоо биш.
+         */
+        ...(me?.canManageContractors || me?.canApproveExtensions || observer
+          ? [
+              {
+                href: "/agreements",
+                label: "Тохиролцооны хуудас",
+                icon: FileText,
+                match: (p: string) => p.startsWith("/agreements"),
+              },
+            ]
+          : []),
         {
           href: "/reports",
           label: "Гүйцэтгэлийн акт",
@@ -172,6 +263,16 @@ export function AppSidebar() {
       : []),
     ...(me?.canManageReferenceData
       ? [
+          /*
+           * Төсөв оруулах нь блокийн БҮХ мөрийг сольж гүйцэтгэлийг
+           * устгадаг — лавлах сан засахтай ижил түвшний эрх.
+           */
+          {
+            href: "/imports",
+            label: "Төсөв оруулах",
+            icon: FileUp,
+            match: (p: string) => p.startsWith("/imports"),
+          },
           {
             href: "/reference",
             label: "Лавлах сан",
@@ -208,8 +309,8 @@ export function AppSidebar() {
         >
           <Menu className="size-5" />
         </button>
-        <Link href="/" className="font-semibold tracking-tight">
-          CPMS
+        <Link href="/">
+          <BrandMark />
         </Link>
         {pending > 0 && (
           <span className="ml-auto flex items-center gap-1 text-xs text-amber-600">
@@ -241,8 +342,8 @@ export function AppSidebar() {
         )}
       >
         <div className="flex h-14 items-center gap-2 border-b px-4">
-          <Link href="/" onClick={closeMobile} className="truncate font-semibold tracking-tight">
-            {collapsed ? "C" : "CPMS"}
+          <Link href="/" onClick={closeMobile} className="min-w-0">
+            <BrandMark collapsed={collapsed} />
           </Link>
           <button
             type="button"
@@ -313,7 +414,11 @@ export function AppSidebar() {
           ))}
         </nav>
 
-        <div className="space-y-1 border-t px-2 py-3">
+        {/*
+          Том дэлгэцэд НУУГДАНА — дээд эгнээний хэрэглэгчийн цэс түүнийг
+          орлоно. Утсан дээр дээд эгнээ байхгүй тул энд үлдэнэ.
+        */}
+        <div className="space-y-1 border-t px-2 py-3 md:hidden">
           {!collapsed && me && (
             <div className="px-2 pb-1">
               <div className="truncate text-sm font-medium">{me.name}</div>

@@ -33,6 +33,19 @@ import { cn } from "@/lib/utils";
 const today = todayInProjectZone;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/*
+ * Загвар буулгах нь ДАРААЛАЛД (queue) явдаг ажил.
+ *
+ * Сервер дээр `php artisan queue:work` ажиллаагүй бол ажил «queued» төлөвт
+ * мөнхөд үлдэнэ: блок үүснэ, харин байршил ч, ажлын мөр ч үүсэхгүй. Урьд нь
+ * дэлгэц үүнийг хязгааргүй хүлээдэг байсан тул «3,290 ажил үүсэхгүй байна»
+ * гэсэн шалтгаан нь мэдэгдэхгүй гэмтэл болж харагддаг байв.
+ */
+const QUEUE_STALL_MS = 12_000;
+
+/** Ажиллаж эхэлсэн ажлын дээд хугацаа — 3,290 мөр секундын дотор бөглөгдөнө. */
+const JOB_TIMEOUT_MS = 180_000;
+
 export default function NewBlockPage() {
   const router = useRouter();
   const qc = useQueryClient();
@@ -46,6 +59,8 @@ export default function NewBlockPage() {
   const [buildingNo, setBuildingNo] = useState("");
   const [startDate, setStartDate] = useState(today());
   const [job, setJob] = useState<Job | null>(null);
+  /** Ажил эхлэхгүй удаж байна уу — дараалал боловсруулагчийн шинж. */
+  const [stalled, setStalled] = useState(false);
 
   const { project } = useProject();
 
@@ -75,7 +90,24 @@ export default function NewBlockPage() {
       // 2. Загвар буулгах ажил эхэлнэ — дуустал нь хянана.
       let current = await blockDesigns.apply(designId, { blockId: block.id, startDate });
       setJob(current);
+      setStalled(false);
+
+      const startedAt = Date.now();
       while (current.status === "running" || current.status === "queued") {
+        const waited = Date.now() - startedAt;
+
+        // Хэзээ ч эхлээгүй ажил — дараалал боловсруулагч ажиллахгүй байна.
+        if (current.status === "queued" && waited > QUEUE_STALL_MS) setStalled(true);
+
+        if (waited > JOB_TIMEOUT_MS) {
+          throw new Error(
+            current.status === "queued"
+              ? "Ажил дараалалд орсон ч эхлээгүй байна. Сервер дээр дараалал " +
+                  "боловсруулагч (queue worker) ажиллаж байгаа эсэхийг шалгана уу."
+              : "Үүсгэлт хэт удаж байна. Серверийн лог шалгана уу.",
+          );
+        }
+
         await sleep(400);
         current = await jobs.get(current.id);
         setJob(current);
@@ -90,7 +122,9 @@ export default function NewBlockPage() {
     },
     onError: (e: Error) => {
       setJob(null);
-      toast.error(e.message);
+      setStalled(false);
+      // Урт мессеж toast-д багтахгүй тул хугацааг нь сунгана.
+      toast.error(e.message, { duration: 15000 });
     },
   });
 
@@ -281,6 +315,19 @@ export default function NewBlockPage() {
                   <p className="text-muted-foreground text-xs tabular-nums">
                     {job.progress.toLocaleString("mn-MN")} / {job.total.toLocaleString("mn-MN")}
                   </p>
+
+                  {/* Шалтгааныг НЭРЛЭНЭ. «Ачаалж байна…» гэж мөнхөд эргэлдэх нь
+                      хэрэглэгчид хийх зүйл өгөхгүй. */}
+                  {stalled && (
+                    <div className="flex gap-2 rounded-md bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                      <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                      <span>
+                        Ажил дараалалд орсон ч эхлээгүй байна. Сервер дээр{" "}
+                        <strong>дараалал боловсруулагч</strong> (queue worker) ажиллахгүй байж
+                        магадгүй. Системийн админд хандана уу.
+                      </span>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ) : (

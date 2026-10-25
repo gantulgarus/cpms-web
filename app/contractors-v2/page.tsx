@@ -8,16 +8,19 @@
  * Тиймээс нэг гүйцэтгэгчид нэг код, гэрээ дуусахад хаана.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useState } from "react";
-import { Check, Copy, KeyRound, Plus, ShieldOff } from "lucide-react";
+import { Check, Copy, FileText, KeyRound, Pencil, Plus, ShieldOff } from "lucide-react";
 import { toast } from "sonner";
 
 import { copyText } from "@/lib/clipboard";
 
+import { EditContractorDialog } from "@/components/edit-contractor-dialog";
 import { FormDialog, FormField } from "@/components/form-dialog";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/states";
 import { ToneBadge } from "@/components/tone-badge";
+import type { Contractor } from "@/lib/api/v2/types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,18 +36,14 @@ import { request } from "@/lib/api/client";
 import type { ListEnvelope, Uuid } from "@/lib/api/v2/types";
 import { useMe } from "@/lib/api/v2/use-me";
 
-interface ContractorRow {
-  id: Uuid;
-  name: string;
-  companyName?: string | null;
-  tradeSpecialty?: string | null;
-  contactPerson?: string | null;
-  phone?: string | null;
-  /** Зөвхөн удирдах эрхтэйд ирнэ. */
-  accessCode?: string | null;
-  accessCodeExpiresAt?: string | null;
-  hasValidAccessCode: boolean;
-}
+/*
+ * Төрлийг ХУВААЛЦСАН `Contractor`-оос авна.
+ *
+ * Урьд нь энд локал `ContractorRow` давхардсан байв — сервер шинэ талбар
+ * нэмэхэд (РД, ангилал, төлөв) тэр нь хоцорч, дэлгэц өгөгдөл байгааг
+ * мэдэхгүй байв. Нэг л тодорхойлолт.
+ */
+type ContractorRow = Contractor;
 
 export default function ContractorsV2Page() {
   const qc = useQueryClient();
@@ -111,6 +110,7 @@ export default function ContractorsV2Page() {
   });
 
   const canManage = Boolean(me?.canManageContractors);
+  const [editing, setEditing] = useState<Contractor | null>(null);
 
   return (
     <div>
@@ -119,9 +119,19 @@ export default function ContractorsV2Page() {
         description="Гэрээний хугацаанд олгогдсон кодоор системд нэвтэрч, ажлаа өөрсдөө бүртгэнэ."
         actions={
           canManage && (
-            <Button onClick={() => setCreating(true)}>
-              <Plus className="size-4" /> Шинэ гүйцэтгэгч
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* Тохиролцоо нь ЭНДЭЭС эхэлдэг: профайл бүрэн болсны дараа
+                  гэрээ бичигдэнэ. Хоёр хуудсыг холбоогүй үлдээвэл хэрэглэгч
+                  хажуу цэсээр хайх шаардлагатай болно. */}
+              <Link href="/agreements">
+                <Button variant="outline">
+                  <FileText className="size-4" /> Тохиролцоо
+                </Button>
+              </Link>
+              <Button onClick={() => setCreating(true)}>
+                <Plus className="size-4" /> Шинэ гүйцэтгэгч
+              </Button>
+            </div>
           )
         }
       />
@@ -138,8 +148,10 @@ export default function ContractorsV2Page() {
             <TableHeader>
               <TableRow>
                 <TableHead>Нэр</TableHead>
-                <TableHead>Чиглэл</TableHead>
+                <TableHead>РД</TableHead>
+                <TableHead>Ангилал</TableHead>
                 <TableHead>Холбоо барих</TableHead>
+                <TableHead>Төлөв</TableHead>
                 {canManage && <TableHead>Нэвтрэх код</TableHead>}
                 <TableHead className="w-56" />
               </TableRow>
@@ -147,11 +159,34 @@ export default function ContractorsV2Page() {
             <TableBody>
               {query.data!.data.map((c) => (
                 <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{c.tradeSpecialty ?? "—"}</TableCell>
+                  <TableCell className="font-medium">
+                    {c.name}
+                    {/* Тохиролцоо бичихэд дутуу талбарыг УРЬДЧИЛЖ хэлнэ —
+                        гэрээний мэргэжилтэн хуудас хэвлэх гэж байж мэдэх
+                        нь оройтсон. */}
+                    {canManage && (c.missingContractFields?.length ?? 0) > 0 && (
+                      <div className="text-amber-700 dark:text-amber-500 mt-0.5 text-xs">
+                        Тохиролцоонд дутуу: {c.missingContractFields!.join(", ")}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground tabular-nums">
+                    {c.registrationNo ?? "—"}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {c.categoryLabel ?? "—"}
+                    {c.tradeSpecialty && (
+                      <div className="text-xs">{c.tradeSpecialty}</div>
+                    )}
+                  </TableCell>
                   <TableCell className="text-muted-foreground">
                     {c.contactPerson ?? "—"}
                     {c.phone ? ` · ${c.phone}` : ""}
+                  </TableCell>
+                  <TableCell>
+                    <ToneBadge tone={c.canTakeWork === false ? "red" : "green"}>
+                      {c.statusLabel ?? "—"}
+                    </ToneBadge>
                   </TableCell>
 
                   {canManage && (
@@ -167,6 +202,9 @@ export default function ContractorsV2Page() {
                   <TableCell>
                     {canManage && (
                       <div className="flex justify-end gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setEditing(c)}>
+                          <Pencil className="size-3.5" /> Засах
+                        </Button>
                         <Button
                           variant="outline"
                           size="sm"
@@ -257,6 +295,15 @@ export default function ContractorsV2Page() {
           Бүртгэсний дараа «Код олгох» дарж нэвтрэх эрх үүсгэнэ.
         </p>
       </FormDialog>
+
+      {editing && (
+        <EditContractorDialog
+          contractor={editing}
+          open
+          onOpenChange={(open) => !open && setEditing(null)}
+          onDone={refresh}
+        />
+      )}
     </div>
   );
 }

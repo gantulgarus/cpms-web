@@ -8,12 +8,14 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { ChevronRight, Plus } from "lucide-react";
+import { useCallback, useState } from "react";
+import { ChevronRight, LayoutGrid, List, Plus } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
 import { ProgressBar } from "@/components/progress-bar";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/states";
 import { Button } from "@/components/ui/button";
+import { BlockCard } from "@/components/block-card";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -26,6 +28,37 @@ import {
 import { blocks, projectsV2 } from "@/lib/api/v2/endpoints";
 import { useMe } from "@/lib/api/v2/use-me";
 import { useProject } from "@/lib/api/v2/use-project";
+import { cn } from "@/lib/utils";
+
+const VIEW_KEY = "cpms.blocks.view";
+
+type BlocksView = "card" | "list";
+
+/**
+ * Карт эсвэл хүснэгт — сонголтыг САНАНА.
+ *
+ * Хоёулаа хэрэгтэй: карт нь «аль барилга анхаарал шаардаж байна»
+ * гэдгийг харцаар хэлнэ, хүснэгт нь 75 мөрийг нэг дэлгэцэд багтаана.
+ * Хүн бүр өөр ажилтай тул аль нэгийг албадах нь буруу.
+ *
+ * `useState`-ийн залхуу эхлүүлэгч — рендерийн үед `localStorage` уншвал
+ * сервер талын рендертэй зөрнө.
+ */
+function useView(): [BlocksView, (v: BlocksView) => void] {
+  const [view, setRaw] = useState<BlocksView>("card");
+
+  const set = useCallback((v: BlocksView) => {
+    setRaw(v);
+    try {
+      window.localStorage.setItem(VIEW_KEY, v);
+    } catch {
+      // Хувийн горимд `localStorage` алдаа өгдөг — сонголт санагдахгүй
+      // нь хуудас унахаас дээр.
+    }
+  }, []);
+
+  return [view, set];
+}
 
 export default function BlocksPage() {
   const { project, isLoading: projectLoading, error: projectError } = useProject();
@@ -45,6 +78,19 @@ export default function BlocksPage() {
 
   const stats = new Map((dashQuery.data?.blocks ?? []).map((b) => [b.id, b]));
 
+  /*
+   * ТОО ЗӨВ ЭРЭМБЭЛНЭ.
+   *
+   * Сервер нэрээр эрэмбэлдэг нь тэмдэгтийн эрэмбэ: «А1, А10, А11, А2».
+   * 75 барилгын цогцолборт энэ нь утгагүй. `numeric` сонголт нь нэр
+   * доторх тоог ТООГООР харьцуулна: «А1, А2, А10, А11».
+   */
+  const sorted = [...(blocksQuery.data?.data ?? [])].sort((a, b) =>
+    a.name.localeCompare(b.name, "mn", { numeric: true, sensitivity: "base" }),
+  );
+
+  const [view, setView] = useView();
+
   return (
     <div>
       <PageHeader
@@ -60,11 +106,37 @@ export default function BlocksPage() {
             : "Ачаалж байна…"
         }
         actions={
-          !isRep && (
-            <Button nativeButton={false} render={<Link href="/blocks/new" />}>
-              <Plus className="size-4" /> Шинэ блок
-            </Button>
-          )
+          <div className="flex items-center gap-2">
+            {/* Карт ↔ хүснэгт. Сонголт нь хөтөч дээр санагдана. */}
+            <div className="flex rounded-md border p-0.5">
+              {(
+                [
+                  ["card", LayoutGrid, "Картаар"],
+                  ["list", List, "Жагсаалтаар"],
+                ] as const
+              ).map(([value, Icon, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setView(value)}
+                  aria-label={label}
+                  title={label}
+                  className={cn(
+                    "rounded px-2 py-1 transition-colors",
+                    view === value ? "bg-accent" : "hover:bg-accent/50",
+                  )}
+                >
+                  <Icon className="size-4" />
+                </button>
+              ))}
+            </div>
+
+            {!isRep && (
+              <Button nativeButton={false} render={<Link href="/blocks/new" />}>
+                <Plus className="size-4" /> Шинэ блок
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -96,6 +168,17 @@ export default function BlocksPage() {
             )
           }
         />
+      ) : view === "card" ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {sorted.map((b) => (
+            <BlockCard
+              key={b.id}
+              block={b}
+              stat={stats.get(b.id)}
+              loading={dashQuery.isLoading}
+            />
+          ))}
+        </div>
       ) : (
         <Card className="p-0">
           <Table>
@@ -110,7 +193,7 @@ export default function BlocksPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {blocksQuery.data.data.map((b) => {
+              {sorted.map((b) => {
                 const s = stats.get(b.id);
                 return (
                   <TableRow key={b.id}>

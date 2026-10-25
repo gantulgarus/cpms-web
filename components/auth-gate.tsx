@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { ApiLoginScreen } from "@/components/api-login-screen";
 import { AppHeader } from "@/components/app-header";
 import { AppSidebar } from "@/components/app-sidebar";
+import { AppTopbar } from "@/components/app-topbar";
 import { LoginScreen } from "@/components/login-screen";
 import { request } from "@/lib/api/client";
 import { clearSession, getToken, onUnauthorized } from "@/lib/auth";
@@ -81,7 +82,15 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
        * талын багана (хугацаа, гүйцэтгэгч, төлөв) харагдахгүй байв. Зайг
        * хажуугийн цэс өөрөө тогтоож өгнө.
        */}
-      <main className="min-w-0 flex-1 px-4 py-6 md:px-6">{children}</main>
+      {/*
+       * Дээд эгнээ нь ҮНДСЭН хэсгийн дотор — хажуугийн самбарын БАРУУН
+       * талд. Бүтэн өргөнөөр тавибал лого ба хэрэглэгчийн нэр хоёр
+       * нэг эгнээнд орж, хураагддаг самбартай зөрчилдөнө.
+       */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <AppTopbar />
+        <main className="min-w-0 flex-1 px-4 py-6 md:px-6">{children}</main>
+      </div>
     </div>
   ) : (
     <>

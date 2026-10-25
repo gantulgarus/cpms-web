@@ -101,12 +101,81 @@ export async function request<T>(
     // `migrate:fresh` хийсний дараа) — тэр үед алдаа харуулах нь утгагүй.
     if (response.status === 401) notifyUnauthorized();
 
-    const err = (json as ApiErrorBody | undefined)?.error;
+    /*
+     * Backend нь хоёр хэлбэрээр алдаа буцаадаг: ихэнх нь `{ error: {...} }`
+     * дугтуйтай, харин `abort(422, '…')` нь Laravel-ийн энгийн
+     * `{ message }`. Сүүлийнхийг уншихгүй бол хэрэглэгчид «Request failed
+     * (422)» гэсэн утгагүй мессеж харагдана.
+     */
+    const body = json as (ApiErrorBody & { message?: string }) | undefined;
+    const err = body?.error;
+
     throw new ApiError(
       response.status,
       err?.name ?? "ApiError",
-      err?.message ?? `Request failed (${response.status})`,
+      err?.message ?? body?.message ?? `Request failed (${response.status})`,
       err?.details,
+    );
+  }
+
+  return json as T;
+}
+
+/**
+ * Файл байршуулах — `multipart/form-data`.
+ *
+ * `request()`-ээс тусдаа байх ШАЛТГААН: `Content-Type` толгойг ГАРААР
+ * тавьж болохгүй. Multipart-ын хилийн тэмдэг (`boundary=…`) толгойд
+ * орох ёстой бөгөөд түүнийг зөвхөн хөтөч өөрөө `FormData`-гаас гаргаж
+ * чадна. Гараар `multipart/form-data` гэж бичвэл хил нь алга болж,
+ * сервер талд файл огт уншигдахгүй.
+ *
+ * Алдааны боловсруулалт нь `request()`-тэй ижил: backend нь зарим
+ * алдааг `{ error: {...} }`, зарим алдааг `{ message }` хэлбэрээр
+ * буцаадаг тул хоёуланг нь уншина.
+ */
+export async function upload<T>(
+  path: string,
+  form: FormData,
+  signal?: AbortSignal,
+): Promise<T> {
+  const headers: Record<string, string> = {};
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  let response: Response;
+  try {
+    response = await fetch(buildUrl(path), { method: "POST", headers, body: form, signal });
+  } catch (cause) {
+    if (cause instanceof DOMException && cause.name === "AbortError") throw cause;
+    throw new ApiError(0, "NetworkError", "Could not reach the CPMS server.");
+  }
+
+  const text = await response.text();
+  let json: unknown;
+
+  if (text) {
+    try {
+      json = JSON.parse(text);
+    } catch {
+      throw new ApiError(
+        response.status,
+        "InvalidResponse",
+        `Сервер JSON биш хариу буцаалаа (${response.status}).`,
+      );
+    }
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) notifyUnauthorized();
+
+    const body = json as (ApiErrorBody & { message?: string }) | undefined;
+
+    throw new ApiError(
+      response.status,
+      body?.error?.name ?? "ApiError",
+      body?.error?.message ?? body?.message ?? `Байршуулалт амжилтгүй (${response.status})`,
+      body?.error?.details,
     );
   }
 

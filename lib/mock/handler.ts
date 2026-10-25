@@ -8,17 +8,41 @@
 import {
   createBlock,
   getDb,
+  GROUP_ORDER,
   inspectionsFor,
   mockId,
   MOCK_IDS,
+  MOCK_INSPECTORS,
   pollJob,
   progressFor,
   startApplyJob,
   taktWindow,
 } from "./store";
+import {
+  CONTRACTOR_CATEGORIES,
+  CONTRACTOR_STATUSES,
+  formatQty,
+  MATERIAL_UNITS,
+  missingContractFields,
+} from "@/lib/domain";
 import type {
+  Block,
   BlockSummary,
+  Agreement,
+  BudgetImport,
+  BudgetImportType,
+  ConcreteOrder,
+  ImportReport,
+  MaterialOrder,
+  MaterialOrderKind,
+  MaterialOrderLine,
+  ImportSummary,
+  AgreementDraftLine,
+  Contractor,
+  ExtensionRequest,
   Inspection,
+  InspectionStage,
+  ReviewState,
   ItemCounts,
   StatusCounts,
   ProgressEntry,
@@ -49,13 +73,21 @@ interface MockSession {
   email: string;
   role: string;
   roleLabel: string;
+  /** Албан тушаал — үүргээс өөр. */
+  position: string | null;
   contractorId: string | null;
   canReportProgress: boolean;
   canInspect: boolean;
+  /** 1-р шат хийх эрх — `canInspect`-ээс ӨРГӨН (талбайн инженер орно). */
+  canCheck: boolean;
   canManageContractors: boolean;
+  canAssignInspectors: boolean;
+  canApproveExtensions: boolean;
   canManageUsers: boolean;
   canManageReferenceData: boolean;
   canEditPlan: boolean;
+  /** Мөнгө харах эрх — батлахаас тусдаа. */
+  canSeeMoney: boolean;
   /** Хариуцах блокууд. Хоосон = хязгаарлалтгүй (backend-ийн дүрэм). */
   scopeBlockIds: string[];
 }
@@ -69,20 +101,30 @@ interface MockSession {
  * ажиллана — яг эсрэгээр нь байх ёстой.
  */
 const STAFF_SESSION: MockSession = {
-  id: "usr-seed-1",
-  name: "Б.Батбаяр",
-  email: "director@cpms.test",
-  role: "director",
-  roleLabel: "Захирал",
+  /*
+   * Анхдагч сесс нь АДМИН, захирал БИШ.
+   *
+   * Доорх бүх эрх `true` — админд тэр нь ҮНЭН. Урьд нь энэ сесс захирал
+   * байсан атлаа бүх эрхтэй байв: захирал юу ч батлахгүй болсон тул тэр
+   * нь ХУДАЛ болж, дэлгэцийг буруу мэдээлэл дээр бүтээх эрсдэлтэй.
+   */
+  id: "usr-seed-0",
+  name: "Системийн админ",
+  email: "admin@cpms.test",
+  role: "admin",
+  roleLabel: "Системийн админ",
+  position: null,
   contractorId: null,
-  // Ажилтны сессэд хоёуланг нь `true` болгосон — UI хөгжүүлэхэд мэдээлэх ба
-  // батлах хоёр самбарыг зэрэг харах шаардлагатай.
   canReportProgress: true,
   canInspect: true,
+  canCheck: true,
   canManageContractors: true,
+  canAssignInspectors: true,
+  canApproveExtensions: true,
   canManageUsers: true,
   canManageReferenceData: true,
   canEditPlan: true,
+  canSeeMoney: true,
   scopeBlockIds: [],
 };
 
@@ -101,10 +143,38 @@ const MOCK_ROLES = [
 ];
 
 const REPORTER_ROLES = ["site_engineer", "contractor", "project_manager", "machine_operator"];
-const INSPECTOR_ROLES = ["inspector", "general_engineer", "director", "admin"];
+/** Захирал ОРООГҮЙ — тэр юу ч батладаггүй, зөвхөн хардаг. */
+const INSPECTOR_ROLES = ["inspector", "general_engineer", "admin"];
+/** Хүлээгдэж буй төлвүүд — backend-ийн `WorkItem::PENDING_STATES`. */
+const PENDING_STATES: ReviewState[] = ["pending_check", "pending_approval"];
+/** Буцаагдсан төлвүүд — backend-ийн `WorkItem::RETURNED_STATES`. */
+const RETURNED_STATES: ReviewState[] = ["returned_by_site", "returned_by_final"];
+/** Шат бүрийг хийх эрхтэй үүрэг — backend-ийн `Inspection::STAGE_ROLES`. */
+const STAGE_ROLES: Record<InspectionStage, string[]> = {
+  site_check: ["site_engineer", "inspector", "general_engineer", "project_manager", "admin"],
+  final_approval: ["inspector", "general_engineer", "admin"],
+};
 const UNRESTRICTED_ROLES = ["admin", "director", "general_engineer"];
 /** Хэрэглэгч удирдах эрхтэй үүрэг — backend-ийн `USER_MANAGER_ROLES`. */
-const USER_MANAGER_ROLES = ["admin", "director"];
+/** ЗӨВХӨН АДМИН: үүрэг оноох хүн өөртөө ямар ч эрх өгч чадна. */
+const USER_MANAGER_ROLES = ["admin"];
+/**
+ * Хяналтын инженер оноох эрхтэй үүрэг — backend-ийн `canAssignInspectors`.
+ *
+ * Гүйцэтгэгч оноохоос САЛГАСАН: гүйцэтгэгч нь гэрээний шийдвэр, хяналтын
+ * инженер нь дотоод хуваарилалт.
+ */
+const INSPECTOR_ASSIGNER_ROLES = ["admin", "general_engineer", "project_manager"];
+/** Гүйцэтгэгч оноох эрхтэй үүрэг — backend-ийн `canManageContractors`. */
+const CONTRACTOR_MANAGER_ROLES = ["admin", "project_manager"];
+
+/**
+ * МӨНГӨ харах эрхтэй үүргүүд — backend-ийн `User::canSeeMoney()`.
+ *
+ * Захирал ОРНО (юу ч батлахгүй ч зардлаа мэдэх ёстой), талбайн
+ * инженер ба хяналтын инженер ОРОХГҮЙ.
+ */
+const MONEY_READER_ROLES = ["admin", "director", "general_engineer", "project_manager"];
 
 interface MockUser {
   id: string;
@@ -112,6 +182,13 @@ interface MockUser {
   email: string;
   role: string;
   roleLabel: string;
+  /**
+   * Албан тушаал — системийн үүргээс ТУСДАА.
+   *
+   * Б.Сайхантамир «Гэрээний мэргэжилтэн» атлаа `inspector` үүрэгтэй. Хоёрыг
+   * нэгтгэвэл дөрвөн хяналтын инженерийг дэлгэц дээр ялгах арга үгүй болно.
+   */
+  position?: string | null;
   scopeBlockIds: string[];
   contractorId: string | null;
   isActive: boolean;
@@ -267,6 +344,170 @@ function checklistError(
 
 /** Ажлын нэгжийн id → бүртгэсэн асуудлууд. */
 const mockIssues = new Map<string, MockIssue[]>();
+
+
+
+/**
+ * Тохиролцооны оролтыг шалгана — backend-ийн FormRequest-тэй ижил.
+ *
+ * Мөнгөний дүрмүүд: бартер+бэлэн=100%, үнэ 0-ээс их, мөр заавал, профайл
+ * бүрэн. Нэг нь mock-д дутвал дэлгэц тэр дүрмийг харгалзахгүй бүтээгдэнэ.
+ */
+/**
+ * Тохиролцоо харах эрх.
+ *
+ * Тохиролцоонд МӨНГӨ байна — талбайн инженер, гүйцэтгэгчид хэрэггүй.
+ */
+function canReadAgreements(): boolean {
+  return session.canManageContractors || AGREEMENT_APPROVER_ROLES.includes(session.role);
+}
+
+function agreementPayloadError(p: Record<string, unknown>, contractors: Contractor[]) {
+  const lines = (p.lines as Agreement["lines"]) ?? [];
+
+  if (lines.length === 0) {
+    return fail(422, "ValidationError", "Ажлын мөр заавал — төлбөр бодогдох зүйл байх ёстой.");
+  }
+
+  if (lines.some((l) => !(l.unitPrice > 0))) {
+    return fail(422, "ValidationError", "Нэгж үнэ 0-ээс их байх ёстой.");
+  }
+
+  const sum = Number(p.barterPercent ?? 0) + Number(p.cashPercent ?? 100);
+  if (Math.abs(sum - 100) > 0.01) {
+    return fail(
+      422,
+      "ValidationError",
+      `Бартер ба бэлэн мөнгөний нийлбэр 100% байх ёстой — одоо ${sum}%.`,
+    );
+  }
+
+  const c = contractors.find((x) => x.id === p.contractorId);
+  if (!c) return fail(422, "ValidationError", "Гүйцэтгэгч олдсонгүй.");
+
+  if (c.canTakeWork === false) {
+    return fail(
+      422,
+      "ValidationError",
+      `${c.name} нь «${c.statusLabel}» төлөвтэй — тохиролцоо бичих боломжгүй.`,
+    );
+  }
+
+  const missing = c.missingContractFields ?? [];
+  if (missing.length > 0) {
+    return fail(422, "ValidationError", `Гүйцэтгэгчийн мэдээлэл дутуу: ${missing.join(", ")}.`);
+  }
+
+  return null;
+}
+
+/** Тохиролцоонууд — backend-ийн `agreements` хүснэгт. */
+const mockAgreements = new Map<string, Agreement>();
+
+/** Батлах эрхтэй үүрэг — backend-ийн `Agreement::APPROVER_ROLES`. */
+const AGREEMENT_APPROVER_ROLES = ["admin", "general_engineer"];
+
+/**
+ * Дүнг СЕРВЕР бодно — backend-ийн accessor-уудтай ижил.
+ *
+ * Дэлгэц тоо × үнэ гэж дахин бодвол бөөрөнхийлөл зөрч, нийт дүн мөрүүдийн
+ * нийлбэртэй таарахаа болино. Төлбөрийн баримтад тэр нь хүлээн
+ * зөвшөөрөгдөхгүй.
+ */
+function computeAgreement(a: Agreement): Agreement {
+  const lines = (a.lines ?? []).map((l) => ({
+    ...l,
+    amount: round2(l.quantity * l.unitPrice),
+    budgetAmount: round2(l.quantity * (l.budgetUnitPrice ?? 0)),
+  }));
+
+  const total = round2(lines.reduce((s2, l) => s2 + (l.amount ?? 0), 0));
+  const budget = round2(lines.reduce((s2, l) => s2 + (l.budgetAmount ?? 0), 0));
+
+  a.lines = lines;
+  a.totalAmount = total;
+  a.budgetAmount = budget;
+  a.variancePercent = budget > 0 ? Math.round(((total - budget) / budget) * 1000) / 10 : null;
+  a.retentionAmount = round2((total * a.retentionPercent) / 100);
+  a.statusLabel = AGREEMENT_STATUSES[a.status];
+  a.isEditable = a.status === "draft";
+
+  return a;
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** Төлөв — backend-ийн `Agreement::STATUSES`. */
+const AGREEMENT_STATUSES: Record<string, string> = {
+  draft: "Драфт",
+  active: "Хүчин төгөлдөр",
+  completed: "Дууссан",
+  cancelled: "Цуцлагдсан",
+};
+
+/** Хугацаа сунгах хүсэлтүүд — backend-ийн `extension_requests` хүснэгт. */
+const mockExtensions = new Map<string, ExtensionRequest>();
+
+/** Сунгалт батлах эрхтэй үүрэг — backend-ийн `ExtensionRequest::APPROVER_ROLES`. */
+const EXTENSION_APPROVER_ROLES = ["admin", "general_engineer"];
+
+/**
+ * Хүсэлтийг батлаад огноог хойшлуулна.
+ *
+ * ЗӨВХӨН `plannedEndDate` хөдөлнө. `baselineEndDate` хэвээр — тэр нь
+ * хуваарийн гулсалтыг хэмжих цорын гагц тогтмол цэг. Хоёуланг хөдөлгөвөл
+ * «хэн ч хэзээ ч хоцроогүй» гэсэн зураг гарна.
+ */
+function applyExtension(req: ExtensionRequest, decidedBy: string): void {
+  const item = getDb().byId.get(req.workItemId);
+
+  if (!item) return;
+
+  item.plannedEndDate = req.requestedEndDate;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const since = (date?: string | null) =>
+    date && date < today
+      ? Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${date}T00:00:00Z`)) / 86_400_000)
+      : 0;
+
+  item.overdueDays = item.status === "completed" ? 0 : since(item.plannedEndDate);
+  item.baselineOverdueDays = item.status === "completed" ? 0 : since(item.baselineEndDate);
+  item.extendedDays =
+    item.baselineEndDate && item.plannedEndDate
+      ? Math.max(
+          Math.round(
+            (Date.parse(`${item.plannedEndDate}T00:00:00Z`) -
+              Date.parse(`${item.baselineEndDate}T00:00:00Z`)) /
+              86_400_000,
+          ),
+          0,
+        )
+      : 0;
+
+  // Батлагдсан сунгалт сааталд бүртгэгдэнэ — шалтгаан нэг дор хуримтлагдана.
+  const issue: MockIssue = {
+    id: mockId("iss"),
+    workItemId: item.id,
+    workItemName: item.name,
+    ...issuePlace(item),
+    category: req.category,
+    categoryLabel: ISSUE_LABELS[req.category],
+    severity: "medium",
+    status: "open",
+    description:
+      `Хугацаа сунгав: ${req.currentEndDate ?? "—"} → ${req.requestedEndDate} ` +
+      `(${req.requestedDays} хоног). ${req.reason}`,
+    reportedBy: req.requestedBy?.name ?? decidedBy,
+    createdAt: new Date().toISOString(),
+    resolvedAt: null,
+  };
+  mockIssues.set(item.id, [issue, ...(mockIssues.get(item.id) ?? [])]);
+
+  req.status = "approved";
+  req.decidedBy = { id: session.id, name: decidedBy };
+  req.decidedAt = new Date().toISOString();
+}
 
 interface MockIssue {
   id: string;
@@ -530,20 +771,43 @@ function allIssues(): MockIssue[] {
   return [...mockIssues.values()].flat();
 }
 
-const mockUsers: MockUser[] = ["admin", "director", "inspector", "site_engineer"].map(
-  (role, i) => ({
+const mockUsers: MockUser[] = [
+  ...["admin", "director", "inspector", "site_engineer"].map((role, i) => ({
     id: `usr-seed-${i}`,
     name: MOCK_ROLES.find((r) => r.value === role)!.label,
     email: `${role}@cpms.test`,
     role,
     roleLabel: MOCK_ROLES.find((r) => r.value === role)!.label,
-    scopeBlockIds: [],
+    position: null as string | null,
+    scopeBlockIds: [] as string[],
     contractorId: null,
     isActive: true,
     canReportProgress: REPORTER_ROLES.includes(role),
     canInspect: INSPECTOR_ROLES.includes(role),
-  }),
-);
+  })),
+
+  /*
+   * Төсвөөс оноогддог хяналтын инженерүүд — id нь `store.ts`-ийн
+   * `MOCK_INSPECTORS`-оос. Хоёр файлд тусад нь бичвэл ажлын мөр дээрх
+   * оноолт хэрэглэгчийн жагсаалттай таарахаа болино.
+   *
+   * Б.Сайхантамир «Гэрээний мэргэжилтэн» атлаа `inspector` үүрэгтэй —
+   * жинхэнэ `staff.json`-д ийм байгаа.
+   */
+  ...MOCK_INSPECTORS.map((person) => ({
+    id: person.id,
+    name: person.name,
+    email: `${person.id}@cpms.test`,
+    role: "inspector",
+    roleLabel: MOCK_ROLES.find((r) => r.value === "inspector")!.label,
+    position: person.position as string | null,
+    scopeBlockIds: [] as string[],
+    contractorId: null,
+    isActive: true,
+    canReportProgress: REPORTER_ROLES.includes("inspector"),
+    canInspect: INSPECTOR_ROLES.includes("inspector"),
+  })),
+];
 
 /**
  * Бүртгэлийн мөрөөс нэвтрэлтийн сесс үүсгэнэ.
@@ -556,15 +820,27 @@ function sessionFor(user: MockUser): MockSession {
     id: user.id,
     name: user.name,
     email: user.email,
+    position: user.position ?? null,
     role: user.role,
     roleLabel: user.roleLabel,
     contractorId: user.contractorId,
     canReportProgress: REPORTER_ROLES.includes(user.role),
     canInspect: INSPECTOR_ROLES.includes(user.role),
-    canManageContractors: USER_MANAGER_ROLES.includes(user.role),
+    canCheck: STAGE_ROLES.site_check.includes(user.role),
+    /*
+     * Backend-ийн `canManageContractors()` нь admin, director, project_manager.
+     * Урьд нь энд `USER_MANAGER_ROLES` (admin, director) бичигдсэн байв —
+     * төслийн менежер mock дээр гүйцэтгэгч оноож чаддаггүй, жинхэнэ сервер
+     * дээр чаддаг гэсэн ЗӨРҮҮ. Дэлгэц mock-ийг үзэж бүтээгддэг тул тэр
+     * товчийг нуух шийдвэр чимээгүй гарах эрсдэлтэй байв.
+     */
+    canManageContractors: CONTRACTOR_MANAGER_ROLES.includes(user.role),
+    canAssignInspectors: INSPECTOR_ASSIGNER_ROLES.includes(user.role),
+    canApproveExtensions: EXTENSION_APPROVER_ROLES.includes(user.role),
     canManageUsers: USER_MANAGER_ROLES.includes(user.role),
     canManageReferenceData: UNRESTRICTED_ROLES.includes(user.role),
     canEditPlan: UNRESTRICTED_ROLES.includes(user.role) || user.role === "project_manager",
+    canSeeMoney: MONEY_READER_ROLES.includes(user.role),
     scopeBlockIds: user.scopeBlockIds,
   };
 }
@@ -573,6 +849,7 @@ function contractorSession(id: string, name: string): MockSession {
   return {
     id: `usr-${id}`,
     name,
+    position: "Гүйцэтгэгч байгууллага",
     email: `contractor-${id}@cpms.local`,
     role: "contractor",
     roleLabel: "Туслан гүйцэтгэгч",
@@ -580,7 +857,12 @@ function contractorSession(id: string, name: string): MockSession {
     canReportProgress: true,
     // Гүйцэтгэгч өөрийгөө батлахгүй — backend-тэй ижил.
     canInspect: false,
+    canCheck: false,
+    // Гүйцэтгэгч мөнгөний мэдээлэл харахгүй.
+    canSeeMoney: false,
     canManageContractors: false,
+    canAssignInspectors: false,
+    canApproveExtensions: false,
     canManageUsers: false,
     canManageReferenceData: false,
     // Гүйцэтгэгч төлөвлөгөө засахгүй — тоо хэмжээ бол гэрээний асуудал.
@@ -666,7 +948,9 @@ function avgPercentage(rows: { plannedQty: number; acceptedQty: number }[]): num
 }
 
 /** Төлөвийн тоолол — гурав нь харилцан үл огтлолцоно. */
-function statusCounts(rows: { status: string; plannedQty: number }[]): StatusCounts {
+function statusCounts(
+  rows: { status: string; plannedQty: number; contractor?: { id: string } | null }[],
+): StatusCounts {
   const completedItems = rows.filter((w) => w.status === "completed").length;
   const inProgressItems = rows.filter((w) => w.status === "in_progress").length;
 
@@ -677,6 +961,7 @@ function statusCounts(rows: { status: string; plannedQty: number }[]): StatusCou
     // Эдгээр нь `notStartedItems`-ийн ДОТОР — тусдаа бүлэг биш, харин
     // «яагаад эхлээгүй вэ» гэсэн асуултын хариулт.
     unmeasuredItems: rows.filter((w) => w.plannedQty <= 0).length,
+    unassignedItems: rows.filter((w) => !w.contractor).length,
   };
 }
 
@@ -753,12 +1038,28 @@ function filterWorkItems(items: WorkItem[], q: URLSearchParams): WorkItem[] {
   };
   eq("workTypeId", (w) => w.workTypeId);
   eq("status", (w) => w.status);
-  eq("reviewState", (w) => w.reviewState);
+
+  /*
+   * `reviewState` нь нэг төлөв ЭСВЭЛ бүлэг — backend-тэй ижил.
+   *
+   * Хоёр шат болоход «батлахыг хүлээж буй» хоёр төлөв рүү салсан тул
+   * самбарын карт дарахад хоёуланг нь харуулах хэрэгтэй.
+   */
+  const review = q.get("reviewState");
+  if (review === "pending") rows = rows.filter((w) => PENDING_STATES.includes(w.reviewState));
+  else if (review === "returned") rows = rows.filter((w) => RETURNED_STATES.includes(w.reviewState));
+  else if (review) rows = rows.filter((w) => w.reviewState === review);
 
   // `contractorId=none` — хариуцагч оноогдоогүй ажлууд.
   const contractorId = q.get("contractorId");
   if (contractorId === "none") rows = rows.filter((w) => !w.contractor);
   else if (contractorId) rows = rows.filter((w) => w.contractor?.id === contractorId);
+
+  // `inspectorId=none` — хяналтын инженер оноогдоогүй · `me` — өөрийн ажил.
+  const inspectorId = q.get("inspectorId");
+  if (inspectorId === "none") rows = rows.filter((w) => !w.inspector);
+  else if (inspectorId === "me") rows = rows.filter((w) => w.inspector?.id === session.id);
+  else if (inspectorId) rows = rows.filter((w) => String(w.inspector?.id) === inspectorId);
 
   const groupId = q.get("workTypeGroupId");
   if (groupId) {
@@ -839,7 +1140,7 @@ function summarize(items: WorkItem[], groupBy: SummaryGroupBy): SummaryGroup[] {
         acceptedQty: round(acceptedQty),
         percentage: avgPercentage(b.rows),
         ...statusCounts(b.rows),
-        pendingInspections: b.rows.filter((w) => w.reviewState === "pending").length,
+        pendingInspections: b.rows.filter((w) => PENDING_STATES.includes(w.reviewState)).length,
         overdue: b.rows.filter((w) => w.overdueDays > 0).length,
         plannedStartDate: minDate(b.rows),
         plannedEndDate: maxDate(b.rows),
@@ -856,24 +1157,179 @@ function summarize(items: WorkItem[], groupBy: SummaryGroupBy): SummaryGroup[] {
 const extraProgress = new Map<string, ProgressEntry[]>();
 const extraInspections = new Map<string, Inspection[]>();
 
+const EPSILON = 0.0005;
+
 /**
- * Хянагдах төлөв — backend-ийн `WorkItem::recalculate()`-тэй ЯГ ижил дүрэм.
+ * Шатны «сан» — backend-ийн `WorkItem::stagePool()`-тэй ЯГ ижил.
+ *
+ *   1-р шат: мэдээлсэн − ШАЛГАСАН
+ *   2-р шат: ШАЛГАСАН  − баталсан
+ *
+ * Хоёр шат нэг сангаас идвэл талбайн инженер шалгамагц хяналтын инженерт
+ * батлах юу ч үлдэхгүй — яг тэр шалтгаанаар шат нэг удаа хасагдсан.
+ */
+export function stagePool(item: WorkItem, stage: InspectionStage): number {
+  const single = (item.inspectionStages ?? 2) < 2;
+
+  if (stage === "site_check") {
+    return round(item.reportedQty - (item.checkedQty ?? 0));
+  }
+
+  const source = single ? item.reportedQty : (item.checkedQty ?? 0);
+
+  return round(source - item.acceptedQty);
+}
+
+/**
+ * Хянагдах төлөв — backend-ийн `WorkItem::resolveReviewState()`-тэй ЯГ ижил.
  *
  * `reportedQty` нь ТАТГАЛЗСАН хэмжээг хассан цэвэр дүн тул засвараа дахин
- * мэдээлмэгц хүлээгдэж буй хэмжээ гарч ирж, төлөв нь өөрөө `pending` болно.
+ * мэдээлмэгц хүлээгдэж буй хэмжээ гарч ирж, төлөв нь өөрөө дараалалд
+ * эргэж орно.
  */
 function recalcReview(item: WorkItem) {
   const latest = (extraInspections.get(item.id) ?? [])[0];
-  const pending = item.reportedQty - item.acceptedQty;
 
-  item.reviewState =
-    pending > 0.0005
-      ? "pending"
-      : (latest?.rejectedQty ?? 0) > 0
-        ? "returned"
-        : item.reportedQty <= 0
-          ? "none"
-          : "approved";
+  // Нэг шаттай ажил 1-р шатыг АЛГАСНА — эс бөгөөс тэр төлөвт мөнхөд гацна.
+  const checked = (item.inspectionStages ?? 2) < 2 ? item.reportedQty : (item.checkedQty ?? 0);
+
+  if (checked < item.reportedQty - EPSILON) {
+    item.reviewState = "pending_check";
+
+    return;
+  }
+
+  if (item.acceptedQty < checked - EPSILON) {
+    item.reviewState = "pending_approval";
+
+    return;
+  }
+
+  if ((latest?.rejectedQty ?? 0) > 0) {
+    item.reviewState = latest.stage === "site_check" ? "returned_by_site" : "returned_by_final";
+
+    return;
+  }
+
+  item.reviewState = item.reportedQty <= 0 ? "none" : "approved";
+}
+
+/**
+ * Дараагийн шат ба түүний сан — backend-ийн `WorkItemResource`-тэй ижил.
+ *
+ * Дэлгэц эдгээрийг ӨӨРӨӨ бодохгүй: хуучин томьёогоор бодвол батлах товч
+ * нь шалгагдаагүй хэмжээг санал болгоод сервер татгалзана.
+ */
+/**
+ * Шалгалтын цэгийн хориг — backend-ийн `HoldPointGate`-тэй ИЖИЛ дүрэм.
+ *
+ * Тухайн байршил БА түүний бүх ДЭЭД байршилд, бүлгийн дараалал нь өмнө
+ * байгаа, тоо хэмжээтэй, батлагдаагүй шалгалтын цэг байвал хориглоно.
+ *
+ * Дээд байршлыг заавал хамруулна: цахилгааны шугам нь ДАВХРЫН түвшинд
+ * бүртгэгддэг ч шавардлага нь АЙЛЫН. Зөвхөн ижил байршлыг шалгавал
+ * хориг огт ажиллахгүй — яг тэр тохиолдол бодит төсөвт байна.
+ */
+function holdPointReason(item: WorkItem): string | null {
+  const db = getDb();
+  const order = GROUP_ORDER[item.workType.groupName];
+
+  if (order === undefined) return null;
+
+  // Байршил ба түүний дээд байршлууд.
+  const chain = new Set<string>();
+  let node = db.locations.find((l) => l.id === item.locationId);
+  while (node) {
+    chain.add(node.id);
+    node = node.parentId ? db.locations.find((l) => l.id === node!.parentId) : undefined;
+  }
+
+  const blockers = db.workItems.filter((w) => {
+    if (w.id === item.id || w.blockId !== item.blockId) return false;
+    if (!chain.has(w.locationId)) return false;
+    /*
+     * ДУУСАЛТААР шалгана, төлөвөөр биш — backend-тэй ижил.
+     *
+     * `reviewState === "approved"` нь «хүлээх юм алга» гэсэн утгатай,
+     * «ажил дууссан» гэсэн утгатай БИШ. 100 м шугамын 60-ыг батлуулахад
+     * тэр төлөв үнэн болох ч үлдсэн 40 м тавигдаагүй байна.
+     */
+    if (w.plannedQty <= 0 || w.status === "completed") return false;
+
+    const type = db.workTypes.find((t) => t.id === w.workTypeId);
+    if (!type?.isHoldPoint) return false;
+
+    return (GROUP_ORDER[type.groupName] ?? 99) < order;
+  });
+
+  if (blockers.length === 0) return null;
+
+  // Үлдэгдлийг нэрлэнэ — «батлагдаагүй» гэж орхивол маргаан гарна.
+  const names = blockers
+    .slice(0, 3)
+    .map(
+      (w) =>
+        `${w.name} (${db.locations.find((l) => l.id === w.locationId)?.name})` +
+        ` — ${formatQty(w.remainingQty, w.unit)} үлдсэн`,
+    )
+    .join(", ");
+  const more = blockers.length > 3 ? ` ба бусад ${blockers.length - 3}` : "";
+
+  return (
+    `Шалгалтын цэг батлагдаагүй байна: ${names}${more}. ` +
+    "Далд хийгдэх ажлыг батлуулсны дараа үргэлжлүүлнэ."
+  );
+}
+
+
+/**
+ * РД-ийн давхардлыг шалгана — backend-ийн `unique` дүрэмтэй ижил.
+ *
+ * Нэрээр давхардлыг барих нь хүрэлцэхгүй: «Бетон И дезайн» ба «Бетон И
+ * Дезайн» хоёр өөр мөр болдог. РД нь цорын гагц найдвартай таних тэмдэг.
+ */
+
+/**
+ * Гэрээ цуцлагдсан гүйцэтгэгчид ШИНЭ ажил оноогдохгүй — backend-тэй ижил.
+ *
+ * Оноовол акт нь түүн рүү явж, төлбөр гарах эрсдэлтэй. Хуучин ажлыг нь
+ * хөндөхгүй: түүх, барьцаа, торгууль үлдэх ёстой.
+ */
+function inactiveContractorError(contractorId: string | null | undefined) {
+  if (!contractorId) return null;
+
+  const c = getDb().contractors.find((x) => x.id === contractorId);
+
+  if (c && c.canTakeWork === false) {
+    return fail(
+      422,
+      "ValidationError",
+      `${c.name} нь «${c.statusLabel}» төлөвтэй — шинэ ажил оноох боломжгүй.`,
+    );
+  }
+
+  return null;
+}
+
+function contractorRegError(reg: string | null | undefined, selfId: string | null) {
+  if (!reg) return null;
+
+  const clash = getDb().contractors.find((x) => x.registrationNo === reg && x.id !== selfId);
+
+  return clash
+    ? fail(422, "ValidationError", "Ийм регистрийн дугаартай гүйцэтгэгч аль хэдийн бүртгэгдсэн.")
+    : null;
+}
+
+function applyStage(item: WorkItem) {
+  item.nextStage =
+    item.reviewState === "pending_check"
+      ? "site_check"
+      : item.reviewState === "pending_approval"
+        ? "final_approval"
+        : null;
+
+  item.stagePool = item.nextStage ? stagePool(item, item.nextStage) : 0;
 }
 
 function recalc(item: WorkItem) {
@@ -898,6 +1354,499 @@ function recalc(item: WorkItem) {
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Төсвийн импорт
+// ---------------------------------------------------------------------------
+
+/**
+ * Байршуулсан файлууд — санах ойд.
+ *
+ * Mock нь xlsx ЗАДАЛДАГГҮЙ. Тайланг зохиомлоор үүсгэнэ, харин бүтэц нь
+ * backend-ийнхтэй ЯГ ижил бөгөөд тоонууд нь захиалагчийн ЖИНХЭНЭ файлаас
+ * авсан (273 мөр, 109 эвдэрсэн). Ингэснээр дэлгэц нь «бүх зүйл цэвэр»
+ * гэсэн хуурамч тохиолдол дээр биш, бодит эмх замбараагүй байдал дээр
+ * баригдана.
+ */
+const mockImports: BudgetImport[] = [];
+
+function importReport(
+  block: Block,
+  type: BudgetImportType,
+  applied: boolean,
+  mode: "replace" | "update" = "replace",
+): ImportReport {
+  const report: ImportReport =
+    type === "materials"
+      ? {
+          type,
+          typeLabel: "Материалын төсөв",
+          sheet: "Материалын төсөв",
+          blockId: block.id,
+          blockName: block.name,
+          canApply: true,
+          summary: { sourceRows: 273, planned: 155, rejected: 118, skipped: 11, existing: 0 },
+          sections: [
+            {
+              title: "Материалын өртөг",
+              rows: [
+                { label: "Бодит (төсөв)", value: 1_284_506_200, format: "money" },
+                { label: "Зах зээл", value: 1_357_118_940, format: "money" },
+                { label: "Зөрүү", value: 5.65, format: "percent", tone: "amber" },
+                { label: "Бодит үнэгүй мөр", value: 4, format: "count" },
+                { label: "Зах зээлийн үнэгүй мөр", value: 9, format: "count" },
+              ],
+            },
+            {
+              title: "Холболт",
+              rows: [
+                { label: "Байршлын багана таарсан", value: 20, format: "count" },
+                { label: "Ажилтай холбогдсон мөр", value: 0, format: "count" },
+                {
+                  label: "Ажилгүй мөр",
+                  value: 155,
+                  format: "count",
+                  note: "Импортлогдоно — үнэ, тоо хэмжээ нь үнэн хэвээр.",
+                },
+              ],
+            },
+          ],
+          warnings: [
+            {
+              level: "warn",
+              title: "Зах зээлийн үнэ төсвөөс 5.65% өндөр",
+              items: ["Зөрүү 72,612,740.00₮. Худалдан авалт хийхээс ӨМНӨ шийдэх асуудал."],
+            },
+          ],
+          errors: [
+            { row: 4, code: "2.1.1", name: "Ф8", reason: "Эвдэрсэн нүд: #REF!" },
+            { row: 5, code: "2.1.2", name: "ф10", reason: "Эвдэрсэн нүд: #REF!" },
+            { row: 6, code: "2.1.3", name: "ф12", reason: "Эвдэрсэн нүд: #REF!" },
+            { row: 41, code: "3.1.4", name: "Хөөсөнцөр 50мм", reason: "Тоо хэмжээ олдсонгүй." },
+            { row: 58, code: "4.2.1", name: "Гипсэн хавтан", reason: "Танигдахгүй нэгж «хуудас»." },
+            {
+              row: 92,
+              code: "7.1.1",
+              name: "Керамик плита",
+              reason: "Нийлбэр зөрж байна: файлд 1240, давхруудын нийлбэр 1180.",
+            },
+          ],
+          errorsByReason: [
+            { reason: "Эвдэрсэн нүд", count: 109 },
+            { reason: "Тоо хэмжээ олдсонгүй.", count: 6 },
+            { reason: "Танигдахгүй нэгж", count: 2 },
+            { reason: "Нийлбэр зөрж байна", count: 1 },
+          ],
+        }
+      : {
+          type,
+          typeLabel: "Ажлын хөлсний төсөв",
+          sheet: "Ажлын хөлсний төсөв",
+          blockId: block.id,
+          blockName: block.name,
+          canApply: true,
+          summary: { sourceRows: 64, planned: 1991, rejected: 14, skipped: 0, existing: 0 },
+          sections: [
+            {
+              title: "Хяналт шалгалт хийх инженер",
+              rows: [
+                { label: "Инженер оноогдсон", value: 1143, format: "count" },
+                { label: "Нэр бий ч таарсангүй", value: 0, format: "count" },
+                {
+                  label: "Нэр БАЙХГҮЙ",
+                  value: 848,
+                  format: "count",
+                  note: "Эдгээр мөрийн гүйцэтгэл батлахыг хүлээхэд хэн рүү ч явахгүй.",
+                },
+              ],
+            },
+            {
+              title: "Төсвийн нэгж үнэ",
+              rows: [
+                { label: "Үнэтэй мөр", value: 1923, format: "count" },
+                { label: "Үнэгүй мөр", value: 68, format: "count" },
+                { label: "Нийт төсөв", value: 2_841_339_500, format: "money" },
+              ],
+            },
+          ],
+          warnings: [
+            {
+              level: "warn",
+              title: "Таних боломжгүй хяналтын инженерийн нэр",
+              items: ["Ганаа (4 мөр)"],
+            },
+          ],
+          errors: [
+            { row: 31, code: "13.4", name: "Модон хаалга", reason: "Энэ кодтой ажлын төрөл системд алга." },
+            { row: 32, code: "13.5", name: "Төмөр хаалга", reason: "Энэ кодтой ажлын төрөл системд алга." },
+            { row: 47, code: "15.2", name: "Фасадны амалгаа", reason: "Энэ кодтой ажлын төрөл системд алга." },
+          ],
+          errorsByReason: [{ reason: "Энэ кодтой ажлын төрөл системд алга.", count: 14 }],
+        };
+
+  if (applied) {
+    /*
+     * ШИНЭЧЛЭХ горимд гүйцэтгэл үлдэж, зөрчил гарч болно.
+     *
+     * Mock нь бодит тооцоо хийдэггүй ч ХОЁР ГОРИМЫН ЯЛГААГ харуулах
+     * ёстой — эс бөгөөс дэлгэцийг зөвхөн нэг тохиолдол дээр барина.
+     */
+    report.result =
+      type === "materials"
+        ? { materialsCreated: 155, materialsUpdated: 0, items: 155, quantities: 612 }
+        : mode === "update"
+          ? {
+              items: 1991,
+              withoutQuantity: 0,
+              pruned: 0,
+              created: 12,
+              updated: 1979,
+              conflicts: [
+                {
+                  name: "блокон өрлөг",
+                  location: "5-р давхар",
+                  reportedQty: 400,
+                  newPlannedQty: 300,
+                  unit: "м2",
+                },
+              ],
+            }
+          : { items: 1991, withoutQuantity: 0, pruned: 0, created: 1991, updated: 0, conflicts: [] };
+  }
+
+  return report;
+}
+
+function importEnvelope(
+  record: BudgetImport,
+  block: Block,
+  mode: "replace" | "update" = "replace",
+): MockResponse {
+  return ok({
+    data: record,
+    reports: record.types.map((type) =>
+      importReport(block, type, record.status === "applied", mode),
+    ),
+  });
+}
+
+/**
+ * Файлд ямар төсөв байгааг таана.
+ *
+ * Жинхэнэ сервер ХУУДСЫН НЭРийг уншина. Mock нь xlsx задалдаггүй тул
+ * файлын нэрээр таамаглана — зөвхөн дэлгэц барихад зориулсан орлуулга.
+ * Анхдагч нь ХОЁУЛАА: захиалагчийн жинхэнэ файл яг тийм.
+ */
+function detectImportTypes(fileName: string): BudgetImportType[] {
+  const name = fileName.toLowerCase();
+
+  if (name.includes("material")) return ["materials"];
+  if (name.includes("ajil") || name.includes("hols")) return ["quantities"];
+
+  return ["quantities", "materials"];
+}
+
+/** Түүхийн мөрөнд харуулах нэгтгэсэн дүн. */
+function totalImportSummary(reports: ImportReport[]): ImportSummary {
+  return reports.reduce<ImportSummary>(
+    (total, r) => ({
+      sourceRows: total.sourceRows + r.summary.sourceRows,
+      planned: total.planned + r.summary.planned,
+      rejected: total.rejected + r.summary.rejected,
+      skipped: total.skipped + r.summary.skipped,
+      existing: total.existing + r.summary.existing,
+    }),
+    { sourceRows: 0, planned: 0, rejected: 0, skipped: 0, existing: 0 },
+  );
+}
+
+function importTypeLabel(types: BudgetImportType[]): string {
+  return types
+    .map((t) => (t === "materials" ? "Материалын төсөв" : "Ажлын хөлсний төсөв"))
+    .join(" + ");
+}
+
+// ---------------------------------------------------------------------------
+// Бетон зуурмагийн захиалга
+// ---------------------------------------------------------------------------
+
+/**
+ * Бетоны төсөв — давхар бүрт М250.
+ *
+ * Жинхэнэ систем дээр энэ нь `material_budget_quantities` хүснэгтээс
+ * ирнэ. Mock дээр материалын импорт байхгүй тул давхар бүрт нэг ижил
+ * тоо тавина — хэмжээ нь чухал биш, ҮЛДЭГДЛИЙН ЛОГИК чухал.
+ */
+const MOCK_CONCRETE_MATERIAL = { id: "mat-m250", name: "Давхрын бетон (М250)", grade: "М250" };
+
+const MOCK_CONCRETE_BUDGET = 240;
+
+const mockConcreteOrders: ConcreteOrder[] = [];
+
+/** Захиалга төсөв иддэг төлөвүүд — backend-ийн `COMMITTED_STATES`. */
+const CONCRETE_COMMITTED = ["submitted", "confirmed", "delivered"];
+
+const CONCRETE_WRITER_ROLES = [
+  "site_engineer",
+  "project_manager",
+  "general_engineer",
+  "admin",
+];
+
+const CONCRETE_CONFIRMER_ROLES = ["inspector", "general_engineer", "admin"];
+
+const CONCRETE_STATUS_LABELS: Record<string, string> = {
+  draft: "Драфт",
+  submitted: "Илгээсэн",
+  confirmed: "Баталгаажсан",
+  delivered: "Нийлүүлэгдсэн",
+  cancelled: "Цуцалсан",
+};
+
+/** Нийлүүлэгдсэн бол БОДИТ хэмжээ — backend-ийн `consumedQty()`. */
+function concreteConsumed(order: ConcreteOrder): number {
+  if (!CONCRETE_COMMITTED.includes(order.status)) return 0;
+
+  return order.deliveredQty ?? order.quantity;
+}
+
+function concreteBalance(locationId: string, ignoreId?: string) {
+  const ordered = mockConcreteOrders
+    .filter((o) => o.locationId === locationId && o.id !== ignoreId)
+    .reduce((sum, o) => sum + concreteConsumed(o), 0);
+
+  return {
+    budget: MOCK_CONCRETE_BUDGET,
+    ordered: round(ordered),
+    remaining: round(MOCK_CONCRETE_BUDGET - ordered),
+  };
+}
+
+function concreteIsRush(pourDate: string): boolean {
+  return (new Date(pourDate).getTime() - Date.now()) / 86_400_000 < 3;
+}
+
+/** Хариуд явуулахын өмнө үлдэгдлийн талбаруудыг ШИНЭЧИЛНЭ. */
+function shapeConcrete(order: ConcreteOrder): ConcreteOrder {
+  const balance = concreteBalance(order.locationId, order.id);
+  const thisOrder = order.deliveredQty ?? order.quantity;
+
+  return {
+    ...order,
+    statusLabel: CONCRETE_STATUS_LABELS[order.status] ?? order.status,
+    isEditable: order.status === "draft",
+    isRush: concreteIsRush(order.pourDate),
+    budgetQty: balance.budget,
+    orderedQty: balance.ordered,
+    remainingQty: round(balance.remaining - thisOrder),
+    overBy: Math.max(0, round(thisOrder - balance.remaining)),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Материалын захиалга
+// ---------------------------------------------------------------------------
+
+/**
+ * Материалын төсөв — mock дээрх жишээ жагсаалт.
+ *
+ * Жинхэнэ систем дээр `material_budget_items`-ээс ирнэ. Энд дөрвөн мөр
+ * хангалттай: хэмжээ нь чухал биш, ҮЛДЭГДЛИЙН ЛОГИК чухал.
+ */
+interface MockMaterial {
+  id: string;
+  /** Импортоор орсон мөр нь бүх блокт хамаарна (`null`); гараар
+      нэмсэн нь зөвхөн тухайн блокт. */
+  blockId: string | null;
+  code: string;
+  name: string;
+  grade: string | null;
+  unit: string;
+  budget: number;
+  actualUnitPrice: number | null;
+  marketUnitPrice: number | null;
+  /** Байршлын задаргаа — `{ байршлын нэр: тоо хэмжээ }`. */
+  breakdown: { name: string; qty: number }[] | null;
+}
+
+const MOCK_MATERIALS: MockMaterial[] = [
+  {
+    id: "mat-pum20",
+    blockId: null,
+    code: "2.3.1",
+    name: "20 Пум (200x1200мм)",
+    grade: null,
+    unit: "ш",
+    budget: 508,
+    actualUnitPrice: 27500,
+    marketUnitPrice: 29000,
+    breakdown: null,
+  },
+  {
+    id: "mat-sapud",
+    blockId: null,
+    code: "2.3.10",
+    name: "V2 сапуд",
+    grade: null,
+    unit: "ш",
+    budget: 3902,
+    actualUnitPrice: 27500,
+    marketUnitPrice: 29000,
+    breakdown: null,
+  },
+  {
+    id: "mat-utas",
+    blockId: null,
+    code: "2.5.1",
+    name: "Бэхэлгээний утас",
+    grade: null,
+    unit: "боодол",
+    budget: 215,
+    actualUnitPrice: 27500,
+    marketUnitPrice: 29000,
+    breakdown: null,
+  },
+  {
+    id: "mat-f12",
+    blockId: null,
+    code: "2.1.3",
+    name: "ф12",
+    grade: null,
+    unit: "ш",
+    budget: 2000,
+    actualUnitPrice: 27500,
+    marketUnitPrice: 29000,
+    breakdown: null,
+  },
+];
+
+/** Тухайн блокт харагдах материалын төсөв. */
+function blockMaterials(blockId: string): MockMaterial[] {
+  return MOCK_MATERIALS.filter((m) => m.blockId === null || m.blockId === blockId);
+}
+
+/**
+ * Төсвийн мөрийн гадаад хэлбэр — `BlockBudgetView::materials`-тай ижил.
+ *
+ * Зөрүүг БОДИТ үнээс тооцно: зах зээлийн үнэ бол жишиг, бодит нь
+ * бидний төлж буй зүйл.
+ */
+function shapeBudgetMaterial(m: MockMaterial, floors: { name: string }[]) {
+  const actual = m.actualUnitPrice;
+  const market = m.marketUnitPrice;
+
+  return {
+    id: `mbi-${m.id}`,
+    code: m.code,
+    name: m.name,
+    grade: m.grade,
+    unit: m.unit,
+    workLabel: m.blockId === null ? "Угсралт" : null,
+    workTypeName: null,
+    totalQty: m.budget,
+    actualUnitPrice: actual,
+    marketUnitPrice: market,
+    actualAmount: actual == null ? null : round(actual * m.budget),
+    marketAmount: market == null ? null : round(market * m.budget),
+    variancePercent:
+      actual == null || market == null || actual === 0
+        ? null
+        : Math.round(((market - actual) / actual) * 1000) / 10,
+    locations:
+      m.breakdown ??
+      floors.slice(0, 3).map((l) => ({ name: l.name, qty: round(m.budget / 3) })),
+  };
+}
+
+/** `mbi-<materialId>` → mock материал. */
+function findBudgetItem(itemId: string): MockMaterial | undefined {
+  return MOCK_MATERIALS.find((m) => `mbi-${m.id}` === itemId);
+}
+
+const mockMaterialOrders: MaterialOrder[] = [];
+
+const MATERIAL_COMMITTED = ["submitted", "confirmed", "delivered"];
+
+const MATERIAL_WRITER_ROLES = ["site_engineer", "project_manager", "general_engineer", "admin"];
+
+const MATERIAL_CONFIRMER_ROLES = ["inspector", "general_engineer", "admin"];
+
+const MATERIAL_KINDS: Record<string, string> = {
+  main: "Угсралтын үндсэн материал",
+  aux: "Угсралтын туслах материал",
+  timber: "Угсралтын модон материал",
+  rebar: "Арматур",
+};
+
+/** Ирсэн → зөвшөөрсөн → захиалсан — backend-ийн `consumedQty()`. */
+function materialConsumed(order: MaterialOrder, line: MaterialOrderLine): number {
+  if (!MATERIAL_COMMITTED.includes(order.status)) return 0;
+
+  return line.deliveredQty ?? line.approvedQty ?? line.quantity;
+}
+
+function materialOrdered(blockId: string, materialId: string, ignoreId?: string): number {
+  let total = 0;
+
+  for (const order of mockMaterialOrders) {
+    if (order.blockId !== blockId || order.id === ignoreId) continue;
+
+    for (const line of order.lines) {
+      if (line.materialId === materialId) total += materialConsumed(order, line);
+    }
+  }
+
+  return round(total);
+}
+
+function materialBalanceRows(blockId: string, ignoreId?: string) {
+  return blockMaterials(blockId).map((m) => {
+    const ordered = materialOrdered(blockId, m.id, ignoreId);
+
+    return {
+      materialId: m.id,
+      code: m.code,
+      name: m.name,
+      unit: m.unit,
+      budget: m.budget,
+      ordered,
+      remaining: round(m.budget - ordered),
+      overBy: Math.max(0, round(ordered - m.budget)),
+    };
+  });
+}
+
+/** Хариуд явуулахын өмнө үлдэгдлийн талбаруудыг ШИНЭЧИЛНЭ. */
+function shapeMaterialOrder(order: MaterialOrder): MaterialOrder {
+  const balances = new Map(
+    materialBalanceRows(order.blockId, order.id).map((r) => [r.materialId, r]),
+  );
+
+  const lines = order.lines.map((l) => {
+    const b = l.materialId ? balances.get(l.materialId) : undefined;
+    const asked = l.approvedQty ?? l.quantity;
+
+    return {
+      ...l,
+      totalWeightKg: l.unitWeightKg != null ? round(l.unitWeightKg * asked) : null,
+      budgetQty: b?.budget ?? null,
+      orderedQty: b?.ordered ?? null,
+      remainingQty: b ? round(b.remaining - asked) : null,
+      overBy: b ? Math.max(0, round(asked - b.remaining)) : 0,
+    };
+  });
+
+  return {
+    ...order,
+    kindLabel: MATERIAL_KINDS[order.kind] ?? order.kind,
+    isRebar: order.kind === "rebar",
+    statusLabel: CONCRETE_STATUS_LABELS[order.status] ?? order.status,
+    isEditable: order.status === "draft",
+    lineCount: lines.length,
+    overLineCount: lines.filter((l) => l.overBy > 0).length,
+    lines,
+  };
+}
+
 export function handleMock(
   method: string,
   segments: string[],
@@ -962,14 +1911,29 @@ export function handleMock(
   if (a === "contractors") {
     if (!b) {
       if (method === "POST") {
-        const p = body as { name?: string; tradeSpecialty?: string };
-        const created = {
+        if (!session.canManageContractors) {
+          return fail(403, "Forbidden", "Танд гүйцэтгэгч нэмэх эрх байхгүй.");
+        }
+
+        const p = body as Partial<Contractor>;
+        const dup = contractorRegError(p.registrationNo, null);
+        if (dup) return dup;
+
+        const created: Contractor = {
           id: mockId("ctr"),
           name: p?.name ?? "Шинэ гүйцэтгэгч",
-          tradeSpecialty: p?.tradeSpecialty,
+          registrationNo: p.registrationNo ?? null,
+          tradeSpecialty: p?.tradeSpecialty ?? null,
+          category: p.category ?? null,
+          categoryLabel: p.category ? CONTRACTOR_CATEGORIES[p.category] : null,
+          status: "active",
+          statusLabel: CONTRACTOR_STATUSES.active,
+          canTakeWork: true,
+          phone: p.phone ?? null,
           accessCode: null,
           accessCodeExpiresAt: null,
           hasValidAccessCode: false,
+          missingContractFields: missingContractFields(p),
         };
         db.contractors.push(created);
 
@@ -983,6 +1947,53 @@ export function handleMock(
     }
     const contractor = db.contractors.find((x) => x.id === b);
     if (!contractor) return fail(404, "NotFound", "Гүйцэтгэгч олдсонгүй.");
+
+    /*
+     * Профайл засах — backend-тэй ижил.
+     *
+     * ЗӨВХӨН илгээсэн талбарыг хөндөнө. Бүх талбарыг дарж бичвэл дэлгэц
+     * утас засахад РД, данс цэвэрлэгдэнэ.
+     */
+    if (!c && method === "PATCH") {
+      if (!session.canManageContractors) {
+        return fail(403, "Forbidden", "Танд гүйцэтгэгч засах эрх байхгүй.");
+      }
+
+      const p = body as Partial<Contractor>;
+
+      if ("registrationNo" in p) {
+        if (p.registrationNo && !/^\d{7}$/.test(p.registrationNo)) {
+          return fail(422, "ValidationError", "Регистрийн дугаар 7 орон байх ёстой.");
+        }
+        const dup = contractorRegError(p.registrationNo, contractor.id);
+        if (dup) return dup;
+      }
+
+      for (const key of [
+        "name",
+        "companyName",
+        "registrationNo",
+        "tradeSpecialty",
+        "category",
+        "status",
+        "contactPerson",
+        "phone",
+        "email",
+        "bankName",
+        "bankAccount",
+      ] as const) {
+        if (key in p) (contractor as unknown as Record<string, unknown>)[key] = p[key] ?? null;
+      }
+
+      contractor.categoryLabel = contractor.category
+        ? CONTRACTOR_CATEGORIES[contractor.category]
+        : null;
+      contractor.statusLabel = CONTRACTOR_STATUSES[contractor.status ?? "active"];
+      contractor.canTakeWork = (contractor.status ?? "active") === "active";
+      contractor.missingContractFields = missingContractFields(contractor);
+
+      return ok({ data: contractor });
+    }
     // v1 дэлгэц гүйцэтгэгчийн төслүүдийг асуудаг — v2-д блокоор буцаана.
     if (c === "projects") return ok({ data: [], meta: { total: 0, page: 1, pageSize: 50 } });
 
@@ -1002,6 +2013,32 @@ export function handleMock(
 
   // --- хэрэглэгч (админ) ---
   if (a === "users") {
+    /*
+     * `/users/inspectors` нь `canManageUsers`-ийн ӨМНӨ шалгагдана.
+     *
+     * Хяналтын инженер оноох эрх нь ерөнхий инженер, төслийн менежерт бас
+     * бий. Тэднийг доорх хориг нь 403 гэж хаявал сонгох цонх хоосон гарч,
+     * бүхэл функц нь зөвхөн админ дээр ажиллана — дэлгэцээс харагдахгүй,
+     * зөвхөн жинхэнэ хэрэглэгч гарт тулж мэдэх алдаа.
+     */
+    if (b === "inspectors") {
+      if (!INSPECTOR_ASSIGNER_ROLES.includes(session.role)) {
+        return fail(403, "Forbidden", "Танд хяналтын инженер оноох эрх байхгүй.");
+      }
+
+      return ok({
+        data: mockUsers
+          .filter((u) => u.isActive && u.canInspect)
+          .sort((x, y) => x.name.localeCompare(y.name))
+          .map((u) => ({
+            id: u.id,
+            name: u.name,
+            position: u.position ?? null,
+            roleLabel: u.roleLabel,
+          })),
+      });
+    }
+
     if (!session.canManageUsers) {
       return fail(403, "Forbidden", "Танд хэрэглэгч удирдах эрх байхгүй.");
     }
@@ -1179,6 +2216,35 @@ export function handleMock(
     });
   }
 
+  /*
+   * Ижил «код + бүрдэл» хоёр удаа бүртгэгдэхээс сэргийлнэ.
+   *
+   * Импорт нь `код → төрөл` толь барьж, кодыг ЭХЛЭЭД таарсан төрөлд
+   * олгодог. Хоёр төрөл ижил кодтой бол хоёр дахь нь хэзээ ч
+   * сонгогдохгүй — чимээгүй, бас барихад хэцүү алдаа.
+   */
+  function duplicateCode(
+    code: string | null,
+    part: string | null,
+    ignoreId?: string,
+  ): MockResponse | null {
+    if (code === null) return null;
+
+    const clash = db.workTypes.some(
+      (w) => w.id !== ignoreId && w.code === code && (w.codePart ?? null) === part,
+    );
+
+    if (!clash) return null;
+
+    return fail(
+      422,
+      "ValidationError",
+      part === null
+        ? `«${code}» кодтой ажлын төрөл аль хэдийн байна. Нэг кодыг хэд хуваах бол бүрдлийн нэрийг нь бичнэ үү.`
+        : `«${code} · ${part}» аль хэдийн бүртгэгдсэн байна.`,
+    );
+  }
+
   if (a === "work-types" && !b) {
     if (method === "POST") {
       if (!session.canManageReferenceData) {
@@ -1187,6 +2253,8 @@ export function handleMock(
       const p = body as {
         groupId?: string;
         name?: string;
+        code?: string;
+        codePart?: string;
         unit?: string;
         level?: string;
       };
@@ -1194,12 +2262,20 @@ export function handleMock(
         return fail(422, "ValidationError", "Нэр ба нэгж заавал.");
       }
 
+      const code = p.code?.trim() || null;
+      const codePart = p.codePart?.trim() || null;
+
+      const clash = duplicateCode(code, codePart);
+      if (clash) return clash;
+
       const group = db.groups.find((g) => g.id === p.groupId) ?? db.groups[0];
       const newType = {
         id: mockId("wt"),
         groupId: group.id,
         groupName: group.name,
         name: p.name.trim(),
+        code,
+        codePart,
         unit: p.unit.trim(),
         level: (p.level ?? "floor") as WorkType["level"],
       };
@@ -1216,9 +2292,92 @@ export function handleMock(
     const groupId = q.get("groupId");
     if (groupId) rows = rows.filter((w) => w.groupId === groupId);
     const s = q.get("search")?.toLowerCase();
-    if (s) rows = rows.filter((w) => w.name.toLowerCase().includes(s));
+    // Кодоор ч хайна — инженер төсвийн мөрөө гартаа барьж суудаг.
+    if (s) {
+      rows = rows.filter((w) =>
+        [w.name, w.code ?? "", w.codePart ?? ""].some((v) => v.toLowerCase().includes(s)),
+      );
+    }
 
     return ok(paginate(rows, q));
+  }
+
+  if (a === "work-types" && b && method === "PATCH") {
+    if (!session.canManageReferenceData) {
+      return fail(403, "Forbidden", "Танд лавлах сан засах эрх байхгүй.");
+    }
+
+    const type = db.workTypes.find((w) => w.id === b);
+    if (!type) return fail(404, "NotFound", "Ажлын төрөл олдсонгүй.");
+
+    const p = body as Partial<{
+      name: string;
+      groupId: string;
+      code: string;
+      codePart: string;
+      unit: string;
+      level: string;
+    }>;
+
+    if (p.name !== undefined && !p.name.trim()) {
+      return fail(422, "ValidationError", "Нэр заавал.");
+    }
+
+    /*
+     * НЭГЖ ба ТҮВШИН нь ашиглагдаж эхэлсний дараа түгжигдэнэ.
+     *
+     * Тэдгээр нь аль хэдийн үүссэн ажлын мөрүүдэд шингэсэн: «м²» гэж
+     * бүртгэсэн 3,290 мөрийг «ш» болгон дахин тайлбарлах боломжгүй.
+     */
+    const inUse = db.workItems.some((i) => i.workTypeId === type.id);
+    if (inUse) {
+      for (const [field, label] of [
+        ["unit", "нэгж"],
+        ["level", "түвшин"],
+      ] as const) {
+        const next = p[field];
+        if (next !== undefined && next !== type[field]) {
+          return fail(
+            409,
+            "Conflict",
+            `Энэ төрлөөр ажил үүссэн тул ${label} өөрчлөх боломжгүй. Шинэ төрөл үүсгэнэ үү.`,
+          );
+        }
+      }
+    }
+
+    /*
+     * КОД нь ашиглагдсан ч засагдана.
+     *
+     * Нэгж, түвшнээс ялгаатай нь код нь үүссэн ажлын мөрүүдэд
+     * шингэдэггүй — зөвхөн ДАРААГИЙН импортод хэрэглэгдэнэ. Хоосон
+     * илгээвэл арилна.
+     */
+    const nextCode = p.code !== undefined ? p.code.trim() || null : (type.code ?? null);
+    const nextPart =
+      p.codePart !== undefined ? p.codePart.trim() || null : (type.codePart ?? null);
+
+    if (p.code !== undefined || p.codePart !== undefined) {
+      const clash = duplicateCode(nextCode, nextPart, type.id);
+      if (clash) return clash;
+
+      type.code = nextCode;
+      type.codePart = nextPart;
+    }
+
+    if (p.name !== undefined) type.name = p.name.trim();
+    if (p.unit !== undefined) type.unit = p.unit.trim();
+    if (p.level !== undefined) type.level = p.level as WorkType["level"];
+    if (p.groupId !== undefined) {
+      const group = db.groups.find((g) => g.id === p.groupId);
+      if (!group) return fail(422, "ValidationError", "Бүлэг олдсонгүй.");
+      type.groupId = group.id;
+      // Бүлгийн НЭР нь мөрөнд хуулагдаж хадгалагддаг тул хамт шинэчилнэ —
+      // эс бөгөөс жагсаалт хуучин бүлгийн нэрийг харуулсаар байна.
+      type.groupName = group.name;
+    }
+
+    return ok({ data: type });
   }
 
   if (a === "work-types" && b && method === "DELETE") {
@@ -1279,6 +2438,44 @@ export function handleMock(
   }
 
   if (a === "projects" && b) {
+    if (c === "material-orders" && method === "GET") {
+      if (session.role === "contractor") {
+        return fail(403, "Forbidden", "Танд материалын захиалга харах эрх байхгүй.");
+      }
+
+      const status = q.get("status");
+      const kind = q.get("kind");
+      const blockId = q.get("blockId");
+
+      return ok({
+        data: mockMaterialOrders
+          .filter(
+            (o) =>
+              (!status || o.status === status) &&
+              (!kind || o.kind === kind) &&
+              (!blockId || o.blockId === blockId),
+          )
+          .map(shapeMaterialOrder)
+          .reverse(),
+      });
+    }
+
+    if (c === "concrete-orders" && method === "GET") {
+      if (session.role === "contractor") {
+        return fail(403, "Forbidden", "Танд бетон захиалга харах эрх байхгүй.");
+      }
+
+      const status = q.get("status");
+      const blockId = q.get("blockId");
+
+      return ok({
+        data: mockConcreteOrders
+          .filter((o) => (!status || o.status === status) && (!blockId || o.blockId === blockId))
+          .map(shapeConcrete)
+          .sort((x, y) => y.pourDate.localeCompare(x.pourDate)),
+      });
+    }
+
     if (c === "blocks") {
       if (method === "POST") {
         const p = body as {
@@ -1377,11 +2574,11 @@ export function handleMock(
               plannedQty: round(p),
               reportedQty: round(rows.reduce((s, w) => s + w.reportedQty, 0)),
               acceptedQty: round(acc),
-              pendingInspections: rows.filter((w) => w.reviewState === "pending").length,
+              pendingInspections: rows.filter((w) => PENDING_STATES.includes(w.reviewState)).length,
               overdue: rows.filter((w) => w.overdueDays > 0).length,
             };
           }),
-        pendingInspections: items.filter((w) => w.reviewState === "pending").length,
+        pendingInspections: items.filter((w) => PENDING_STATES.includes(w.reviewState)).length,
         // Босго нь блокийн картынхтай ИЖИЛ байх ёстой (`> 0`). Урьд нь энд
         // `>= 3` байсан тул самбар "52 хоцорсон" гэж бичээд, блокуудын нийлбэр
         // 56 гардаг байв — хэрэглэгч алины нь зөв болохыг мэдэхгүй.
@@ -1400,7 +2597,7 @@ export function handleMock(
     }
 
     if (c === "inspections") {
-      const rows = inScope(db.workItems).filter((w) => w.reviewState === "pending");
+      const rows = inScope(db.workItems).filter((w) => PENDING_STATES.includes(w.reviewState));
       return ok(paginate(rows, q));
     }
 
@@ -1423,7 +2620,13 @@ export function handleMock(
         return fail(422, "ValidationError", "Дуусах огноо эхлэхээсээ өмнө байж болохгүй.");
       }
 
-      const stage = q.get("stage") ?? "client";
+      /*
+       * Акт нь ЗӨВХӨН 2-р шатаар гарна — backend-тэй ижил анхдагч.
+       *
+       * 1-р шат (талбайн инженер шалгасан) нь акт биш: тэр хэмжээг
+       * хяналтын инженер хараахан баталгаажуулаагүй.
+       */
+      const stage = q.get("stage") ?? "final_approval";
       const contractorId = q.get("contractorId");
       const blockId = q.get("blockId");
 
@@ -1508,29 +2711,97 @@ export function handleMock(
 
     // --- "Надаас юу хүлээж байна" дараалал ---
     if (c === "queue") {
+      /*
+       * Хоёр шат болсон тул «батлахыг хүлээж буй» нь ХЭНИЙГ хүлээж
+       * байгаагаас хамаарч хоёр өөр дараалал — backend-тэй ижил.
+       *
+       * Нэг жагсаалт хуваалцвал талбайн инженер ба хяналтын инженер
+       * хоёулаа 3,711 мөрийг шүүж өөрийнхөө ажлыг хайх болно.
+       */
+      /*
+       * Блокын шүүлтүүр — ЖАГСААЛТ ба ТООНД хоёуланд нь.
+       *
+       * Зөвхөн нэгэнд нь хэрэглэвэл таб дээр «12» гэж бичигдээд
+       * жагсаалтад 3 мөр гарч, хэрэглэгч алдаа гэж бодно.
+       */
+      const onlyBlock = q.get("blockId");
+
       const pick = (t: string) =>
-        inScope(db.workItems).filter((w) =>
-          t === "returned"
-            ? w.reviewState === "returned"
-            : t === "overdue"
-              ? w.overdueDays > 0 && w.status !== "completed"
-              : w.reviewState === "pending",
-        );
+        inScope(db.workItems).filter((w) => {
+          if (onlyBlock && w.blockId !== onlyBlock) return false;
+          if (t === "check") return w.reviewState === "pending_check";
+          if (t === "approval") return w.reviewState === "pending_approval";
+          if (t === "returned") return RETURNED_STATES.includes(w.reviewState);
+          if (t === "overdue") return w.overdueDays > 0 && w.status !== "completed";
+
+          return PENDING_STATES.includes(w.reviewState);
+        });
 
       // Табын тоо ба жагсаалт өөр код замаар бодогдвол зөрнө — нэг эх сурвалж.
       if (segments[3] === "counts") {
         return ok({
           data: {
             inspection: pick("inspection").length,
+            check: pick("check").length,
+            approval: pick("approval").length,
             returned: pick("returned").length,
             overdue: pick("overdue").length,
           },
         });
       }
 
-      const rows = pick(q.get("type") ?? "inspection");
+      /*
+       * Блокийн НЭРийг хавсаргана — backend-ийн `WorkItemResource`
+       * дарааллын дуудлагад `blockName` буцаадаг. Үгүй бол дэлгэц дээр
+       * «—» гарч, аль барилгынх болох нь мэдэгдэхгүй.
+       */
+      const blockNames = new Map(db.blocks.map((b) => [b.id, b.name]));
+
+      const rows = pick(q.get("type") ?? "inspection").map((w) => ({
+        ...w,
+        blockName: blockNames.get(w.blockId) ?? null,
+      }));
 
       return ok(paginate(rows, q));
+    }
+
+    // --- Тохиролцооны жагсаалт (төслийн хэмжээнд) ---
+    if (c === "agreements" && method === "GET") {
+      if (!canReadAgreements()) {
+        return fail(403, "Forbidden", "Танд тохиролцоо харах эрх байхгүй.");
+      }
+
+      const blockIds = new Set(db.blocks.map((x) => x.id));
+      const status = q.get("status");
+      const contractorId = q.get("contractorId");
+
+      const rows = [...mockAgreements.values()]
+        .filter((x) => blockIds.has(x.blockId))
+        .filter((x) => !status || x.status === status)
+        .filter((x) => !contractorId || x.contractorId === contractorId)
+        .sort((x, y) => y.number.localeCompare(x.number));
+
+      return ok({ data: rows });
+    }
+
+    /*
+     * --- Хугацаа сунгах хүсэлтийн дараалал ---
+     *
+     * Хүсэлт хаана ч харагдахгүй бол урсгал нь байхгүйтэй адил: гүйцэтгэгч
+     * хүсэлт илгээгээд хариу хүлээж, ерөнхий инженер түүнийг хэзээ ч
+     * хардаггүй.
+     */
+    if (c === "extension-requests" && method === "GET") {
+      const status = q.get("status") ?? "pending";
+      const visible = new Set(inScope(db.workItems).map((w) => w.id));
+
+      const rows = [...mockExtensions.values()]
+        .filter((x) => visible.has(x.workItemId))
+        .filter((x) => status === "all" || x.status === status)
+        // Хамгийн эрт хүссэн нь дээр — хүлээлт нь эрэмбийн шалгуур.
+        .sort((a2, b2) => (a2.createdAt ?? "").localeCompare(b2.createdAt ?? ""));
+
+      return ok({ data: rows });
     }
 
     // --- Асуудал (төслийн хэмжээнд) ---
@@ -1572,7 +2843,335 @@ export function handleMock(
     return ok({ data: issue });
   }
 
+  /*
+   * --- Материалын төсвийн мөр: үнэ засах, хасах ---
+   *
+   * Импорт эвдэрсэн нүдтэй мөрийг УНАГААДАГ тул гараар нөхөх зам
+   * хэрэгтэй. Үүний эсрэг тал нь гараар хасах — гэхдээ ЗАХИАЛГАТАЙ
+   * материалыг хасуулахгүй, эс бөгөөс үлдэгдэл утгагүй болно.
+   */
+  if (a === "material-budget-items" && b) {
+    if (!session.canManageReferenceData) {
+      return fail(403, "Forbidden", "Төсөв засах эрх зөвхөн ерөнхий инженер, админд байна.");
+    }
+
+    const item = findBudgetItem(b);
+    if (!item) return fail(404, "NotFound", "Төсвийн мөр олдсонгүй.");
+
+    if (c === "price" && method === "PATCH") {
+      const p = body as { actualUnitPrice?: number | null; marketUnitPrice?: number | null };
+
+      for (const key of ["actualUnitPrice", "marketUnitPrice"] as const) {
+        if (!(key in p)) continue;
+
+        const price = p[key] ?? null;
+
+        // 0 ≠ хоосон: «үнэгүй» ба «үнэ нь мэдэгдэхгүй» хоёр өөр зүйл.
+        if (price !== null && !(price > 0)) {
+          return fail(
+            422,
+            "ValidationError",
+            "Нэгж үнэ 0-ээс их байх ёстой. Арилгах бол хоосон үлдээнэ үү.",
+          );
+        }
+
+        item[key] = price;
+      }
+
+      const floors = item.blockId
+        ? db.locations.filter((l) => l.blockId === item.blockId && l.level === "floor")
+        : [];
+
+      return ok({ data: shapeBudgetMaterial(item, floors) });
+    }
+
+    if (!c && method === "DELETE") {
+      const ordered = mockMaterialOrders.some((o) =>
+        o.lines.some(
+          (l) => l.materialId === item.id && MATERIAL_COMMITTED.includes(o.status),
+        ),
+      );
+
+      if (ordered) {
+        return fail(
+          422,
+          "ValidationError",
+          "Энэ материалаар захиалга өгсөн тул төсвөөс хасах боломжгүй.",
+        );
+      }
+
+      MOCK_MATERIALS.splice(MOCK_MATERIALS.indexOf(item), 1);
+
+      return ok({ data: { deleted: true } });
+    }
+  }
+
   // --- blocks ---
+  // --- Материалын захиалга ---
+  if (a === "material-orders" && b) {
+    if (session.role === "contractor") {
+      return fail(403, "Forbidden", "Танд материалын захиалга харах эрх байхгүй.");
+    }
+
+    const order = mockMaterialOrders.find((o) => o.id === b);
+    if (!order) return fail(404, "NotFound", "Захиалга олдсонгүй.");
+
+    const writable = MATERIAL_WRITER_ROLES.includes(session.role);
+
+    if (!c && method === "GET") return ok({ data: shapeMaterialOrder(order) });
+
+    if (c === "submit" && method === "POST") {
+      if (!writable) return fail(403, "Forbidden", "Танд материалын захиалга бичих эрх байхгүй.");
+      if (order.status !== "draft") {
+        return fail(422, "ValidationError", "Зөвхөн драфт захиалгыг илгээнэ.");
+      }
+
+      order.status = "submitted";
+      order.submittedAt = new Date().toISOString();
+
+      return ok({ data: shapeMaterialOrder(order) });
+    }
+
+    if (c === "confirm" && method === "POST") {
+      if (!MATERIAL_CONFIRMER_ROLES.includes(session.role)) {
+        return fail(
+          403,
+          "Forbidden",
+          "Захиалгыг зөвхөн хяналтын инженер, ерөнхий инженер баталгаажуулна.",
+        );
+      }
+
+      if (order.status !== "submitted") {
+        return fail(422, "ValidationError", "Зөвхөн илгээсэн захиалгыг баталгаажуулна.");
+      }
+
+      if (order.requestedBy === session.name) {
+        return fail(
+          422,
+          "ValidationError",
+          "Захиалга өгсөн хүн өөрөө баталгаажуулах боломжгүй — өөр инженер батална.",
+        );
+      }
+
+      /*
+       * Өгөөгүй мөр ЗАХИАЛСАНААРАА батлагдана — бланкны зан төлөв.
+       * Баталгаажуулагч зөвхөн бууруулахыг хүссэн мөрөө бичнэ.
+       */
+      const approved = (body as { approved?: Record<string, number> })?.approved ?? {};
+
+      for (const line of order.lines) {
+        line.approvedQty = round(Number(approved[line.id] ?? line.quantity));
+      }
+
+      order.status = "confirmed";
+      order.confirmedBy = session.name;
+      order.confirmedAt = new Date().toISOString();
+
+      return ok({ data: shapeMaterialOrder(order) });
+    }
+
+    if (c === "deliver" && method === "POST") {
+      if (!writable) return fail(403, "Forbidden", "Танд материалын захиалга бичих эрх байхгүй.");
+      if (!["submitted", "confirmed"].includes(order.status)) {
+        return fail(422, "ValidationError", "Зөвхөн илгээсэн эсвэл баталгаажсан захиалгыг хүлээж авна.");
+      }
+
+      const delivered = (body as { delivered?: Record<string, number> })?.delivered ?? {};
+
+      if (Object.keys(delivered).length === 0) {
+        return fail(422, "ValidationError", "Ирсэн тоог оруулна уу.");
+      }
+
+      for (const line of order.lines) {
+        if (line.id in delivered) line.deliveredQty = round(Number(delivered[line.id]));
+      }
+
+      order.status = "delivered";
+      order.receivedBy = session.name;
+
+      return ok({ data: shapeMaterialOrder(order) });
+    }
+
+    if (c === "cancel" && method === "POST") {
+      if (!writable) return fail(403, "Forbidden", "Танд материалын захиалга бичих эрх байхгүй.");
+      if (order.status === "delivered") {
+        return fail(422, "ValidationError", "Нийлүүлэгдсэн захиалгыг цуцлах боломжгүй.");
+      }
+
+      const reason = String((body as { reason?: string })?.reason ?? "").trim();
+
+      if (reason.length < 5) {
+        return fail(422, "ValidationError", "Цуцлах шалтгаан заавал.");
+      }
+
+      order.status = "cancelled";
+      order.notes = `${order.notes ? order.notes + "\n" : ""}Цуцлав: ${reason}`;
+
+      return ok({ data: shapeMaterialOrder(order) });
+    }
+  }
+
+  // --- Бетон захиалга ---
+  if (a === "concrete-orders" && b) {
+    if (session.role === "contractor") {
+      return fail(403, "Forbidden", "Танд бетон захиалга харах эрх байхгүй.");
+    }
+
+    const order = mockConcreteOrders.find((o) => o.id === b);
+    if (!order) return fail(404, "NotFound", "Захиалга олдсонгүй.");
+
+    const writable = CONCRETE_WRITER_ROLES.includes(session.role);
+
+    if (!c && method === "GET") return ok({ data: shapeConcrete(order) });
+
+    if (c === "submit" && method === "POST") {
+      if (!writable) return fail(403, "Forbidden", "Танд бетон захиалга бичих эрх байхгүй.");
+      if (order.status !== "draft") {
+        return fail(422, "ValidationError", "Зөвхөн драфт захиалгыг илгээнэ.");
+      }
+
+      order.status = "submitted";
+      order.submittedAt = new Date().toISOString();
+
+      return ok({ data: shapeConcrete(order) });
+    }
+
+    if (c === "confirm" && method === "POST") {
+      if (!CONCRETE_CONFIRMER_ROLES.includes(session.role)) {
+        return fail(
+          403,
+          "Forbidden",
+          "Захиалгыг зөвхөн хяналтын инженер, ерөнхий инженер, захирал баталгаажуулна.",
+        );
+      }
+
+      if (order.status !== "submitted") {
+        return fail(422, "ValidationError", "Зөвхөн илгээсэн захиалгыг баталгаажуулна.");
+      }
+
+      /*
+       * Захиалсан хүн ӨӨРӨӨ баталгаажуулахгүй — бланк дээр хоёр өөр
+       * инженерийн гарын үсэг байдаг нь санамсаргүй биш.
+       */
+      if (order.requestedBy === session.name) {
+        return fail(
+          422,
+          "ValidationError",
+          "Захиалга өгсөн хүн өөрөө баталгаажуулах боломжгүй — өөр инженер батална.",
+        );
+      }
+
+      order.status = "confirmed";
+      order.confirmedBy = session.name;
+      order.confirmedAt = new Date().toISOString();
+
+      return ok({ data: shapeConcrete(order) });
+    }
+
+    if (c === "deliver" && method === "POST") {
+      if (!writable) return fail(403, "Forbidden", "Танд бетон захиалга бичих эрх байхгүй.");
+      if (!["submitted", "confirmed"].includes(order.status)) {
+        return fail(422, "ValidationError", "Зөвхөн илгээсэн эсвэл баталгаажсан захиалгыг хүлээж авна.");
+      }
+
+      const qty = Number((body as { deliveredQty?: number })?.deliveredQty);
+
+      if (!(qty > 0)) {
+        return fail(422, "ValidationError", "Ирсэн хэмжээ 0-ээс их байх ёстой.");
+      }
+
+      order.status = "delivered";
+      order.deliveredQty = round(qty);
+      order.deliveredAt =
+        (body as { deliveredAt?: string })?.deliveredAt ?? new Date().toISOString().slice(0, 10);
+      order.receivedBy = session.name;
+
+      return ok({ data: shapeConcrete(order) });
+    }
+
+    if (c === "cancel" && method === "POST") {
+      if (!writable) return fail(403, "Forbidden", "Танд бетон захиалга бичих эрх байхгүй.");
+      if (order.status === "delivered") {
+        return fail(422, "ValidationError", "Нийлүүлэгдсэн захиалгыг цуцлах боломжгүй.");
+      }
+
+      const reason = String((body as { reason?: string })?.reason ?? "").trim();
+
+      if (reason.length < 5) {
+        return fail(422, "ValidationError", "Цуцлах шалтгаан заавал.");
+      }
+
+      order.status = "cancelled";
+      order.notes = `${order.notes ? order.notes + "\n" : ""}Цуцлав: ${reason}`;
+
+      return ok({ data: shapeConcrete(order) });
+    }
+  }
+
+  // --- Байршуулсан төсвийн файл ---
+  if (a === "imports" && b) {
+    if (!session.canManageReferenceData) {
+      return fail(403, "Forbidden", "Төсөв оруулах эрх зөвхөн ерөнхий инженер, захирал, админд байна.");
+    }
+
+    const record = mockImports.find((i) => i.id === b);
+    if (!record) return fail(404, "NotFound", "Импорт олдсонгүй.");
+
+    const block = db.blocks.find((x) => x.id === record.blockId);
+    if (!block) return fail(404, "NotFound", "Блок олдсонгүй.");
+
+    if (!c && method === "GET") return importEnvelope(record, block);
+
+    if (c === "apply" && method === "POST") {
+      /*
+       * Нэг файлыг хоёр удаа батлахыг хориглоно — үр дүн нь ижил ч
+       * «хоёр дахин орсон» гэсэн төөрөгдөл өөрөө асуудал.
+       */
+      if (record.status !== "pending") {
+        return fail(422, "ValidationError", `Энэ файл аль хэдийн ${record.statusLabel.toLowerCase()}.`);
+      }
+
+      /*
+         * Хоёр төсөвтэй файлаас НЭГИЙГ нь л оруулж болно — материалын
+         * хэсэг эвдэрсэн байхад ажлын төсвийг хүлээлгэх шаардлагагүй.
+         */
+      const wanted = (body as { types?: string[] })?.types;
+      const types = (wanted ?? record.types).filter((t): t is BudgetImportType =>
+        record.types.includes(t as BudgetImportType),
+      );
+
+      if (types.length === 0) {
+        return fail(422, "ValidationError", "Оруулах төсөв сонгогдоогүй байна.");
+      }
+
+      record.types = types;
+      record.type = types.join(",");
+      record.typeLabel = importTypeLabel(types);
+      record.status = "applied";
+      record.statusLabel = "Орсон";
+      record.appliedBy = session.name;
+      record.appliedAt = new Date().toISOString();
+      const mode = (body as { mode?: string })?.mode === "update" ? "update" : "replace";
+
+      record.summary = totalImportSummary(
+        types.map((t) => importReport(block, t, true, mode)),
+      );
+
+      return importEnvelope(record, block, mode);
+    }
+
+    if (!c && method === "DELETE") {
+      if (record.status !== "pending") {
+        return fail(422, "ValidationError", "Орсон импортыг цуцлах боломжгүй.");
+      }
+
+      record.status = "discarded";
+      record.statusLabel = "Цуцалсан";
+
+      return ok({ data: record });
+    }
+  }
+
   if (a === "blocks" && b) {
     const block = db.blocks.find((x) => x.id === b);
     if (!block) return fail(404, "NotFound", "Блок олдсонгүй.");
@@ -1589,7 +3188,733 @@ export function handleMock(
       return fail(403, "Forbidden", "Танд энэ блокийг харах эрх байхгүй.");
     }
 
+    if (!c && method === "DELETE") {
+      if (session.role !== "admin") {
+        return fail(403, "Forbidden", "Блок устгах эрх зөвхөн админд байна.");
+      }
+
+      const typed = String((body as { confirmName?: string })?.confirmName ?? "").trim();
+
+      if (!typed) {
+        return fail(422, "ValidationError", "Блокийн нэрийг бичиж баталгаажуулна уу.");
+      }
+
+      if (typed !== block.name) {
+        return fail(
+          422,
+          "ValidationError",
+          `Нэр таарахгүй байна. «${block.name}» гэж яг бичнэ үү.`,
+        );
+      }
+
+      // Каскад — блокт хамаарах БҮХ зүйл.
+      const itemIds = new Set(db.workItems.filter((w) => w.blockId === b).map((w) => w.id));
+
+      db.blocks = db.blocks.filter((x) => x.id !== b);
+      db.locations = db.locations.filter((l) => l.blockId !== b);
+      db.workItems = db.workItems.filter((w) => w.blockId !== b);
+      for (const id of itemIds) db.byId.delete(id);
+
+      mockConcreteOrders.splice(
+        0,
+        mockConcreteOrders.length,
+        ...mockConcreteOrders.filter((o) => o.blockId !== b),
+      );
+      mockMaterialOrders.splice(
+        0,
+        mockMaterialOrders.length,
+        ...mockMaterialOrders.filter((o) => o.blockId !== b),
+      );
+      mockImports.splice(0, mockImports.length, ...mockImports.filter((i) => i.blockId !== b));
+
+      for (const [id, agreement] of [...mockAgreements.entries()]) {
+        if (agreement.blockId === b) mockAgreements.delete(id);
+      }
+
+      return ok({ data: { name: block.name, photosRemoved: 0 } });
+    }
+
     if (!c) return ok({ data: block });
+
+    /*
+     * --- Төсвийн импорт ---
+     *
+     * Байршуулах нь ЮУ Ч БИЧИХГҮЙ: `pending` төлөвтэй бүртгэл үүсгээд
+     * тайлан буцаана. Backend-ийн зан төлөв яг ийм.
+     */
+    /*
+     * --- Бетоны төсвийн үлдэгдэл ---
+     *
+     * Давхар бүрт М250 төсөв. Захиалга бичих дэлгэцийн үндэс.
+     */
+    /*
+     * --- Блок устгах ---
+     *
+     * ЗӨВХӨН АДМИН, бөгөөд нэрийг бичиж баталгаажуулна. Санамсаргүй
+     * дарах боломжийг бүрэн хаана: 1,991 мөр нэг товчоор алга болно.
+     */
+    /*
+     * --- Материалын төсвийн мөр нэмэх — гараар ---
+     *
+     * ТОО ХЭМЖЭЭГ ЗААВАЛ БАЙРШЛААР өгнө: нийт дүнг тусад нь авбал
+     * задаргаатай зөрөх эрсдэлтэй. Нийт нь задаргааны НИЙЛБЭР.
+     */
+    /*
+     * --- Импортын загвар файл ---
+     *
+     * Mock нь хоёртын файл үүсгэдэггүй. Чимээгүй 404 буцаахын оронд
+     * шалтгааныг нь хэлнэ — эс бөгөөс товч ажиллахгүй байгаа нь
+     * системийн алдаа мэт харагдана.
+     */
+    if (c === "budget-template.xlsx" && method === "GET") {
+      if (!session.canManageReferenceData) {
+        return fail(403, "Forbidden", "Төсөв оруулах эрх танд байхгүй.");
+      }
+
+      return fail(
+        501,
+        "NotImplemented",
+        "Mock горимд Excel үүсгэхгүй. Жинхэнэ backend руу холбогдоно уу.",
+      );
+    }
+
+    if (c === "material-budget-items" && method === "POST") {
+      if (!session.canManageReferenceData) {
+        return fail(403, "Forbidden", "Төсөв засах эрх зөвхөн ерөнхий инженер, админд байна.");
+      }
+
+      const p = body as {
+        code?: string;
+        name?: string;
+        grade?: string | null;
+        unit?: string;
+        actualUnitPrice?: number | null;
+        marketUnitPrice?: number | null;
+        quantities?: { locationId?: string; quantity?: number }[];
+      };
+
+      const code = (p.code ?? "").trim();
+      const name = (p.name ?? "").trim();
+      const rows = p.quantities ?? [];
+
+      if (!code || !name) {
+        return fail(422, "ValidationError", "Код, нэр заавал байна.");
+      }
+
+      if (!(MATERIAL_UNITS as readonly string[]).includes(p.unit ?? "")) {
+        return fail(422, "ValidationError", "Хэмжих нэгж буруу байна.");
+      }
+
+      if (rows.length === 0) {
+        return fail(422, "ValidationError", "Тоо хэмжээг байршлаар оруулна уу.");
+      }
+
+      // Нэг блокт нэг код хоёр удаа орвол үлдэгдэл хоёр хуваагдана.
+      if (blockMaterials(b).some((m) => m.code === code)) {
+        return fail(422, "ValidationError", `«${code}» код энэ блокийн төсөвт аль хэдийн байна.`);
+      }
+
+      const breakdown: { name: string; qty: number }[] = [];
+
+      for (const r of rows) {
+        const loc = db.locations.find((l) => l.id === r.locationId && l.blockId === b);
+        if (!loc) return fail(422, "ValidationError", "Байршил энэ блокт харьяалагдахгүй байна.");
+        if (!(Number(r.quantity) > 0)) {
+          return fail(422, "ValidationError", "Тоо хэмжээ 0-ээс их байх ёстой.");
+        }
+
+        breakdown.push({ name: loc.name, qty: round(Number(r.quantity)) });
+      }
+
+      const material: MockMaterial = {
+        id: `mat-${code}-${MOCK_MATERIALS.length}`,
+        blockId: b,
+        code,
+        name,
+        grade: (p.grade ?? "")?.trim() || null,
+        unit: p.unit!,
+        budget: round(breakdown.reduce((n, r) => n + r.qty, 0)),
+        actualUnitPrice: p.actualUnitPrice ?? null,
+        marketUnitPrice: p.marketUnitPrice ?? null,
+        breakdown,
+      };
+
+      MOCK_MATERIALS.push(material);
+
+      return created({ id: `mbi-${material.id}` });
+    }
+
+    // --- Ажлын төрлийн төсвийн үнэ — гараар ---
+    if (c === "budget" && segments[3] === "work-price" && method === "PATCH") {
+      if (!session.canManageReferenceData) {
+        return fail(403, "Forbidden", "Төсөв засах эрх зөвхөн ерөнхий инженер, админд байна.");
+      }
+
+      const p = body as { workTypeId?: string; unitPrice?: number | null };
+      const price = p.unitPrice ?? null;
+
+      /*
+       * 0 ЗӨВШӨӨРӨГДӨХГҮЙ: «үнэгүй ажил» ба «үнэ нь мэдэгдэхгүй»
+       * хоёр өөр зүйл. Арилгах цорын гагц зам нь `null`.
+       */
+      if (price !== null && !(price > 0)) {
+        return fail(
+          422,
+          "ValidationError",
+          "Нэгж үнэ 0-ээс их байх ёстой. Арилгах бол хоосон үлдээнэ үү.",
+        );
+      }
+
+      let updated = 0;
+
+      for (const w of db.workItems) {
+        if (w.blockId === b && w.workTypeId === p.workTypeId) {
+          w.budgetUnitPrice = price;
+          updated++;
+        }
+      }
+
+      return ok({ data: { updated } });
+    }
+
+    // --- Блокт ОРСОН төсөв ---
+    if (c === "budget" && method === "GET") {
+      if (!session.canSeeMoney) {
+        return fail(403, "Forbidden", "Танд блокийн тайлан харах эрх байхгүй.");
+      }
+
+      /*
+       * Ажлын ТӨРЛӨӨР нэгтгэнэ — 3,711 ажлыг жагсаах нь төсөв биш,
+       * жагсаалт болно.
+       */
+      const byType = new Map<
+        string,
+        { works: number; planned: number; accepted: number; prices: Set<number | null> }
+      >();
+
+      for (const w of db.workItems.filter((x) => x.blockId === b)) {
+        const g = byType.get(w.workTypeId) ?? {
+          works: 0,
+          planned: 0,
+          accepted: 0,
+          prices: new Set<number | null>(),
+        };
+
+        g.works++;
+        g.planned += w.plannedQty;
+        g.accepted += w.acceptedQty;
+        g.prices.add(w.budgetUnitPrice ?? null);
+        byType.set(w.workTypeId, g);
+      }
+
+      const work = [...byType.entries()].map(([workTypeId, g]) => {
+        const type = db.workTypes.find((t) => t.id === workTypeId);
+        const prices = [...g.prices].filter((p): p is number => p != null);
+        const unitPrice = prices.length ? Math.max(...prices) : null;
+
+        return {
+          workTypeId,
+          // Mock-ийн ажлын төрөлд код байхгүй — жинхэнэ сервер өгнө.
+          code: null,
+          name: type?.name ?? "—",
+          groupName: type?.groupName ?? "Бусад",
+          level: type?.level ?? "floor",
+          unit: type?.unit ?? "",
+          works: g.works,
+          plannedQty: round(g.planned),
+          acceptedQty: round(g.accepted),
+          unitPrice,
+          amount: round((unitPrice ?? 0) * g.planned),
+          priceConflict: prices.length > 1,
+          worksWithoutPrice: g.prices.has(null) ? 1 : 0,
+        };
+      });
+
+      const floors = db.locations.filter((l) => l.blockId === b && l.level === "floor");
+
+      return ok({
+        data: {
+          work,
+          materials: blockMaterials(b).map((m) => shapeBudgetMaterial(m, floors)),
+        },
+      });
+    }
+
+    // --- Блокийн ерөнхий тайлан ---
+    if (c === "report" && method === "GET") {
+      if (!session.canSeeMoney) {
+        return fail(403, "Forbidden", "Танд блокийн тайлан харах эрх байхгүй.");
+      }
+
+      const items = db.workItems.filter((w) => w.blockId === b);
+      const share = (w: WorkItem) =>
+        w.plannedQty > 0 ? Math.min(1, w.acceptedQty / w.plannedQty) : 0;
+      const ratio = items.length ? items.reduce((n, w) => n + share(w), 0) / items.length : 0;
+
+      const groups = new Map<string, { items: number; completed: number; sum: number }>();
+
+      for (const w of items) {
+        const name = db.workTypes.find((t) => t.id === w.workTypeId)?.groupName ?? "Бусад";
+        const g = groups.get(name) ?? { items: 0, completed: 0, sum: 0 };
+
+        g.items++;
+        if (w.status === "completed") g.completed++;
+        g.sum += share(w);
+        groups.set(name, g);
+      }
+
+      return ok({
+        data: {
+          block: {
+            id: block.id,
+            name: block.name,
+            buildingNo: block.buildingNo,
+            purpose: block.purpose,
+            floors: block.floors,
+            unitsPerFloor: 0,
+            startDate: block.startDate ?? null,
+            projectName: "Ланкастер",
+            companyName: "Инэл ХХК",
+          },
+          generatedAt: new Date().toISOString(),
+          progress: {
+            workItems: items.length,
+            completed: items.filter((w) => w.status === "completed").length,
+            unmeasured: items.filter((w) => w.plannedQty <= 0).length,
+            pending: items.filter((w) => PENDING_STATES.includes(w.reviewState)).length,
+            returned: items.filter((w) => RETURNED_STATES.includes(w.reviewState)).length,
+            percentage: Math.round(ratio * 1000) / 10,
+          },
+          byGroup: [...groups.entries()].map(([name, g]) => ({
+            name,
+            items: g.items,
+            completed: g.completed,
+            percentage: Math.round((g.sum / g.items) * 1000) / 10,
+          })),
+          money: {
+            budgetAmount: round(
+              items.reduce((n, w) => n + (w.budgetUnitPrice ?? 0) * w.plannedQty, 0),
+            ),
+            withoutBudgetPrice: items.filter((w) => w.budgetUnitPrice == null).length,
+            agreementCount: [...mockAgreements.values()].filter((x) => x.blockId === b).length,
+            agreedAmount: 0,
+            acceptedAmount: 0,
+            agreedVariancePercent: null,
+            acceptedVariancePercent: null,
+          },
+          schedule: {
+            plannedStart: block.startDate ?? null,
+            plannedEnd: null,
+            baselineEnd: null,
+            slippageDays: null,
+            extendedItems: items.filter((w) => (w.extendedDays ?? 0) > 0).length,
+            overdueItems: items.filter((w) => w.overdueDays > 0 && w.status !== "completed").length,
+          },
+          quality: {
+            inspections: 0,
+            rejected: 0,
+            partial: 0,
+            rejectionRate: null,
+            openIssues: 0,
+            resolvedIssues: 0,
+          },
+          materials: {
+            budgetedItems: MOCK_MATERIALS.length,
+            actualAmount: 0,
+            marketAmount: 0,
+            marketVariancePercent: null,
+            concreteOrders: mockConcreteOrders.filter((o) => o.blockId === b).length,
+            materialOrders: mockMaterialOrders.filter((o) => o.blockId === b).length,
+            concreteDelivered: 0,
+          },
+        },
+      });
+    }
+
+    if (c === "deletion-impact" && method === "GET") {
+      if (session.role !== "admin") {
+        return fail(403, "Forbidden", "Блок устгах эрх зөвхөн админд байна.");
+      }
+
+      const items = db.workItems.filter((w) => w.blockId === b);
+      const accepted = items.filter((w) => w.acceptedQty > 0).length;
+
+      return ok({
+        data: {
+          blockName: block.name,
+          locations: db.locations.filter((l) => l.blockId === b).length,
+          workItems: items.length,
+          progressEntries: items.reduce((n, w) => n + (w.reportedQty > 0 ? 1 : 0), 0),
+          inspections: accepted,
+          photos: 0,
+          agreements: [...mockAgreements.values()].filter((x) => x.blockId === b).length,
+          concreteOrders: mockConcreteOrders.filter((o) => o.blockId === b).length,
+          materialOrders: mockMaterialOrders.filter((o) => o.blockId === b).length,
+          budgetImports: mockImports.filter((i) => i.blockId === b).length,
+          acceptedInspections: accepted,
+        },
+      });
+    }
+
+    // --- Материалын төсвийн үлдэгдэл (бетоноос бусад) ---
+    if (c === "material-balance" && method === "GET") {
+      return ok({ data: materialBalanceRows(b) });
+    }
+
+    if (c === "material-orders" && method === "POST") {
+      if (!MATERIAL_WRITER_ROLES.includes(session.role)) {
+        return fail(403, "Forbidden", "Танд материалын захиалга бичих эрх байхгүй.");
+      }
+
+      const p = body as {
+        kind?: string;
+        neededBy?: string | null;
+        notes?: string | null;
+        lines?: {
+          materialId?: string;
+          name?: string;
+          unit?: string;
+          quantity?: number;
+          stockQty?: number | null;
+          unitWeightKg?: number | null;
+        }[];
+      };
+
+      const kind = (p.kind ?? "main") as MaterialOrderKind;
+
+      if (!MATERIAL_KINDS[kind]) {
+        return fail(422, "ValidationError", "Бланкны төрөл буруу байна.");
+      }
+
+      const raw = p.lines ?? [];
+
+      if (raw.length === 0) {
+        return fail(422, "ValidationError", "Дор хаяж нэг мөр шаардлагатай.");
+      }
+
+      const lines: MaterialOrderLine[] = [];
+
+      for (const l of raw) {
+        const known = MOCK_MATERIALS.find((m) => m.id === l.materialId);
+
+        if (!known && !(l.name && l.unit)) {
+          return fail(422, "ValidationError", "Лавлахгүй мөрөнд нэр, нэгж заавал.");
+        }
+
+        if (!(Number(l.quantity) > 0)) {
+          return fail(422, "ValidationError", "Захиалах тоо 0-ээс их байх ёстой.");
+        }
+
+        lines.push({
+          id: mockId("mol"),
+          materialId: known?.id ?? null,
+          name: known?.name ?? String(l.name),
+          unit: known?.unit ?? String(l.unit),
+          stockQty: l.stockQty ?? null,
+          quantity: Number(l.quantity),
+          approvedQty: null,
+          deliveredQty: null,
+          unitWeightKg: l.unitWeightKg ?? null,
+          totalWeightKg: null,
+          note: null,
+          budgetQty: null,
+          orderedQty: null,
+          remainingQty: null,
+          overBy: 0,
+        });
+      }
+
+      const year = new Date().getFullYear();
+      const seq = String(mockMaterialOrders.length + 1).padStart(3, "0");
+
+      const order: MaterialOrder = {
+        id: mockId("mor"),
+        number: `МЗ-${year}-${seq}`,
+        blockId: b,
+        blockName: block.name,
+        kind,
+        kindLabel: MATERIAL_KINDS[kind],
+        isRebar: kind === "rebar",
+        locationId: null,
+        locationName: null,
+        neededBy: p.neededBy ?? null,
+        status: "draft",
+        statusLabel: "Драфт",
+        isEditable: true,
+        lineCount: lines.length,
+        overLineCount: 0,
+        lines,
+        requestedBy: session.name,
+        receivedBy: null,
+        confirmedBy: null,
+        submittedAt: null,
+        confirmedAt: null,
+        notes: p.notes ?? null,
+        createdAt: new Date().toISOString(),
+      };
+
+      mockMaterialOrders.push(order);
+
+      return { status: 201, body: { data: shapeMaterialOrder(order) } };
+    }
+
+    if (c === "concrete-balance" && method === "GET") {
+      const floors = db.locations.filter((l) => l.blockId === b && l.level === "floor");
+
+      return ok({
+        data: floors.map((l, i) => {
+          const balance = concreteBalance(l.id);
+
+          return {
+            locationId: l.id,
+            locationName: l.name,
+            sequence: l.sequenceNumber ?? i,
+            materialId: MOCK_CONCRETE_MATERIAL.id,
+            materialName: MOCK_CONCRETE_MATERIAL.name,
+            grade: MOCK_CONCRETE_MATERIAL.grade,
+            unit: "м3",
+            budget: balance.budget,
+            ordered: balance.ordered,
+            remaining: balance.remaining,
+            overBy: Math.max(0, -balance.remaining),
+          };
+        }),
+      });
+    }
+
+    if (c === "concrete-orders" && method === "POST") {
+      if (!CONCRETE_WRITER_ROLES.includes(session.role)) {
+        return fail(403, "Forbidden", "Танд бетон захиалга бичих эрх байхгүй.");
+      }
+
+      const p = body as Record<string, string | number | boolean | null>;
+      const location = db.locations.find((l) => l.id === p.locationId && l.blockId === b);
+
+      if (!location) {
+        return fail(422, "ValidationError", "Энэ блокт тийм байршил алга.");
+      }
+
+      if (!p.pourDate || String(p.pourDate) < new Date().toISOString().slice(0, 10)) {
+        return fail(422, "ValidationError", "Өнгөрсөн огноонд бетон захиалах боломжгүй.");
+      }
+
+      if (!(Number(p.quantity) > 0)) {
+        return fail(422, "ValidationError", "Захиалах хэмжээ 0-ээс их байх ёстой.");
+      }
+
+      const year = new Date().getFullYear();
+      const seq = String(mockConcreteOrders.length + 1).padStart(3, "0");
+
+      const order: ConcreteOrder = {
+        id: mockId("cor"),
+        number: `БЗ-${year}-${seq}`,
+        blockId: b,
+        blockName: block.name,
+        locationId: location.id,
+        locationName: location.name,
+        materialId: MOCK_CONCRETE_MATERIAL.id,
+        materialName: MOCK_CONCRETE_MATERIAL.name,
+        grade: MOCK_CONCRETE_MATERIAL.grade,
+        concreteClass: (p.concreteClass as string) ?? null,
+        slumpCm: p.slumpCm != null ? Number(p.slumpCm) : null,
+        structure: String(p.structure ?? ""),
+        pourDate: String(p.pourDate),
+        pourHalf: (p.pourHalf as "am" | "pm" | null) ?? null,
+        pourTime: (p.pourTime as string) ?? null,
+        quantity: Number(p.quantity),
+        needsPump: Boolean(p.needsPump),
+        deliveredQty: null,
+        deliveredAt: null,
+        status: "draft",
+        statusLabel: "Драфт",
+        isEditable: true,
+        isRush: false,
+        budgetQty: 0,
+        orderedQty: 0,
+        remainingQty: 0,
+        overBy: 0,
+        requestedBy: session.name,
+        receivedBy: null,
+        confirmedBy: null,
+        submittedAt: null,
+        confirmedAt: null,
+        notes: (p.notes as string) ?? null,
+        createdAt: new Date().toISOString(),
+      };
+
+      mockConcreteOrders.push(order);
+
+      return { status: 201, body: { data: shapeConcrete(order) } };
+    }
+
+    if (c === "imports") {
+      if (!session.canManageReferenceData) {
+        return fail(403, "Forbidden", "Төсөв оруулах эрх зөвхөн ерөнхий инженер, захирал, админд байна.");
+      }
+
+      if (method === "GET") {
+        return ok({
+          data: mockImports
+            .filter((i) => i.blockId === b)
+            .sort((x, y) => (y.createdAt ?? "").localeCompare(x.createdAt ?? "")),
+        });
+      }
+
+      if (method === "POST") {
+        const payload = body as { file?: { name?: string; size?: number }; types?: string[] };
+        const name = payload?.file?.name ?? "";
+
+        if (!name.toLowerCase().endsWith(".xlsx")) {
+          return fail(422, "ValidationError", "Зөвхөн .xlsx файл. Excel дээр «Save As → .xlsx» хийнэ үү.");
+        }
+
+        const detected = detectImportTypes(name);
+        const types = (payload?.types ?? detected).filter((t): t is BudgetImportType =>
+          detected.includes(t as BudgetImportType),
+        );
+
+        if (types.length === 0) {
+          return fail(
+            422,
+            "ValidationError",
+            "Танигдах төсвийн хуудас олдсонгүй. «Ажлын хөлсний төсөв» эсвэл «Материалын төсөв» нэртэй хуудас байх ёстой.",
+          );
+        }
+
+        const reports = types.map((t) => importReport(block, t, false));
+
+        const record: BudgetImport = {
+          id: mockId("imp"),
+          blockId: b,
+          type: types.join(","),
+          types,
+          typeLabel: importTypeLabel(types),
+          originalName: name,
+          sizeBytes: payload?.file?.size ?? 0,
+          status: "pending",
+          statusLabel: "Хүлээгдэж буй",
+          summary: totalImportSummary(reports),
+          uploadedBy: session.name,
+          appliedBy: null,
+          appliedAt: null,
+          createdAt: new Date().toISOString(),
+        };
+
+        mockImports.push(record);
+
+        return { status: 201, body: { data: record, reports } };
+      }
+    }
+
+    /*
+     * Төсвөөс тохиролцооны мөр татна — ажлын ТӨРЛӨӨР нэгтгэнэ.
+     *
+     * Блокт нэг ажлын төрөл 148 мөр байж болно (айл бүрд). Гэрээнд
+     * «шавардлага 1,200 м²» гэж НЭГ мөр байх ёстой.
+     */
+    if (c === "agreement-draft" && method === "GET") {
+      if (!session.canManageContractors) {
+        return fail(403, "Forbidden", "Танд тохиролцоо бичих эрх байхгүй.");
+      }
+
+      const wanted = new Set(
+        (q.get("groupIds") ?? "")
+          .split(",")
+          .map((x) => x.trim())
+          .filter(Boolean),
+      );
+
+      const grouped = new Map<string, AgreementDraftLine>();
+
+      for (const w of blockItems) {
+        if (w.plannedQty <= 0) continue;
+
+        const type = db.workTypes.find((t) => t.id === w.workTypeId);
+        if (!type) continue;
+        if (wanted.size > 0 && !wanted.has(type.groupId)) continue;
+
+        const row = grouped.get(type.id) ?? {
+          workTypeId: type.id,
+          label: type.name,
+          groupName: type.groupName,
+          unit: w.unit,
+          quantity: 0,
+          budgetUnitPrice: null,
+          priceConflict: false,
+        };
+
+        row.quantity = round(row.quantity + w.plannedQty);
+
+        const price = w.budgetUnitPrice ?? null;
+        if (price !== null) {
+          if (row.budgetUnitPrice !== null && Math.abs(row.budgetUnitPrice - price) > 0.009) {
+            row.priceConflict = true;
+          }
+          row.budgetUnitPrice = Math.max(row.budgetUnitPrice ?? 0, price);
+        }
+
+        grouped.set(type.id, row);
+      }
+
+      const lines = [...grouped.values()];
+
+      return ok({
+        data: lines,
+        meta: {
+          withoutPrice: lines.filter((l) => l.budgetUnitPrice === null).length,
+          priceConflicts: lines.filter((l) => l.priceConflict).length,
+        },
+      });
+    }
+
+    if (c === "agreements" && method === "POST") {
+      if (!session.canManageContractors) {
+        return fail(403, "Forbidden", "Танд тохиролцоо бичих эрх байхгүй.");
+      }
+
+      const p = body as Record<string, unknown>;
+      const invalid = agreementPayloadError(p, db.contractors);
+      if (invalid) return invalid;
+
+      const year = new Date().getFullYear();
+      const seq = [...mockAgreements.values()].filter((x) =>
+        x.number.startsWith(`ТХ-${year}-`),
+      ).length;
+
+      const contractor = db.contractors.find((x) => x.id === p.contractorId)!;
+      const agreement = computeAgreement({
+        id: mockId("agr"),
+        number: `ТХ-${year}-${String(seq + 1).padStart(3, "0")}`,
+        blockId: b!,
+        blockName: block?.name,
+        contractorId: contractor.id,
+        contractorName: contractor.name,
+        contractorRegistrationNo: contractor.registrationNo ?? null,
+        scope: (p.scope as string) ?? null,
+        startDate: (p.startDate as string) ?? null,
+        endDate: (p.endDate as string) ?? null,
+        retentionPercent: Number(p.retentionPercent ?? 0),
+        barterPercent: Number(p.barterPercent ?? 0),
+        cashPercent: Number(p.cashPercent ?? 100),
+        barterAmount: p.barterAmount != null ? Number(p.barterAmount) : null,
+        barterNote: (p.barterNote as string) ?? null,
+        warrantyYears: Number(p.warrantyYears ?? 3),
+        maintenanceMonths: Number(p.maintenanceMonths ?? 36),
+        workDaysPerWeek: p.workDaysPerWeek != null ? Number(p.workDaysPerWeek) : null,
+        restDay: (p.restDay as string) ?? null,
+        headcount: p.headcount != null ? Number(p.headcount) : null,
+        status: "draft",
+        statusLabel: AGREEMENT_STATUSES.draft,
+        isEditable: true,
+        createdBy: session.name,
+        notes: (p.notes as string) ?? null,
+        lines: (p.lines as Agreement["lines"]) ?? [],
+      });
+
+      mockAgreements.set(agreement.id, agreement);
+
+      return { status: 201, body: { data: agreement } };
+    }
 
     if (c === "locations") {
       let rows = db.locations.filter((l) => l.blockId === b);
@@ -1799,10 +4124,16 @@ export function handleMock(
               unit: wt.unit,
               plannedQty: qty,
               reportedQty: 0,
+              checkedQty: 0,
               acceptedQty: 0,
+              inspectionStages: 2,
               remainingQty: qty,
               percentage: 0,
               ...window,
+              // Үндсэн огноо нь үүсгэх үед амлалттай тэнцүү.
+              baselineEndDate: window.plannedEndDate,
+              baselineOverdueDays: 0,
+              extendedDays: 0,
               status: "not_started",
               reviewState: "none",
               overdueDays: 0,
@@ -1862,6 +4193,9 @@ export function handleMock(
               "Хариуцагчийг нь солих боломжгүй — гүйцэтгэлийн түүх өөр компанид шилжинэ.",
           );
         }
+
+        const inactive = inactiveContractorError(p.contractorId);
+        if (inactive) return inactive;
 
         const contractor = db.contractors.find((x) => x.id === p.contractorId);
         for (const w of targets) {
@@ -1929,7 +4263,7 @@ export function handleMock(
           acceptedQty: round(acceptedQty),
           percentage: avgPercentage(items),
           ...statusCounts(items),
-          pendingInspections: items.filter((w) => w.reviewState === "pending").length,
+          pendingInspections: items.filter((w) => PENDING_STATES.includes(w.reviewState)).length,
           overdue: items.filter((w) => w.overdueDays > 0).length,
           plannedStartDate: minDate(items),
           plannedEndDate: maxDate(items),
@@ -1937,6 +4271,147 @@ export function handleMock(
         groups: summarize(items, groupBy),
       };
       return ok({ data: summary });
+    }
+  }
+
+  // --- Тохиролцоо: дэлгэрэнгүй, засах, батлах ---
+  if (a === "agreements" && b) {
+    const agreement = mockAgreements.get(b);
+
+    if (!agreement) return fail(404, "NotFound", "Тохиролцоо олдсонгүй.");
+
+    if (c === "approve" && method === "POST") {
+      if (!AGREEMENT_APPROVER_ROLES.includes(session.role)) {
+        return fail(403, "Forbidden", "Тохиролцоог зөвхөн ерөнхий инженер, захирал батална.");
+      }
+      if (agreement.status !== "draft") {
+        return fail(422, "ValidationError", "Зөвхөн драфт тохиролцоо батлагдана.");
+      }
+      if ((agreement.lines ?? []).length === 0) {
+        return fail(
+          422,
+          "ValidationError",
+          "Ажлын мөргүй тохиролцоо батлагдахгүй — төлбөр бодогдох зүйл алга.",
+        );
+      }
+
+      agreement.status = "active";
+      agreement.approvedBy = session.name;
+      agreement.approvedAt = new Date().toISOString();
+      computeAgreement(agreement);
+
+      return ok({ data: agreement });
+    }
+
+    if (!c && method === "PATCH") {
+      if (!session.canManageContractors) {
+        return fail(403, "Forbidden", "Танд тохиролцоо бичих эрх байхгүй.");
+      }
+
+      /*
+       * Батлагдсаны дараа мөр ТҮГЖИГДЭНЭ — акт нь эдгээр үнэ дээр тогтдог.
+       * Үнэ хойшоо хөдөлвөл гарсан акт бүр худал болно.
+       */
+      if (agreement.status !== "draft") {
+        return fail(
+          422,
+          "ValidationError",
+          "Батлагдсан тохиролцооны мөрийг засах боломжгүй. Акт нь эдгээр үнэ дээр тогтдог.",
+        );
+      }
+
+      const p = body as Record<string, unknown>;
+
+      if (p.contractorId && p.contractorId !== agreement.contractorId) {
+        return fail(
+          422,
+          "ValidationError",
+          "Гүйцэтгэгчийг солих боломжгүй — шинэ тохиролцоо бичнэ үү.",
+        );
+      }
+
+      const invalid = agreementPayloadError(
+        { ...p, contractorId: agreement.contractorId },
+        db.contractors,
+      );
+      if (invalid) return invalid;
+
+      Object.assign(agreement, {
+        scope: (p.scope as string) ?? null,
+        startDate: (p.startDate as string) ?? null,
+        endDate: (p.endDate as string) ?? null,
+        retentionPercent: Number(p.retentionPercent ?? 0),
+        barterPercent: Number(p.barterPercent ?? 0),
+        cashPercent: Number(p.cashPercent ?? 100),
+        barterAmount: p.barterAmount != null ? Number(p.barterAmount) : null,
+        barterNote: (p.barterNote as string) ?? null,
+        warrantyYears: Number(p.warrantyYears ?? 3),
+        maintenanceMonths: Number(p.maintenanceMonths ?? 36),
+        workDaysPerWeek: p.workDaysPerWeek != null ? Number(p.workDaysPerWeek) : null,
+        restDay: (p.restDay as string) ?? null,
+        headcount: p.headcount != null ? Number(p.headcount) : null,
+        notes: (p.notes as string) ?? null,
+        lines: (p.lines as Agreement["lines"]) ?? [],
+      });
+      computeAgreement(agreement);
+
+      return ok({ data: agreement });
+    }
+
+    if (!c) {
+      if (!canReadAgreements()) {
+        return fail(403, "Forbidden", "Танд тохиролцоо харах эрх байхгүй.");
+      }
+
+      return ok({ data: agreement });
+    }
+  }
+
+  /*
+   * --- Сунгалтын шийдвэр ---
+   *
+   * Эрх нь ХАТУУ: зөвхөн ерөнхий инженер, захирал, админ. Төслийн менежер
+   * ороогүй — хуваарийн гулсалтыг хамгийн их нуумаар байдаг хүн нь тэр
+   * хуваарийг хариуцдаг хүн.
+   */
+  if (a === "extension-requests" && b && method === "POST") {
+    const req = mockExtensions.get(b);
+
+    if (!req) return fail(404, "NotFound", "Хүсэлт олдсонгүй.");
+
+    if (!EXTENSION_APPROVER_ROLES.includes(session.role)) {
+      return fail(403, "Forbidden", "Хугацаа сунгалтыг зөвхөн ерөнхий инженер, захирал батална.");
+    }
+
+    if (req.status !== "pending") {
+      return fail(422, "ValidationError", "Энэ хүсэлт аль хэдийн шийдэгдсэн байна.");
+    }
+
+    const note = (body as { note?: string })?.note?.trim();
+
+    if (c === "approve") {
+      applyExtension(req, session.name);
+
+      return ok({ data: req });
+    }
+
+    if (c === "reject") {
+      // Шалтгаан ЗААВАЛ — «болохгүй» гэж орхивол хүсэгч юу засахаа мэдэхгүй.
+      if (!note) return fail(422, "ValidationError", "Татгалзах шалтгааныг бичнэ үү.");
+      if (note.length < 10) {
+        return fail(
+          422,
+          "ValidationError",
+          "Шалтгаан хэт тодорхойгүй — дор хаяж 10 тэмдэгт бичнэ үү.",
+        );
+      }
+
+      req.status = "rejected";
+      req.decidedBy = { id: session.id, name: session.name };
+      req.decidedAt = new Date().toISOString();
+      req.decisionNote = note;
+
+      return ok({ data: req });
     }
   }
 
@@ -1992,7 +4467,13 @@ export function handleMock(
         Object.assign(item, rest);
         recalc(item);
       }
-      return ok({ data: item });
+
+      /*
+       * Шалгалтын цэгийн хоригийг ЗӨВХӨН дэлгэрэнгүй хариунд бодно —
+       * backend-ийн `with_hold_point` тугтай ижил. Жагсаалтад оруулбал
+       * 200 мөр тутамд нэмэлт тооцоо явна.
+       */
+      return ok({ data: { ...item, holdPointReason: holdPointReason(item) } });
     }
 
     if (c === "progress") {
@@ -2011,6 +4492,16 @@ export function handleMock(
             "ValidationError",
             `Үлдэгдэл ${item.remainingQty} ${item.unit} — түүнээс их байж болохгүй.`,
           );
+
+        /*
+         * ШАЛГАЛТЫН ЦЭГ — батлагдаагүй далд ажил дараагийнхаа замыг хаана.
+         *
+         * Хориг нь МЭДЭЭЛЭХ үед тавигдана, батлах үед биш: бетон цутгасны
+         * дараа доторх арматурыг хэн ч шалгаж чадахгүй тул «дараа няцаана»
+         * гэдэг нь оройтсон байна.
+         */
+        const hold = holdPointReason(item);
+        if (hold) return fail(422, "ValidationError", hold);
 
         const entry: ProgressEntry = {
           id: mockId(`pe-${item.id}`),
@@ -2031,6 +4522,7 @@ export function handleMock(
         item.reportedQty = round(item.reportedQty + qty);
         recalc(item);
         recalcReview(item);
+        applyStage(item);
 
         return created(entry);
       }
@@ -2043,11 +4535,6 @@ export function handleMock(
 
     if (c === "inspections") {
       if (method === "POST") {
-        // Гүйцэтгэгч өөрийгөө батлахгүй — backend `canInspect()`-тэй ижил.
-        if (!session.canInspect) {
-          return fail(403, "Forbidden", "Танд баталгаажуулах эрх байхгүй.");
-        }
-
         const p = body as {
           stage?: string;
           result?: string;
@@ -2055,9 +4542,65 @@ export function handleMock(
           reason?: string;
           checklist?: { itemId?: string; result?: string }[];
         };
+
+        const stage = (p?.stage ?? "final_approval") as InspectionStage;
+
+        if (!STAGE_ROLES[stage]) {
+          return fail(422, "ValidationError", "Шалгалтын шат буруу байна.");
+        }
+
+        /*
+         * Эрхийг ШАТААР шалгана — backend-ийн `StoreInspectionRequest`-тэй ижил.
+         *
+         * 1-р шат нь `canInspect()`-ээс ӨРГӨН: талбайн инженер хийнэ, тэр нь
+         * батлах эрхтэй хүн БИШ. Урьд нь энд `canInspect` байсан тул хоёр
+         * шаттай урсгалд 1-р шатыг хийх хүн олдохгүй, ажил гацах байсан.
+         */
+        if (!STAGE_ROLES[stage].includes(session.role)) {
+          return fail(403, "Forbidden", "Энэ шатыг хийх эрх танд байхгүй.");
+        }
+
+        /*
+         * НЭГ хүн ХОЁР шатыг ч хийж болохгүй. Эс бөгөөс каскад нь зүгээр л
+         * хоёр товч болж, мэдээлэх ба батлах эрхийг салгасан зарчим утгаа
+         * алдана.
+         */
+        if (stage === "final_approval") {
+          const mine = (extraInspections.get(item.id) ?? []).some(
+            (i) => i.stage === "site_check" && i.acceptedQty > 0 && i.inspector?.id === session.id,
+          );
+
+          if (mine) {
+            return fail(
+              403,
+              "Forbidden",
+              "Та энэ ажлыг 1-р шатад шалгасан тул 2-р шатад батлах боломжгүй.",
+            );
+          }
+        }
+
         const acceptedQty = Number(p?.acceptedQty ?? 0);
         if (p?.result !== "accepted" && !p?.reason)
           return fail(422, "ValidationError", "Татгалзах шалтгаан заавал.");
+
+        /*
+         * ХЯНАГДААГҮЙ хэмжээнээс ИЛҮҮГ батлах боломжгүй.
+         *
+         * Энэ хаалт backend-д (`StoreInspectionRequest::after`) байсан ч
+         * mock-д дутуу байв. Үр дүнд нь mock дээр нэг ажлыг хоёр шатанд
+         * дахин батлаад батлагдсан хэмжээ ХОЁР ДАХИН болдог байсан —
+         * жинхэнэ сервер үүнийг 422-оор няцаадаг.
+         */
+        const pendingQty = stagePool(item, stage);
+        if (acceptedQty > pendingQty + 0.001) {
+          return fail(
+            422,
+            "ValidationError",
+            stage === "final_approval" && pendingQty <= 0
+              ? "Батлах ажил алга: талбайн инженер хараахан шалгаагүй байна."
+              : `${stage === "site_check" ? "Шалгах" : "Батлах"} ажил ${pendingQty} ${item.unit} — түүнээс их боломжгүй.`,
+          );
+        }
 
         // "Зөвхөн зураг дээр үндэслэн ажил батлахгүй" — backend-тэй ижил хаалт.
         const clError = checklistError(item, p?.result ?? "accepted", p?.checklist ?? []);
@@ -2066,26 +4609,34 @@ export function handleMock(
         const insp: Inspection = {
           id: mockId(`insp-${item.id}`),
           workItemId: item.id,
-          stage: (p.stage as Inspection["stage"]) ?? "general_contractor",
+          stage,
+          stageLabel:
+            stage === "site_check" ? "Талбайн инженер шалгасан" : "Хяналтын инженер баталсан",
           result: (p.result as Inspection["result"]) ?? "accepted",
           acceptedQty,
           // Татгалзсан ба хянагдаагүй хоёр өөр зүйл — backend-тэй ижил.
-          rejectedQty:
-            p.result === "accepted"
-              ? 0
-              : round(Math.max(item.reportedQty - item.acceptedQty - acceptedQty, 0)),
+          // Татгалзсан хэмжээг ТУХАЙН ШАТНЫ сангаас бодно — эс бөгөөс
+          // хараахан шалгагдаагүй хэмжээ ч татгалзсан гэж тэмдэглэгдэнэ.
+          rejectedQty: p.result === "accepted" ? 0 : round(Math.max(pendingQty - acceptedQty, 0)),
           reason: p.reason,
           inspectedAt: new Date().toISOString(),
           inspector: { id: session.id, name: session.name },
         };
         extraInspections.set(item.id, [insp, ...(extraInspections.get(item.id) ?? [])]);
-        item.acceptedQty = round(item.acceptedQty + acceptedQty);
+
+        // Шат бүр ӨӨРИЙН баганыг нэмэгдүүлнэ — нэг сангаас идэхгүй.
+        if (stage === "site_check") {
+          item.checkedQty = round((item.checkedQty ?? 0) + acceptedQty);
+        } else {
+          item.acceptedQty = round(item.acceptedQty + acceptedQty);
+        }
         // ТАТГАЛЗСАН хэмжээ мэдээлсэн дүнгээс хасагдана — ингэснээр үлдэгдэл
         // эргэж бүтэн болж, гүйцэтгэгч засвараа ижил мөрөн дээр дахин
         // мэдээлж чадна. Хасахгүй бол «үлдэгдэл 0» болж мухардана.
         item.reportedQty = round(Math.max(item.reportedQty - insp.rejectedQty, 0));
         recalc(item);
         recalcReview(item);
+        applyStage(item);
 
         return created(insp);
       }
@@ -2097,9 +4648,29 @@ export function handleMock(
     }
 
     // --- Хугацаа сунгах (шалтгаан заавал) ---
+    // Тухайн ажлын сунгалтын түүх.
+    if (c === "extension-requests" && method === "GET") {
+      const rows = [...mockExtensions.values()]
+        .filter((x) => x.workItemId === item.id)
+        .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+
+      return ok({ data: rows });
+    }
+
     if (c === "extend" && method === "POST") {
-      if (!session.canEditPlan) {
-        return fail(403, "Forbidden", "Танд төлөвлөгөө засах эрх байхгүй.");
+      /*
+       * ХҮСЭЛТ гаргах эрх нь ӨРГӨН — backend-тэй ижил.
+       *
+       * Хуваарь хэтэрч байгааг хамгийн эрт мэддэг хүн нь гүйцэтгэгч ба
+       * талбайн инженер. Урьд нь зөвхөн `canEditPlan` хүлээж авдаг байсан
+       * тул тэд хүсэлт ч гаргаж чаддаггүй байв.
+       */
+      if (!session.canReportProgress && !session.canEditPlan) {
+        return fail(403, "Forbidden", "Танд хугацаа сунгах хүсэлт гаргах эрх байхгүй.");
+      }
+
+      if (isRep() && item.contractor?.id !== session.contractorId) {
+        return fail(403, "Forbidden", "Энэ ажил таны хариуцлагад байхгүй.");
       }
 
       const p = body as {
@@ -2112,6 +4683,13 @@ export function handleMock(
         return fail(422, "ValidationError", "Саатлын шалтгааныг сонгоно уу.");
       }
       if (!p?.reason?.trim()) return fail(422, "ValidationError", "Тайлбар бичнэ үү.");
+      if (p.reason.trim().length < 10) {
+        return fail(
+          422,
+          "ValidationError",
+          "Тайлбар хэт тодорхойгүй — дор хаяж 10 тэмдэгт бичнэ үү.",
+        );
+      }
 
       const current = item.plannedEndDate;
       // Огноог урагш татах нь сунгах биш — хоцролтыг хиймлээр үүсгэнэ.
@@ -2123,31 +4701,55 @@ export function handleMock(
         );
       }
 
-      item.plannedEndDate = p.plannedEndDate;
-      // Хугацаа сунгамагц хоцролт тэглэгдэнэ — шинэ огноо ирээдүйд байгаа.
-      item.overdueDays =
-        p.plannedEndDate < new Date().toISOString().slice(0, 10)
-          ? Math.round((Date.now() - Date.parse(`${p.plannedEndDate}T00:00:00Z`)) / 86_400_000)
-          : 0;
+      // Нэг ажилд ХОЁР хүлээгдэж буй хүсэлт байж болохгүй.
+      const open = [...mockExtensions.values()].find(
+        (x) => x.workItemId === item.id && x.status === "pending",
+      );
 
-      // Шалтгааныг АСУУДЛЫН бүртгэлд — хоцролтын статистик нэг дороос гарна.
-      const issue: MockIssue = {
-        id: mockId("iss"),
+      if (open) {
+        return fail(
+          422,
+          "ValidationError",
+          `Энэ ажилд ${open.requestedEndDate} хүртэл сунгах хүсэлт аль хэдийн хүлээгдэж байна.`,
+        );
+      }
+
+      const req: ExtensionRequest = {
+        id: mockId("extreq"),
         workItemId: item.id,
         workItemName: item.name,
-        ...issuePlace(item),
-        category: p.category,
-        categoryLabel: ISSUE_LABELS[p.category],
-        severity: "medium",
-        status: "open",
-        description: `Хугацаа сунгав: ${current ?? "—"} → ${p.plannedEndDate}. ${p.reason.trim()}`,
-        reportedBy: session.name,
+        locationPath: item.location.path,
+        currentEndDate: current ?? null,
+        requestedEndDate: p.plannedEndDate,
+        requestedDays: current
+          ? Math.round(
+              (Date.parse(`${p.plannedEndDate}T00:00:00Z`) - Date.parse(`${current}T00:00:00Z`)) /
+                86_400_000,
+            )
+          : 0,
+        category: p.category as ExtensionRequest["category"],
+        reason: p.reason.trim(),
+        status: "pending",
+        requestedBy: { id: session.id, name: session.name },
         createdAt: new Date().toISOString(),
-        resolvedAt: null,
       };
-      mockIssues.set(item.id, [issue, ...(mockIssues.get(item.id) ?? [])]);
+      mockExtensions.set(req.id, req);
 
-      return ok({ data: item });
+      // Батлах эрхтэй хүн сунгавал ТЭР ДОР НЬ батлагдана.
+      const applied = EXTENSION_APPROVER_ROLES.includes(session.role);
+      if (applied) applyExtension(req, session.name);
+
+      /*
+       * 200 ба 202-ыг ЯЛГАНА — backend-тэй ижил.
+       *
+       * Батлагдсан бол огноо хөдөлсөн, хүлээгдэж байгаа бол хөдлөөгүй.
+       * Нэг статус буцаавал дэлгэц «сунгалаа» гэж харуулаад хэрэглэгч
+       * хуваариа өөрчлөгдсөн гэж бодоод явна.
+       */
+      return {
+        status: applied ? 200 : 202,
+        body: { data: req, meta: { applied, workItem: item } },
+      };
     }
 
     if (c === "contractor" && method === "PATCH") {
@@ -2162,8 +4764,58 @@ export function handleMock(
           "Энэ ажилд гүйцэтгэл бүртгэгдсэн тул хариуцагчийг солих боломжгүй.",
         );
       }
+      const inactiveOne = inactiveContractorError(p?.contractorId);
+      if (inactiveOne) return inactiveOne;
+
       const ctr = getDb().contractors.find((x) => x.id === p?.contractorId);
       item.contractor = ctr ? { id: ctr.id, name: ctr.name } : null;
+
+      return ok({ data: item });
+    }
+
+    if (c === "inspector" && method === "PATCH") {
+      if (!INSPECTOR_ASSIGNER_ROLES.includes(session.role)) {
+        return fail(403, "Forbidden", "Танд хяналтын инженер оноох эрх байхгүй.");
+      }
+
+      const p = body as { inspectorId?: string | number | null };
+      const next = p?.inspectorId ?? null;
+
+      if (next === null) {
+        item.inspector = null;
+
+        return ok({ data: item });
+      }
+
+      const user = mockUsers.find((u) => String(u.id) === String(next));
+
+      if (!user) {
+        return fail(422, "Unprocessable", "Хэрэглэгч олдсонгүй.");
+      }
+
+      if (!user.isActive) {
+        return fail(
+          422,
+          "Unprocessable",
+          "Эрх хаагдсан хэрэглэгчийг хяналтын инженерээр оноож болохгүй.",
+        );
+      }
+
+      /*
+       * ГОЛ ХОРИГ — backend-тэй ижил: батлах эрхгүй хүнийг оноовол тэр ажил
+       * мөнхөд батлагдахгүй гацна. Mock-д хориг байхгүй бол дэлгэц түүнийг
+       * зөвшөөрөх мэт бүтээгдэж, зөвхөн жинхэнэ сервер дээр унана.
+       */
+      if (!user.canInspect) {
+        return fail(
+          422,
+          "Unprocessable",
+          `${user.name} (${user.position ?? "—"}) нь гүйцэтгэл батлах эрхгүй. ` +
+            "Хяналтын инженерээр оноовол батлахыг хүлээсэн ажил гацна.",
+        );
+      }
+
+      item.inspector = { id: user.id, name: user.name, position: user.position ?? null };
 
       return ok({ data: item });
     }
