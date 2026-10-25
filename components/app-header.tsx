@@ -48,7 +48,7 @@ export function AppHeader() {
         ...(me?.canManageContractors
           ? [
               {
-                href: "/contractors-v2",
+                href: "/contractors",
                 label: "Гүйцэтгэгчид",
                 match: (p: string) => p.startsWith("/contractors"),
               },

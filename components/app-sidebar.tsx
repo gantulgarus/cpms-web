@@ -254,7 +254,7 @@ export function AppSidebar() {
     ...(me?.canManageContractors
       ? [
           {
-            href: "/contractors-v2",
+            href: "/contractors",
             label: "Гүйцэтгэгчид",
             icon: Users,
             match: (p: string) => p.startsWith("/contractors"),

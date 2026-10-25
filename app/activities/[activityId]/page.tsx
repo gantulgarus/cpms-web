@@ -169,12 +169,12 @@ export default function ActivityDetailPage() {
             ) : (
               (contractorsQuery.data ?? []).map((ac) => (
                 <div key={ac.id} className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
-                  <Link href={`/contractors/${ac.contractor.id}`} className="min-w-0">
+                  <div className="min-w-0">
                     <div className="truncate text-sm font-medium">{ac.contractor.name}</div>
                     {ac.contractor.tradeSpecialty && (
                       <div className="text-muted-foreground truncate text-xs">{ac.contractor.tradeSpecialty}</div>
                     )}
-                  </Link>
+                  </div>
                   {isDirector && (
                     <Button
                       variant="ghost"
