@@ -118,7 +118,8 @@ export default function NewBlockPage() {
     },
     onSuccess: (block) => {
       qc.invalidateQueries({ queryKey: ["blocks"] });
-      toast.success(`${block.name} үүслээ`);
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      toast.success(`${block.name} үүслээ. Одоо ажлын тохиргоогоо гүйцээнэ үү.`);
       router.push(`/blocks/${block.id}`);
     },
     onError: (e: Error) => {
@@ -267,7 +268,7 @@ export default function NewBlockPage() {
               <CardContent className="space-y-3 pt-6">
                 <h2 className="text-sm font-medium">Юу үүсэх вэ</h2>
                 {!selected ? (
-                  <p className="text-muted-foreground text-sm">Загвар сонгоно уу.</p>
+                  <p className="text-muted-foreground text-sm">{floors || "0"} давхар, давхар бүрт {unitsPerFloor || "0"} айлтай хоосон блок үүснэ. Дараа нь ажлаа нэмж, тоо хэмжээ, хугацаа, хариуцагчийг тохируулна.</p>
                 ) : (
                   <>
                     <dl className="space-y-2 text-sm">

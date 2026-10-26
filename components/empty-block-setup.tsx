@@ -41,6 +41,7 @@ export function EmptyBlockSetup({
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["summary"] });
+    qc.invalidateQueries({ queryKey: ["dashboard"] });
     qc.invalidateQueries({ queryKey: ["work-items"] });
     qc.invalidateQueries({ queryKey: ["assignments"] });
     qc.invalidateQueries({ queryKey: ["block", blockId] });

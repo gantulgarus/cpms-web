@@ -82,6 +82,7 @@ export function MissingQuantitiesDialog({
       qc.invalidateQueries({ queryKey: ["missing-quantities", blockId] });
       qc.invalidateQueries({ queryKey: ["block-summary"] });
       qc.invalidateQueries({ queryKey: ["work-items"] });
+      qc.invalidateQueries({ queryKey: ["summary"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
     },
     onError: (e: Error) => toast.error(e.message),

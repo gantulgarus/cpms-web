@@ -19,13 +19,13 @@ import {
   ClipboardCheck,
   Pencil,
   RotateCcw,
-  CalendarPlus,
   ImageOff,
   Trash2,
   Undo2,
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { WorkQuantitySummary } from "@/components/work-quantity-summary";
 import { FormField } from "@/components/form-dialog";
 import { PageHeader } from "@/components/page-header";
 import {
@@ -36,19 +36,18 @@ import {
 } from "@/components/checklist-form";
 import { AssignContractorDialog } from "@/components/assign-contractor-dialog";
 import { AssignInspectorDialog } from "@/components/assign-inspector-dialog";
-import { ExtendDeadlineDialog } from "@/components/extend-deadline-dialog";
+import { DeadlineExtensionAction } from "@/components/deadline-extension-action";
 import { IssuePanel } from "@/components/issue-panel";
 import { PhotoGallery } from "@/components/photo-gallery";
 import { downscale, PhotoPicker, type PickedPhoto } from "@/components/photo-picker";
 import { PlanQuantityDialog } from "@/components/plan-quantity-dialog";
-import { ProgressBar } from "@/components/progress-bar";
 import { ErrorState, LoadingRows } from "@/components/states";
 import { ReviewStateBadge, ToneBadge } from "@/components/tone-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { checklists, photoUrl, plan, queue, workItems } from "@/lib/api/endpoints";
+import { checklists, photoUrl, plan, queue, schedule, workItems } from "@/lib/api/endpoints";
 import type {
   Inspection,
   InspectionStage,
@@ -69,7 +68,6 @@ import {
 
 /** Буцаагдсан төлвүүд — backend-ийн `WorkItem::RETURNED_STATES`. */
 const RETURNED_STATES: string[] = ["returned_by_site", "returned_by_final"];
-import { cn } from "@/lib/utils";
 
 export default function WorkItemDetailPage() {
   const { workItemId } = useParams<{ workItemId: string }>();
@@ -85,6 +83,8 @@ export default function WorkItemDetailPage() {
    * хэрэглэх боломжгүй болгоно.
    */
   const fromQueue = search.get("from") === "queue";
+  const fromMyWork = search.get("from") === "my-work";
+  const myWorkBlockId = search.get("blockId");
   const queueType = (search.get("type") ?? "approval") as QueueType;
   const queueBlockId = search.get("blockId") ?? "";
   const { project } = useProject();
@@ -131,11 +131,16 @@ export default function WorkItemDetailPage() {
   const [editingQty, setEditingQty] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [assigningInspector, setAssigningInspector] = useState(false);
-  const [extending, setExtending] = useState(false);
 
   const itemQuery = useQuery({
     queryKey: ["work-item", workItemId],
     queryFn: () => workItems.get(workItemId),
+  });
+  const extensionQuery = useQuery({
+    queryKey: ["extensions", "work-item", workItemId],
+    queryFn: () => schedule.extensionsFor(workItemId),
+    enabled: Boolean((me?.canReportProgress || me?.canEditPlan) && itemQuery.data && itemQuery.data.overdueDays > 0 && itemQuery.data.status !== "completed"),
+    refetchInterval: 60_000,
   });
   const progressQuery = useQuery({
     queryKey: ["progress", workItemId],
@@ -148,6 +153,7 @@ export default function WorkItemDetailPage() {
 
   /** Явц/шалгалт нэмэгдэхэд дүн, жагсаалт, нэгтгэл бүгд хуучирна. */
   const refreshAll = () => {
+    qc.invalidateQueries({ queryKey: ["work-items", "my-work"] });
     qc.invalidateQueries({ queryKey: ["work-item", workItemId] });
     qc.invalidateQueries({ queryKey: ["progress", workItemId] });
     qc.invalidateQueries({ queryKey: ["inspections", workItemId] });
@@ -206,7 +212,10 @@ export default function WorkItemDetailPage() {
           гэж буцаах нь хэрэглэгчийг огт өөр газар аваачина.
         */
         crumbs={
-          fromQueue
+          fromMyWork ? [
+            { label: "Миний ажлууд", href: myWorkBlockId ? `/blocks/${encodeURIComponent(myWorkBlockId)}` : "/my-work" },
+            { label: item.workType.name },
+          ] : fromQueue
             ? [
                 {
                   label: "Ажлын дараалал",
@@ -224,11 +233,11 @@ export default function WorkItemDetailPage() {
       />
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+        <div className="min-w-0 space-y-6 lg:col-span-2">
           {/* Хугацаа хэтэрсэн бол шалтгааныг нь бүртгүүлж, огноог сунгах
               зам тэр дор нь өгнө — эс бөгөөс хоцролтын тоо хуримтлагдсаар
               байгаад утгагүй болно. */}
-          {item.overdueDays > 0 && item.status !== "completed" && me?.canEditPlan && (
+          {item.overdueDays > 0 && item.status !== "completed" && (me?.canEditPlan || me?.canReportProgress) && (
             <Card className="border-amber-500/40">
               <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
                 <div className="text-sm">
@@ -237,9 +246,16 @@ export default function WorkItemDetailPage() {
                     Төлөвлөсөн дуусах огноо: {formatDate(item.plannedEndDate)}
                   </div>
                 </div>
-                <Button variant="outline" onClick={() => setExtending(true)}>
-                  <CalendarPlus className="size-4" /> Хугацаа сунгах
-                </Button>
+                <DeadlineExtensionAction
+                  item={item}
+                  canRequest={Boolean(me?.canReportProgress || me?.canEditPlan)}
+                  canApprove={Boolean(me?.canApproveExtensions)}
+                  pending={extensionQuery.data?.find((request) => request.status === "pending")}
+                  loading={extensionQuery.isPending || extensionQuery.isFetching}
+                  error={extensionQuery.isError}
+                  onRetry={() => { void extensionQuery.refetch(); }}
+                  onDone={refreshAll}
+                />
               </CardContent>
             </Card>
           )}
@@ -260,19 +276,15 @@ export default function WorkItemDetailPage() {
             onAssignInspector={() => setAssigningInspector(true)}
           />
 
-          {/* Хяналтын инженер батлахаасаа өмнө нотолгоог харах ёстой тул
-              зураг нь түүх, баталгаажуулалтын самбарын дээр байрлана. */}
-          <PhotoGallery
-            workItemId={item.id}
-            canUpload={Boolean(me?.canReportProgress)}
-            onChange={refreshAll}
-          />
-
-          <Timeline progress={progressQuery.data?.data} inspections={inspectionsQuery.data?.data} />
         </div>
 
-        <aside className="space-y-4">
-          {me?.canReportProgress && <ReportProgressCard item={item} onDone={refreshAll} />}
+        <aside className="min-w-0 space-y-4 lg:col-start-3 lg:row-start-1" aria-label="Ажилд хийх үйлдэл">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-medium">{me?.canReportProgress || canActOnStage(me, item.nextStage) ? "Ажилд хийх үйлдэл" : "Ажлын нотолгоо"}</h2>
+            <a href="#work-evidence" className="text-primary text-xs underline underline-offset-4">Зураг, түүх харах ↓</a>
+          </div>
+
+          {me?.canReportProgress && <div id="report-progress" className="scroll-mt-20"><ReportProgressCard item={item} onDone={refreshAll} /></div>}
 
           {/*
             Шалгах форм харуулах эсэхийг АЖЛЫН ДАРААГИЙН ШАТ шийднэ.
@@ -302,6 +314,20 @@ export default function WorkItemDetailPage() {
             />
           )}
 
+        </aside>
+
+        <section id="work-evidence" className="min-w-0 scroll-mt-20 space-y-6 lg:col-span-2 lg:col-start-1 lg:row-start-2" aria-label="Ажлын зураг ба түүх">
+          {/* Нотолгоо руу үйлдлийн самбараас шууд шилжинэ. Зураг нь түүхийн өмнө. */}
+          <PhotoGallery
+            workItemId={item.id}
+            canUpload={Boolean(me?.canReportProgress)}
+            onChange={refreshAll}
+          />
+
+          <Timeline progress={progressQuery.data?.data} inspections={inspectionsQuery.data?.data} />
+        </section>
+
+        <aside className="min-w-0 space-y-4 lg:col-start-3 lg:row-start-2" aria-label="Саатал ба бусад үйлдэл">
           {/* Саатлын шалтгаан — хэн ч бүртгэж болно. Хязгаарлавал хүмүүс
               огт бүртгэхээ болино, тэгвэл тоо баримт бүрдэхгүй. */}
           <IssuePanel workItemId={item.id} />
@@ -347,18 +373,6 @@ export default function WorkItemDetailPage() {
         />
       )}
 
-      {me?.canEditPlan && (
-        <ExtendDeadlineDialog
-          workItemId={item.id}
-          workItemName={item.name}
-          currentEndDate={item.plannedEndDate}
-          overdueDays={item.overdueDays}
-          open={extending}
-          onOpenChange={setExtending}
-          onDone={refreshAll}
-        />
-      )}
-
       {me?.canManageContractors && (
         <AssignContractorDialog
           item={item}
@@ -399,49 +413,13 @@ function QuantityCard({
   canAssignInspector: boolean;
   onAssignInspector: () => void;
 }) {
-  /*
-   * Хоёр шаттай ажилд ГУРВАН тоо хэрэгтэй.
-   *
-   * «40 мэдээлсэн, 10 баталсан» гэж хоёрыг харуулбал дунд нь 30 хаана
-   * байгаа нь ойлгомжгүй: шалгагдсан уу, хүлээж байна уу? Нэг шаттай
-   * ажилд шалгасан гэсэн багана утгагүй тул ХАРУУЛАХГҮЙ.
-   */
-  const twoStage = (item.inspectionStages ?? 2) >= 2;
-
-  const rows = [
-    { label: "Төлөвлөсөн", value: item.plannedQty },
-    { label: "Мэдээлсэн", value: item.reportedQty, muted: true },
-    ...(twoStage ? [{ label: "Шалгагдсан", value: item.checkedQty, muted: true }] : []),
-    { label: "Батлагдсан", value: item.acceptedQty, strong: true },
-    { label: "Үлдэгдэл", value: item.remainingQty },
-  ];
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm">Тоо хэмжээ</CardTitle>
+        <CardTitle className="text-sm">Гүйцэтгэлийн тойм</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className={cn("grid grid-cols-2 gap-4", twoStage ? "sm:grid-cols-5" : "sm:grid-cols-4")}>
-          {rows.map((r) => (
-            <div key={r.label}>
-              <div
-                className={cn("text-xl font-semibold tabular-nums", r.strong && "text-emerald-600")}
-              >
-                {formatQty(r.value)}{" "}
-                <span className="text-muted-foreground text-sm font-normal">{item.unit}</span>
-              </div>
-              <div className="text-muted-foreground text-sm">{r.label}</div>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-3">
-          <ProgressBar value={item.percentage} />
-          <span className="w-10 text-right text-sm font-medium tabular-nums">
-            {item.percentage}%
-          </span>
-        </div>
+        <WorkQuantitySummary item={item} />
 
         {/* Дахин хийлтийн хэмжээ — тусдаа ажлын мөр үүсгэдэггүй тул зардлыг
             ингэж хэмжинэ. 0 бол огт харуулахгүй: шуугиан болно. */}
@@ -474,7 +452,7 @@ function QuantityCard({
           </div>
         )}
 
-        <dl className="text-muted-foreground grid grid-cols-2 gap-x-8 gap-y-2 border-t pt-4 text-sm">
+        <dl className="text-muted-foreground grid grid-cols-1 gap-x-8 gap-y-3 border-t pt-4 text-sm sm:grid-cols-2">
           <Detail label="Байршил" value={item.location.path} />
           <Detail label="Ажлын бүлэг" value={item.workType.groupName ?? "—"} />
           {/* Хариуцагчийг солих зам ЭНД байх ёстой: блокийн бүлгээр оноох нь

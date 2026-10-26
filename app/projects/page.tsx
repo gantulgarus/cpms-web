@@ -6,6 +6,8 @@
  * Бусад бүх дэлгэц (блок, дараалал, тайлан) ИДЭВХТЭЙ төслийн хүрээнд
  * ажилладаг. Сонголт нь хөтөч дээр санагдана.
  */
+import Link from "next/link";
+import type { ProjectSummary } from "@/lib/api/use-project";
 import { useState } from "react";
 import { Check, Plus } from "lucide-react";
 
@@ -31,6 +33,7 @@ export default function ProjectsPage() {
   const { me } = useMe();
   const { project: active, projects, select, isLoading, error } = useProject();
   const [creating, setCreating] = useState(false);
+  const [created, setCreated] = useState<ProjectSummary | null>(null);
 
   const canCreate = Boolean(me?.canManageProjects);
 
@@ -47,6 +50,14 @@ export default function ProjectsPage() {
           )
         }
       />
+
+      {created && active?.id === created.id && (
+        <Card className="mb-6 gap-3 p-5" role="status">
+          <h2 className="font-medium">{created.name} төсөл үүслээ</h2>
+          <p className="text-muted-foreground text-sm">Дараагийн алхам: эхний барилгаа нэмээд, хийх ажлуудаа тохируулна уу.</p>
+          {me?.canEditPlan ? <Button nativeButton={false} className="self-start" render={<Link href="/blocks/new" />}>Эхний барилгаа нэмэх</Button> : <p className="text-muted-foreground text-sm">Барилга нэмүүлэхийн тулд төлөвлөгөө засах эрхтэй ажилтанд хандана уу.</p>}
+        </Card>
+      )}
 
       {error ? (
         <ErrorState message={(error as Error).message} />
@@ -119,7 +130,7 @@ export default function ProjectsPage() {
       <NewProjectDialog
         open={creating}
         onOpenChange={setCreating}
-        onCreated={(p) => select(p.id)}
+        onCreated={(p) => { select(p.id); setCreated(p); }}
       />
     </div>
   );

@@ -946,3 +946,16 @@ export const api = {
   materialOrders,
   materialBudget,
 };
+
+/** A project-wide, scoped and paginated list, including reporting readiness. */
+export const myWork = {
+  list: (projectId: Uuid, params: {
+    reportingState: import("./types").ReportingState;
+    blockId?: Uuid;
+    locationId?: Uuid;
+    includeDescendants?: boolean;
+    search?: string;
+    page: number;
+    pageSize: number;
+  }) => request<import("./types").MyWorkEnvelope>("GET", `/projects/${projectId}/my-work`, { query: { ...params } }),
+};

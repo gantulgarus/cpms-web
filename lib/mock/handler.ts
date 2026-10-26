@@ -43,6 +43,7 @@ import type {
   Inspection,
   InspectionStage,
   ReviewState,
+  ReportingState,
   ItemCounts,
   StatusCounts,
   ProgressEntry,
@@ -1234,7 +1235,7 @@ function recalcReview(item: WorkItem) {
  * бүртгэгддэг ч шавардлага нь АЙЛЫН. Зөвхөн ижил байршлыг шалгавал
  * хориг огт ажиллахгүй — яг тэр тохиолдол бодит төсөвт байна.
  */
-function holdPointReason(item: WorkItem): string | null {
+function holdPointReason(item: WorkItem, candidates?: WorkItem[]): string | null {
   const db = getDb();
   const order = GROUP_ORDER[item.workType.groupName];
 
@@ -1248,7 +1249,7 @@ function holdPointReason(item: WorkItem): string | null {
     node = node.parentId ? db.locations.find((l) => l.id === node!.parentId) : undefined;
   }
 
-  const blockers = db.workItems.filter((w) => {
+  const blockers = (candidates ?? db.workItems).filter((w) => {
     if (w.id === item.id || w.blockId !== item.blockId) return false;
     if (!chain.has(w.locationId)) return false;
     /*
@@ -2495,6 +2496,55 @@ export function handleMock(
   }
 
   if (a === "projects" && b) {
+    if (c === "my-work" && method === "GET") {
+      if (!session.canReportProgress) return fail(403, "Forbidden", "Гүйцэтгэл мэдээлэх эрхгүй.");
+      if (!mockProjects.some((p) => p.id === b)) return fail(404, "NotFound", "Төсөл олдсонгүй.");
+      const state = q.get("reportingState") ?? "ready";
+      if (!["ready", "blocked", "pending", "completed"].includes(state)) return fail(422, "ValidationError", "Төлөв буруу.");
+      for (const key of ["page", "pageSize"]) {
+        const value = q.get(key);
+        if (value && (!Number.isInteger(Number(value)) || Number(value) < 1 || (key === "pageSize" && Number(value) > MAX_PAGE_SIZE))) return fail(422, "ValidationError", "Хуудасны хэмжээ буруу.");
+      }
+      const blockIds = new Set(db.blocks.filter((x) => x.projectId === b).map((x) => x.id));
+      const blockId = q.get("blockId");
+      const locations = new Map(db.locations.map((l) => [l.id, l]));
+      const types = new Map(db.workTypes.map((t) => [t.id, t]));
+      const holdIndex = new Map<string, WorkItem[]>();
+      for (const item of db.workItems) {
+        if (blockIds.has(item.blockId) && item.plannedQty > 0 && item.status !== "completed" && types.get(item.workTypeId)?.isHoldPoint) {
+          const key = `${item.blockId}:${item.locationId}`;
+          const entries = holdIndex.get(key) ?? [];
+          entries.push(item);
+          holdIndex.set(key, entries);
+        }
+      }
+      const rows = filterWorkItems(db.workItems.filter((w) => blockIds.has(w.blockId) && (!blockId || w.blockId === blockId)), q).map((item) => {
+        const order = GROUP_ORDER[item.workType.groupName];
+        const candidates: WorkItem[] = [];
+        let node = locations.get(item.locationId);
+        while (node) {
+          candidates.push(...(holdIndex.get(`${item.blockId}:${node.id}`) ?? []));
+          node = node.parentId ? locations.get(node.parentId) : undefined;
+        }
+        const blockers = candidates.filter((w) => w.id !== item.id && order !== undefined && (GROUP_ORDER[w.workType.groupName] ?? Infinity) < order);
+        const qty = Math.max(0, Math.round((item.plannedQty - item.reportedQty) * 1000) / 1000);
+        const reportingState: ReportingState = item.status === "completed" ? "completed" : item.plannedQty <= 0 ? "blocked" : qty <= 0 ? "pending" : blockers.length ? "blocked" : "ready";
+        return {
+          ...item,
+          blockName: db.blocks.find((x) => x.id === item.blockId)?.name,
+          reportingState,
+          reportableQty: reportingState === "ready" ? qty : 0,
+          reportingReason: reportingState === "completed" ? "Ажил бүрэн батлагдсан." : reportingState === "pending" ? "Мэдээлсэн гүйцэтгэл шалгалт, батлалт хүлээж байна." : reportingState === "blocked" ? item.plannedQty <= 0 ? "Төлөвлөгөөт тоо хэмжээ оруулаагүй байна." : holdPointReason(item, blockers) : null,
+          blockingWorkItems: inScope(blockers).slice(0, 3).map((w) => ({ id: w.id, name: w.name, locationPath: w.location.path })),
+        };
+      });
+      const counts = { ready: 0, blocked: 0, pending: 0, completed: 0 };
+      for (const row of rows) counts[row.reportingState]++;
+      const filtered = rows.filter((w) => w.reportingState === state).sort((a, b) =>
+        (a.plannedEndDate ?? "9999").localeCompare(b.plannedEndDate ?? "9999") || a.id.localeCompare(b.id));
+      return ok({ ...paginate(filtered, q), counts });
+    }
+
     if (c === "material-orders" && method === "GET") {
       if (session.role === "contractor") {
         return fail(403, "Forbidden", "Танд материалын захиалга харах эрх байхгүй.");

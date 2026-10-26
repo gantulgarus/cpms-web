@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:mock": "tsc -p tsconfig.verify-mock.json && node scripts/run-mock-checks.mjs verify-mock",
+    "test:my-work": "tsc -p tsconfig.verify-mock.json && node scripts/run-mock-checks.mjs verify-my-work"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

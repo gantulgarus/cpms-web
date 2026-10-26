@@ -155,18 +155,24 @@ export function AppSidebar() {
           : [
               {
                 href: "/queue",
-                label: "Дараалал",
+                label: me?.canInspect ? "Шалгах, батлах ажлууд" : me?.canCheck ? "Миний шалгах ажлууд" : "Анхаарах ажлууд",
                 icon: ListChecks,
                 match: (p: string) => p.startsWith("/queue"),
                 badge: pending || undefined,
               },
             ]),
         {
-          href: "/blocks",
+          href: isRep ? "/my-work" : "/blocks",
           label: isRep ? "Миний ажлууд" : "Блокууд",
           icon: Building2,
-          match: (p) => p.startsWith("/blocks") || p.startsWith("/work-items"),
+          match: (p) => (isRep ? p.startsWith("/my-work") : p.startsWith("/blocks")) || p.startsWith("/work-items"),
         },
+        ...(isRep ? [{
+          href: "/blocks",
+          label: "Барилгууд",
+          icon: Building2,
+          match: (p: string) => p.startsWith("/blocks"),
+        }] : []),
         {
           href: "/issues",
           label: "Саатал",

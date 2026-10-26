@@ -64,6 +64,7 @@ export function AssignInspectorDialog({
       onOpenChange(false);
       qc.invalidateQueries({ queryKey: ["work-item", item.id] });
       qc.invalidateQueries({ queryKey: ["work-items"] });
+      qc.invalidateQueries({ queryKey: ["summary"] });
       onDone?.();
     },
     onError: (e: Error) => toast.error(e.message),

@@ -28,6 +28,8 @@ import {
   Wallet,
 } from "lucide-react";
 
+import { MyWorkList } from "@/components/my-work-list";
+import { BlockSetupProgress } from "@/components/block-setup-progress";
 import { PageHeader } from "@/components/page-header";
 import { AddWorkTypeDialog } from "@/components/add-work-type-dialog";
 import { DeleteBlockDialog } from "@/components/delete-block-dialog";
@@ -95,6 +97,14 @@ interface Selection {
 }
 
 export default function BlockProgressPage() {
+  const { blockId } = useParams<{ blockId: string }>();
+  const { me, isLoading } = useMe();
+  if (isLoading) return <LoadingRows rows={4} />;
+  if (me?.role === "contractor") return <MyWorkList blockId={blockId} />;
+  return <BlockProgressContent />;
+}
+
+function BlockProgressContent() {
   const { blockId } = useParams<{ blockId: string }>();
 
   const { me } = useMe();
@@ -300,6 +310,31 @@ export default function BlockProgressPage() {
         }
       />
 
+      {summaryQuery.error ? (
+        <ErrorState message={(summaryQuery.error as Error).message} onRetry={() => summaryQuery.refetch()} />
+      ) : totals && me && (me.canEditPlan || me.canManageContractors || me.canAssignInspectors) && (
+        <BlockSetupProgress
+          blockId={blockId}
+          totals={totals}
+          me={me}
+          onAdd={() => setAddingWork(true)}
+          onQuantities={() => setFixingQuantities(true)}
+          onSchedule={() => setEditingDuration(true)}
+          onInspectors={() => {
+            setFocus({ key: "inspectors", label: "Хяналтын инженер оноох ажлууд", filter: { inspectorId: "none" } });
+            setSelected(null);
+            setReviewState("");
+            setPage(1);
+          }}
+          onWork={() => {
+            setFocus({ key: "all", label: "Гүйцэтгэл оруулах ажлаа сонгох", filter: {} });
+            setSelected(null);
+            setReviewState("");
+            setPage(1);
+          }}
+        />
+      )}
+
       <div className="mb-6 grid gap-4 lg:grid-cols-3">
         <ProgressSummary totals={totals} loading={summaryQuery.isLoading} />
 
@@ -326,7 +361,7 @@ export default function BlockProgressPage() {
 
       {/* Ажилгүй блок бол мухардмал төлөв болох ёсгүй — гарцыг нь тэр
           дор нь харуулна. */}
-      {!summaryQuery.isLoading && (summary?.groups.length ?? 0) === 0 ? (
+      {!summaryQuery.isLoading && !summaryQuery.error && summary?.totals.workItems === 0 ? (
         <EmptyBlockSetup
           blockId={blockId}
           startDate={blockQuery.data?.startDate}
@@ -351,6 +386,7 @@ export default function BlockProgressPage() {
                 </Button>
               </div>
 
+              {focus.key === "inspectors" && <p className="text-muted-foreground text-sm">Доорх ажлын нэр дээр дарж нээгээд «Хяналтын инженер» хэсгээс инженер онооно уу.</p>}
               <GroupDetail
                 reviewState={reviewState}
                 onReviewState={(v) => {

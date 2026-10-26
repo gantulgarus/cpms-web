@@ -1148,3 +1148,15 @@ export interface BlockBudget {
   work: BudgetWorkRow[];
   materials: BudgetMaterialRow[];
 }
+
+/** Server-computed reporting eligibility; never inferred from reviewState alone. */
+export type ReportingState = "ready" | "blocked" | "pending" | "completed";
+export interface MyWorkItem extends WorkItem {
+  reportingState: ReportingState;
+  reportableQty: number;
+  reportingReason: string | null;
+  blockingWorkItems: { id: Uuid; name: string; locationPath: string }[];
+}
+export interface MyWorkEnvelope extends ListEnvelope<MyWorkItem> {
+  counts: Record<ReportingState, number>;
+}

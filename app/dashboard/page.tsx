@@ -1,17 +1,6 @@
 "use client";
 
-/**
- * Төслийн хянах самбар — нүүр хуудас.
- *
- * ХУВААРЬ: энэ хуудас "ЮУ БОЛЖ БАЙНА" гэдэгт хариулна. "ЮУ ХИЙХ ВЭ" гэдэг нь
- * `/queue`-ийн ажил. Хоёуланг нь нэг хуудсанд хийвэл аль нь ч сайн ажиллахгүй:
- * тоо харах хүн жагсаалтад дарагдаж, ажил хийх хүн тоонуудыг алгасна.
- * Тиймээс энд ЖАГСААЛТ БАЙХГҮЙ — зөвхөн тоо, тэдгээр нь дарагдаж дарааллын
- * зөв таб руу аваачна.
- *
- * Бүх нэгтгэл серверт хийгдэнэ (`/projects/{id}/dashboard`, `/queue/counts`).
- * 75 барилга болоход client тал 3,290×75 мөр татаж бодох ёсгүй.
- */
+/** Хийх ажил → анхаарах зүйлс → барилгын явц. Нэгтгэлийг сервер тооцно. */
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
@@ -26,8 +15,13 @@ import {
   Users,
 } from "lucide-react";
 
+import { BlockCard } from "@/components/block-card";
+import { DashboardCount } from "@/components/dashboard-count";
+import { DashboardActions } from "@/components/dashboard-actions";
+import { NoProjectState } from "@/components/no-project-state";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
-import { ItemLegend, ProgressBar } from "@/components/progress-bar";
+import { ItemLegend } from "@/components/progress-bar";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/states";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -63,6 +57,7 @@ export default function DashboardPage() {
   });
 
   const d = dash.data;
+  const queueCounts = counts.isError ? undefined : counts.data;
 
   if (projectError) return <ErrorState message={(projectError as Error).message} />;
 
@@ -76,82 +71,44 @@ export default function DashboardPage() {
               ? // Гүйцэтгэгчид энэ нь ТӨСЛИЙН биш ӨӨРИЙН явц. Үүнийг бичихгүй
                 // бол "төсөл 3% явж байна" гэж андуурна.
                 `${project.name} — доорх бүх тоо таны компанийн ажлынх.`
-              : `${project.name} — анхаарал шаардсан зүйл, дараа нь барилга тус бүрийн явц.`
+              : `${project.name} — хийх ажил, анхаарах зүйлс, барилгын явц.`
             : "Ачаалж байна…"
         }
       />
 
       {projectLoading || dash.isLoading ? (
         <LoadingRows rows={4} />
+      ) : !project ? (
+        <NoProjectState />
       ) : dash.error ? (
         <ErrorState message={(dash.error as Error).message} onRetry={() => dash.refetch()} />
+      ) : d?.blocks.length === 0 ? (
+        <EmptyState title="Эхний барилгаа нэмье" description="Төсөл бэлэн байна. Барилга нэмсний дараа ажлуудаа тохируулж, гүйцэтгэл бүртгэж эхэлнэ."
+          action={me?.canEditPlan ? <Button nativeButton={false} render={<Link href="/blocks/new" />}>Эхний барилгаа нэмэх</Button> : undefined} />
       ) : !d ? (
         <EmptyState title="Өгөгдөл алга" description="Төсөлд блок үүсээгүй байна." />
       ) : (
         <div className="space-y-6">
-          {/* --- Анхаарал шаардсан тоонууд — бүгд дарагдана ---
+          {me && <DashboardActions me={me} counts={queueCounts} loading={counts.isPending} />}
 
-              ЯАГААД ЭНЭ НЬ ХАМГИЙН ДЭЭР ВЭ: урьд нь энд төслийн нийт хувь
-              том үсгээр сууж байв. Гэтэл тэр тоо дээр ҮЙЛДЭЛ ГАРГАХ
-              БОЛОМЖГҮЙ — «9%» гэдгийг хараад хийх зүйл алга. Дээрээс нь
-              75 барилгад дундаж нь утгагүй: нэг нь 90%, нөгөө нь 0% байхад
-              45% гэсэн тоо хоёрын алиныг нь ч тодорхойлохгүй.
-
-              Эдгээр гурван тоо нь эсрэгээрээ шууд ажил заана. */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {/*
-              ХОЁР ШАТЫГ САЛГАНА.
-
-              Урьд нь нэг «Батлахыг хүлээж буй» хайрцаг хоёр шатыг
-              нийлүүлж харуулдаг байв. Тэр тоо нь ХЭНИЙХ ч биш: шалгах
-              нь талбайн инженерийн, батлах нь хяналтын инженерийн ажил.
-              Дээрээс нь холбоос нь `?type=inspection` гэж явдаг байсан —
-              дараалал тийм таб хүлээж авдаггүй тул өөр жагсаалт нээгдэж,
-              тоо нь зөрдөг байв.
-            */}
-            {/*
-              Шат бүр нь ТЭР ШАТЫГ ХИЙХ эрхтэй хүнд л дарагдана.
-              Талбайн инженерт «батлах» жагсаалт руу холбоос өгвөл
-              хийж чадахгүй ажлын жагсаалт нээгдэнэ.
-            */}
-            <AttentionTile
-              href={me?.canCheck ? "/queue?type=check" : null}
-              icon={Search}
-              label="Шалгахыг хүлээж буй"
-              value={counts.data?.check ?? 0}
-              tone="amber"
-            />
-            <AttentionTile
-              href={me?.canInspect ? "/queue?type=approval" : null}
-              icon={Stamp}
-              label="Батлахыг хүлээж буй"
-              value={counts.data?.approval ?? 0}
-              tone="amber"
-            />
-            <AttentionTile
-              href={observer ? null : "/queue?type=overdue"}
-              icon={AlertTriangle}
-              label="Хугацаа хэтэрсэн"
-              value={counts.data?.overdue ?? d.overdueWorkItems}
-              tone="red"
-            />
-            <AttentionTile
-              href={observer ? null : "/queue?type=returned"}
-              icon={RotateCcw}
-              label="Буцаагдсан"
-              value={counts.data?.returned ?? 0}
-              tone="amber"
-            />
-          </div>
-
-          {/* Эдгээр нь даалгавар БИШ гэдгийг тодорхой хэлнэ — эс бөгөөс
-              захирал «би юу хийх ёстой юм бол» гэж эргэлзэнэ. */}
-          {observer && (
-            <p className="text-muted-foreground -mt-3 text-xs">
-              Дээрх тоонууд нь төслийн байдлын үзүүлэлт. Баталгаажуулалтыг хяналтын
-              инженерүүд гүйцэтгэнэ.
-            </p>
-          )}
+          <section aria-labelledby="attention-heading" className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 id="attention-heading" className="font-medium">Анхаарах зүйлс</h2>
+              {me?.canEditPlan && <Link href="/blocks" className="text-primary text-sm hover:underline">Барилга, ажлаа тохируулах →</Link>}
+            </div>
+            {counts.isError && (
+              <div role="alert" className="flex flex-wrap items-center gap-2 rounded-lg border p-3 text-sm">
+                <span>Хүлээгдэж буй ажлын тоог авч чадсангүй. «—» нь мэдээлэл тодорхойгүй гэсэн утгатай.</span>
+                <Button size="sm" variant="outline" onClick={() => counts.refetch()} disabled={counts.isFetching}>Дахин оролдох</Button>
+              </div>
+            )}
+            <div className={cn("grid gap-3 sm:grid-cols-2", me?.canCheck && me?.canInspect ? "lg:grid-cols-2" : !me?.canCheck && !me?.canInspect ? "lg:grid-cols-4" : "lg:grid-cols-3")}>
+              {!me?.canCheck && <AttentionTile href={null} icon={Search} label="Шалгалт хүлээж буй ажил" value={queueCounts?.check} loading={counts.isPending} tone="amber" />}
+              {!me?.canInspect && <AttentionTile href={null} icon={Stamp} label="Батлалт хүлээж буй ажил" value={queueCounts?.approval} loading={counts.isPending} tone="amber" />}
+              <AttentionTile href={observer ? null : "/queue?type=overdue"} icon={AlertTriangle} label="Хугацаа хэтэрсэн ажил" value={queueCounts?.overdue ?? d.overdueWorkItems} tone="red" />
+              <AttentionTile href={observer ? null : "/queue?type=returned"} icon={RotateCcw} label="Буцаагдсан ажил" value={queueCounts?.returned} loading={counts.isPending} tone="amber" />
+            </div>
+            {observer && <p className="text-muted-foreground text-xs">Эдгээр нь төслийн үзүүлэлт. Ажлыг хариуцсан инженерүүд шалгаж, батална.</p>}
 
           {/* --- Тохируулга дутуу байна гэсэн анхааруулга ---
 
@@ -162,6 +119,8 @@ export default function DashboardPage() {
           {me?.canManageContractors && (d.unassignedItems ?? 0) > 0 && (
             <UnassignedNotice blocks={d.blocks} total={d.unassignedItems} />
           )}
+
+          </section>
 
           {/* --- Барилгууд ---
               Явц нь ЗӨВХӨН энд харагдана. Барилга бүр өөрийн хувьтай — нэг
@@ -309,7 +268,7 @@ function BlockSection({ blocks, counts }: { blocks: DashboardBlock[]; counts: It
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-sm font-medium">
-            Барилгууд
+            Барилгын явц
             <span className="text-muted-foreground ml-2 font-normal tabular-nums">
               {blocks.length}
             </span>
@@ -318,7 +277,7 @@ function BlockSection({ blocks, counts }: { blocks: DashboardBlock[]; counts: It
               дууссан» гэдэг нь барилгын хувиудыг уншихад хэрэгтэй. Гэхдээ
               энэ нь самбарын толгойд сууж байхаар чухал зүйл биш. */}
           <p className="text-muted-foreground mt-0.5 text-xs">
-            Нийт {counts.totalItems.toLocaleString("mn-MN")} ажил
+            Нийт {counts.totalItems.toLocaleString("mn-MN")} ажил. Хувь нь тоо хэмжээтэй ажлуудын батлагдсан гүйцэтгэлийн дундаж; тоо хэмжээгүй ажлыг оруулаагүй.
           </p>
         </div>
 
@@ -356,7 +315,7 @@ function BlockSection({ blocks, counts }: { blocks: DashboardBlock[]; counts: It
                 <ChevronRight
                   className={cn("size-4 transition-transform", showAll && "rotate-90")}
                 />
-                Хэвийн явж буй {calm.length} барилга
+                Хоцролт, хүлээгдэж буй шалгалтгүй {calm.length} барилга
               </button>
 
               {showAll && (
@@ -371,7 +330,7 @@ function BlockSection({ blocks, counts }: { blocks: DashboardBlock[]; counts: It
 
           {attention.length === 0 && calm.length > 0 && !showAll && (
             <p className="text-muted-foreground text-sm">
-              Анхаарал шаардсан барилга алга — бүгд хуваарийн дагуу явж байна.
+              Бүртгэлээр хоцролттой болон шалгалт хүлээж буй барилга алга.
             </p>
           )}
         </>
@@ -380,75 +339,38 @@ function BlockSection({ blocks, counts }: { blocks: DashboardBlock[]; counts: It
   );
 }
 
-function BlockCard({ block }: { block: DashboardBlock }) {
-  return (
-    <Link
-      href={`/blocks/${block.id}`}
-      className="hover:bg-accent/50 block rounded-xl border p-4 transition-colors"
-    >
-      <div className="mb-2 flex items-baseline justify-between gap-2">
-        <span className="truncate font-medium">{block.name}</span>
-        <span className="shrink-0 text-lg font-semibold tabular-nums">{block.percentage}%</span>
-      </div>
-
-      <ProgressBar value={block.percentage} className="h-2" />
-
-      {/* Хувь нь ЮУНААС гарсныг барилга тус бүр дээр бас харуулна — «43%»
-          гэсэн тоо ганцаараа шалгагдахгүй. */}
-      <p className="text-muted-foreground mt-2 text-xs tabular-nums">
-        {block.totalItems.toLocaleString("mn-MN")} ажлаас{" "}
-        {block.completedItems.toLocaleString("mn-MN")} дууссан
-        {block.inProgressItems > 0 && `, ${block.inProgressItems.toLocaleString("mn-MN")} явцтай`}
-      </p>
-
-      <div className="mt-2 flex flex-wrap gap-3 text-xs">
-        {block.overdue > 0 && (
-          <span className="text-destructive flex items-center gap-1">
-            <AlertTriangle className="size-3" />
-            {block.overdue} хоцорсон
-          </span>
-        )}
-        {block.pendingInspections > 0 && (
-          <span className="text-amber-600 dark:text-amber-400">
-            {block.pendingInspections} батлах
-          </span>
-        )}
-        {block.overdue === 0 && block.pendingInspections === 0 && (
-          <span className="text-muted-foreground">Хэвийн</span>
-        )}
-      </div>
-    </Link>
-  );
-}
-
 function AttentionTile({
   href,
   icon: Icon,
   label,
   value,
+  loading = false,
   tone,
 }: {
   /** `null` бол ДАРАГДАХГҮЙ — үйлдэл хийх эрхгүй хүнд зориулав. */
   href: string | null;
   icon: typeof Stamp;
   label: string;
-  value: number;
+  value?: number;
+  loading?: boolean;
   tone: "amber" | "red";
 }) {
   const empty = value === 0;
+  const needsAttention = typeof value === "number" && value > 0;
 
   const body = (
     <>
       <div>
         <div
           className={cn(
-            "flex items-center gap-1.5 text-2xl font-semibold tabular-nums",
-            !empty && tone === "red" && "text-destructive",
-            !empty && tone === "amber" && "text-amber-600 dark:text-amber-400",
+            "flex items-center gap-1.5 text-3xl font-semibold tracking-tight tabular-nums",
+            !needsAttention && "text-muted-foreground",
+            needsAttention && tone === "red" && "text-destructive",
+            needsAttention && tone === "amber" && "text-amber-600 dark:text-amber-400",
           )}
         >
           <Icon className="size-5" />
-          {value.toLocaleString("mn-MN")}
+          <DashboardCount value={value} loading={loading} />
         </div>
         <div className="text-muted-foreground text-sm">{label}</div>
       </div>

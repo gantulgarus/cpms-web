@@ -102,15 +102,19 @@ export function ExtendDeadlineDialog({
       qc.invalidateQueries({ queryKey: ["dashboard"] });
       onDone?.();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => {
+      toast.error(e.message);
+      // Another device may have submitted a request while this dialog was open.
+      qc.invalidateQueries({ queryKey: ["extensions"] });
+    },
   });
 
   return (
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Хугацаа сунгах"
-      submitLabel="Сунгах"
+      title={me?.canApproveExtensions ? "Хугацаа сунгах" : "Хугацаа сунгах хүсэлт"}
+      submitLabel={me?.canApproveExtensions ? "Сунгах" : "Хүсэлт илгээх"}
       submitDisabled={!valid || !later}
       pending={extend.isPending}
       onSubmit={() => extend.mutate()}

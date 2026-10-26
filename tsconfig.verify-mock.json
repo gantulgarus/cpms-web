@@ -6,10 +6,11 @@
   },
   "include": [
     "lib/mock/**/*",
-    "lib/api/v2/types.ts",
+    "lib/api/types.ts",
     "lib/config.ts",
     "lib/photo-url.ts",
     "lib/proxy.ts",
-    "scripts/verify-mock.ts"
+    "scripts/verify-mock.ts",
+    "scripts/verify-my-work.ts"
   ]
 }

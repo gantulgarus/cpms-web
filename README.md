@@ -68,7 +68,8 @@ mock нь санаатайгаар жинхэнэ шиг ажиллана: шү�
 python3 scripts/extract-work-types.py "Хавсралт-2.xlsx"
 
 # mock-ийн зан төлөвийг шалгах (46 тест)
-npx tsc -p tsconfig.verify-mock.json && node .verify-mock/scripts/verify-mock.js
+npm run test:mock
+npm run test:my-work
 ```
 
 ### Жишээ дэлгэцүүд
@@ -83,3 +84,14 @@ npx tsc -p tsconfig.verify-mock.json && node .verify-mock/scripts/verify-mock.js
 
 > The proxy keeps the (HTTP) backend server-side, so deploying this app over
 > HTTPS works without mixed-content issues.
+
+## Гүйцэтгэгчийн ажлын жагсаалт
+
+`/my-work` нь идэвхтэй төслийн хүрээнд оруулах боломжтой ажлуудаар эхэлнэ.
+Барилга, давхар, айл, ажлын нэрээр шүүж, хүлээлт, шалгалтад илгээсэн, дууссан
+ажлуудыг тусад нь харна. Гүйцэтгэгч `/blocks/:id` руу ороход ижил жагсаалт
+тухайн барилгаар шүүгдэнэ.
+
+Backend-д `GET /projects/:id/my-work` API шаардлагатай (`docs/api-endpoints.md`).
+Үүнийг хуучин backend дээр deploy хийхээс өмнө backend-ийн `MyWorkController`,
+`ReportableWork`, маршрутын өөрчлөлтийг хамт байрлуулна.

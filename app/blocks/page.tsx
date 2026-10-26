@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/page-header";
 import { ProgressBar } from "@/components/progress-bar";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/states";
 import { Button } from "@/components/ui/button";
+import { DashboardCount } from "@/components/dashboard-count";
 import { BlockCard } from "@/components/block-card";
 import { NoProjectState } from "@/components/no-project-state";
 import { Card } from "@/components/ui/card";
@@ -77,7 +78,7 @@ export default function BlocksPage() {
     enabled: Boolean(project),
   });
 
-  const stats = new Map((dashQuery.data?.blocks ?? []).map((b) => [b.id, b]));
+  const stats = new Map((dashQuery.isError ? [] : dashQuery.data?.blocks ?? []).map((b) => [b.id, b]));
 
   /*
    * ТОО ЗӨВ ЭРЭМБЭЛНЭ.
@@ -95,14 +96,14 @@ export default function BlocksPage() {
   return (
     <div>
       <PageHeader
-        title={isRep ? "Миний ажлууд" : "Блокууд"}
+        title={isRep ? "Барилгууд" : "Блокууд"}
         description={
           project
             ? isRep
               ? // Тоонууд нь БҮХ ажлын биш, зөвхөн энэ компанийн ажлын дүн.
                 // Үүнийг тодорхой бичихгүй бол "явц 3% байна" гэж хараад
                 // барилга бүхэлдээ хоцорсон гэж андуурна.
-                `${project.name} — доорх хувь нь таны компанийн ажлын дүн.`
+                `${project.name} — таны компанийн ажлын явц. Барилга сонгоод оруулах боломжтой ажлуудаа харна уу.`
               : `${project.name} — явцыг харахын тулд блок дээр дарна уу.`
             : "Ачаалж байна…"
         }
@@ -140,6 +141,11 @@ export default function BlocksPage() {
           </div>
         }
       />
+
+      {dashQuery.isError && <div role="alert" className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border p-3 text-sm">
+        <span>Явцын мэдээллийг авч чадсангүй. «—» нь мэдээлэл тодорхойгүй гэсэн утгатай.</span>
+        <Button size="sm" variant="outline" onClick={() => dashQuery.refetch()} disabled={dashQuery.isFetching}>Дахин оролдох</Button>
+      </div>}
 
       {projectError ? (
         <ErrorState message={(projectError as Error).message} />
@@ -190,7 +196,7 @@ export default function BlocksPage() {
                 <TableHead>Блок</TableHead>
                 <TableHead>Зориулалт</TableHead>
                 <TableHead className="text-right">Давхар / айл</TableHead>
-                <TableHead className="w-40">Явц</TableHead>
+                <TableHead className="w-40">Батлагдсан явц</TableHead>
                 <TableHead className="text-right">Хоцорсон</TableHead>
                 <TableHead className="w-8" />
               </TableRow>
@@ -209,9 +215,9 @@ export default function BlocksPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <ProgressBar value={s?.percentage ?? 0} className="w-20" />
+                        {s ? <ProgressBar value={s.percentage} className="w-20" /> : <div className="bg-muted h-1.5 w-20 rounded-full" aria-hidden="true" />}
                         <span className="text-muted-foreground w-9 text-right text-xs tabular-nums">
-                          {dashQuery.isLoading ? "…" : `${s?.percentage ?? 0}%`}
+                          <DashboardCount value={s?.percentage} loading={dashQuery.isLoading} />{s && "%"}
                         </span>
                       </div>
                     </TableCell>
