@@ -42,6 +42,12 @@ function approveFully(itemId: string, checklist?: { itemId: string; result: stri
    * гараар бичвэл өмнөх шалгуурууд тухайн мөрийг хөндсөн үед чимээгүй
    * 422 аваад, үр дүн нь хол доошоо «батлагдсан 0» гэж гарна.
    */
+  login("admin@cpms.test");
+  const allocations = handleMock("GET", ["blocks", row.blockId, "site-engineer-assignments"], "", undefined).body as { data: { engineers: { id: string }[] } };
+  handleMock("POST", ["blocks", row.blockId, "site-engineer-assignments"], "", {
+    workTypeGroupId: db.workTypes.find((w) => w.id === row.workTypeId)!.groupId,
+    siteEngineerId: allocations.data.engineers[0]?.id,
+  });
   login("site_engineer@cpms.test");
   const check = handleMock("POST", ["work-items", itemId, "inspections"], "", {
     stage: "site_check",

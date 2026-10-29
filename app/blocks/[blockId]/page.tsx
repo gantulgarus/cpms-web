@@ -251,6 +251,11 @@ function BlockProgressContent() {
             {/* Хариуцагч оноохгүй бол гүйцэтгэгч нэвтрээд юу ч харахгүй.
                 Тиймээс тоог ТОВЧ ДЭЭР нь гаргана — оноох хуудас руу орсон
                 хүн л мэддэг байх ёсгүй. */}
+            {me?.canAssignInspectors && (
+              <Button variant="outline" nativeButton={false} render={<Link href={`/blocks/${blockId}/assignments#site-engineers`} />}>
+                <Users className="size-4" /> Талбайн инженер хуваарилах
+              </Button>
+            )}
             {me?.canManageContractors && (
               <Button
                 variant="outline"

@@ -1869,6 +1869,17 @@ const mockProjects: Record<string, string | null>[] = [
   },
 ];
 
+const siteEngineerRules = new Map<string, string>();
+let siteEngineerDemoSeeded = false;
+function siteEngineerFor(item: WorkItem): MockUser | undefined {
+  const groupId = getDb().workTypes.find((w) => w.id === item.workTypeId)?.groupId;
+  const id = siteEngineerRules.get(`${item.blockId}:${groupId}`);
+  return mockUsers.find((u) => u.id === id);
+}
+function validSiteEngineer(user: MockUser | undefined, blockId: string): user is MockUser {
+  return Boolean(user?.isActive && user.role === "site_engineer" && (user.scopeBlockIds.length === 0 || user.scopeBlockIds.includes(blockId)));
+}
+
 export function handleMock(
   method: string,
   segments: string[],
@@ -1876,6 +1887,15 @@ export function handleMock(
   body: unknown,
 ): MockResponse {
   const db = getDb();
+  if (!siteEngineerDemoSeeded) {
+    // Demo data is assigned explicitly; newly created blocks/groups start unassigned.
+    const engineer = mockUsers.find((u) => u.email === "site_engineer@cpms.test" && u.isActive);
+    if (engineer) for (const item of db.workItems) {
+      const groupId = db.workTypes.find((t) => t.id === item.workTypeId)?.groupId;
+      if (groupId && validSiteEngineer(engineer, item.blockId)) siteEngineerRules.set(`${item.blockId}:${groupId}`, engineer.id);
+    }
+    siteEngineerDemoSeeded = true;
+  }
   const q = new URLSearchParams(search);
   const [a, b, c] = segments;
 
@@ -2835,7 +2855,9 @@ export function handleMock(
 
       const pick = (t: string) =>
         inScope(db.workItems).filter((w) => {
+          if (!db.blocks.some((block) => block.id === w.blockId && block.projectId === b)) return false;
           if (onlyBlock && w.blockId !== onlyBlock) return false;
+          if (session.role === "site_engineer" && siteEngineerFor(w)?.id !== session.id) return false;
           if (t === "check") return w.reviewState === "pending_check";
           if (t === "approval") return w.reviewState === "pending_approval";
           if (t === "returned") return RETURNED_STATES.includes(w.reviewState);
@@ -4036,6 +4058,32 @@ export function handleMock(
     }
 
     // Ажлын бүлэг бүр хэнд оноогдсон — "юу онооход үлдсэн бэ".
+    if (c === "site-engineer-assignments") {
+      if (!session.canAssignInspectors) return fail(403, "Forbidden", "Танд талбайн инженер хуваарилах эрх байхгүй.");
+      if (method === "POST") {
+        const input = body as { workTypeGroupId?: string; siteEngineerId?: number | string | null };
+        const group = db.groups.find((g) => g.id === input?.workTypeGroupId);
+        if (!group || !("siteEngineerId" in (input ?? {}))) return fail(422, "ValidationError", "Ажлын бүлэг, инженер сонгоно уу.");
+        const key = `${b}:${group.id}`;
+        if (input.siteEngineerId === null) siteEngineerRules.delete(key);
+        else {
+          const user = mockUsers.find((u) => String(u.id) === String(input.siteEngineerId));
+          if (!validSiteEngineer(user, b)) return fail(422, "ValidationError", "Энэ барилгыг хариуцах идэвхтэй талбайн инженер сонгоно уу.");
+          siteEngineerRules.set(key, user.id);
+        }
+        return ok({ data: { saved: true } });
+      }
+      const shape = (u: MockUser) => ({ id: u.id, name: u.name, position: u.position ?? null });
+      const groups = db.groups.map((g) => {
+        const items = db.workItems.filter((w) => w.blockId === b && db.workTypes.find((t) => t.id === w.workTypeId)?.groupId === g.id);
+        const user = mockUsers.find((u) => u.id === siteEngineerRules.get(`${b}:${g.id}`));
+        return { groupId: g.id, groupName: g.name, workItems: items.length,
+          pendingCheck: items.filter((w) => w.reviewState === "pending_check").length,
+          siteEngineer: user ? shape(user) : null, needsAssignment: !validSiteEngineer(user, b) };
+      }).filter((g) => g.workItems > 0);
+      return ok({ data: { groups, engineers: mockUsers.filter((u) => validSiteEngineer(u, b)).map(shape) } });
+    }
+
     if (c === "assignments") {
       const db2 = getDb();
       const byGroup = new Map<
@@ -4580,7 +4628,11 @@ export function handleMock(
        * backend-ийн `with_hold_point` тугтай ижил. Жагсаалтад оруулбал
        * 200 мөр тутамд нэмэлт тооцоо явна.
        */
-      return ok({ data: { ...item, holdPointReason: holdPointReason(item) } });
+      const engineer = siteEngineerFor(item);
+      return ok({ data: { ...item, holdPointReason: holdPointReason(item),
+        siteEngineer: engineer ? { id: engineer.id, name: engineer.name, position: engineer.position ?? null } : null,
+        canCheckThisWorkItem: session.canCheck && (session.role !== "site_engineer" || (engineer?.id === session.id && validSiteEngineer(engineer, item.blockId))),
+      } });
     }
 
     if (c === "progress") {
@@ -4665,6 +4717,9 @@ export function handleMock(
          */
         if (!STAGE_ROLES[stage].includes(session.role)) {
           return fail(403, "Forbidden", "Энэ шатыг хийх эрх танд байхгүй.");
+        }
+        if (stage === "site_check" && session.role === "site_engineer" && siteEngineerFor(item)?.id !== session.id) {
+          return fail(403, "Forbidden", "Энэ ажил танд шалгахаар хуваарилагдаагүй байна.");
         }
 
         /*

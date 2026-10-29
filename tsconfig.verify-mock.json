@@ -11,6 +11,7 @@
     "lib/photo-url.ts",
     "lib/proxy.ts",
     "scripts/verify-mock.ts",
-    "scripts/verify-my-work.ts"
+    "scripts/verify-my-work.ts",
+    "scripts/verify-site-engineers.ts"
   ]
 }

@@ -17,6 +17,7 @@ import { useState } from "react";
 import { AlertTriangle, Users } from "lucide-react";
 import { toast } from "sonner";
 
+import { SiteEngineerAssignmentPanel } from "@/components/site-engineer-assignment-panel";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/states";
 import { ToneBadge } from "@/components/tone-badge";
@@ -54,6 +55,7 @@ export default function AssignmentsPage() {
   const contractorList = useQuery({
     queryKey: ["contractors"],
     queryFn: () => contractors.list(),
+    enabled: canAssign,
   });
 
   const assign = useMutation({
@@ -81,15 +83,17 @@ export default function AssignmentsPage() {
   return (
     <div>
       <PageHeader
-        title="Хариуцагч оноох"
+        title="Ажил хуваарилах"
         crumbs={[
           { label: "Блокууд", href: "/blocks" },
           { label: blockQuery.data?.name ?? "Блок", href: `/blocks/${blockId}` },
           { label: "Хариуцагч" },
         ]}
-        description="Ажлын бүлэг бүрийг гүйцэтгэгчид ононо. Оноохгүй бол тэр компани нэвтрээд ажлаа харахгүй."
+        description="Талбайн инженерийн шалгах ажил болон гүйцэтгэгчийн ажлыг бүлгээр хуваарилна."
       />
 
+      {me?.canAssignInspectors && <SiteEngineerAssignmentPanel blockId={blockId} />}
+      <h2 className="mb-3 font-medium">Гүйцэтгэгч хуваарилах</h2>
       {totalUnassigned > 0 && (
         <div className="bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-200 mb-4 flex gap-2 rounded-lg p-3 text-sm">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />

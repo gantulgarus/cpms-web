@@ -9,5 +9,5 @@ Module._resolveFilename = function (name, ...args) {
   return resolve.call(this, name.startsWith("@/") ? path.join(root, name.slice(2)) : name, ...args);
 };
 const script = process.argv[2];
-if (!["verify-mock", "verify-my-work"].includes(script)) throw new Error("Unknown verification script");
+if (!["verify-mock", "verify-my-work", "verify-site-engineers"].includes(script)) throw new Error("Unknown verification script");
 await import(pathToFileURL(path.join(root, "scripts", `${script}.js`)).href);

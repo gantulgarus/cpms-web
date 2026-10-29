@@ -280,7 +280,7 @@ export default function WorkItemDetailPage() {
 
         <aside className="min-w-0 space-y-4 lg:col-start-3 lg:row-start-1" aria-label="Ажилд хийх үйлдэл">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-medium">{me?.canReportProgress || canActOnStage(me, item.nextStage) ? "Ажилд хийх үйлдэл" : "Ажлын нотолгоо"}</h2>
+            <h2 className="text-sm font-medium">{me?.canReportProgress || canActOnWork(me, item) ? "Ажилд хийх үйлдэл" : "Ажлын нотолгоо"}</h2>
             <a href="#work-evidence" className="text-primary text-xs underline underline-offset-4">Зураг, түүх харах ↓</a>
           </div>
 
@@ -294,7 +294,10 @@ export default function WorkItemDetailPage() {
             байгаа ажил дээр талбайн инженерт форм огт харагдахгүй байв —
             backend зөвшөөрдөг атлаа дэлгэц нуудаг байсан.
           */}
-          {canActOnStage(me, item.nextStage) && (
+          {me?.role === "site_engineer" && item.nextStage === "site_check" && item.canCheckThisWorkItem !== true && (
+            <p className="rounded-lg border p-3 text-sm">{item.siteEngineer ? `${item.siteEngineer.name} энэ ажлыг шалгахаар хуваарилагдсан.` : "Энэ ажилд талбайн инженер хуваарилаагүй байна. Ерөнхий инженер эсвэл төслийн менежерт хандана уу."}</p>
+          )}
+          {canActOnWork(me, item) && (
             <InspectionCard
               item={item}
               pendingQty={pendingQty}
@@ -354,7 +357,7 @@ export default function WorkItemDetailPage() {
             </Card>
           )}
 
-          {me && !me.canReportProgress && !canActOnStage(me, item.nextStage) && (
+          {me && !me.canReportProgress && !canActOnWork(me, item) && (
             <Card>
               <CardContent className="text-muted-foreground pt-6 text-sm">
                 Танд энэ ажилд үйлдэл хийх эрх байхгүй — зөвхөн харах боломжтой.
@@ -453,6 +456,7 @@ function QuantityCard({
         )}
 
         <dl className="text-muted-foreground grid grid-cols-1 gap-x-8 gap-y-3 border-t pt-4 text-sm sm:grid-cols-2">
+          <Detail label="Талбайн инженер · 1-р шат" value={item.siteEngineer?.name ?? "Оноогоогүй"} />
           <Detail label="Байршил" value={item.location.path} />
           <Detail label="Ажлын бүлэг" value={item.workType.groupName ?? "—"} />
           {/* Хариуцагчийг солих зам ЭНД байх ёстой: блокийн бүлгээр оноох нь
@@ -847,6 +851,10 @@ function ReturnedNotice({ item, inspections }: { item: WorkItem; inspections?: I
  * Дараагийн шат мэдэгдэхгүй (хүлээгдэж буй ажил алга) бол батлах
  * эрхтэй хүнд форм харуулна — тэнд хоосон төлөв нь өөрөө тайлбарладаг.
  */
+function canActOnWork(me: Me | null, item: WorkItem): boolean {
+  return canActOnStage(me, item.nextStage) && (item.nextStage !== "site_check" || me?.role !== "site_engineer" || item.canCheckThisWorkItem === true);
+}
+
 function canActOnStage(me: Me | null, nextStage?: InspectionStage | null): boolean {
   if (!me) return false;
 

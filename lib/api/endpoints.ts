@@ -959,3 +959,9 @@ export const myWork = {
     pageSize: number;
   }) => request<import("./types").MyWorkEnvelope>("GET", `/projects/${projectId}/my-work`, { query: { ...params } }),
 };
+
+export const siteEngineerAssignments = {
+  forBlock: (blockId: Uuid) => request<{ data: import("./types").SiteEngineerAssignmentSummary }>("GET", `/blocks/${blockId}/site-engineer-assignments`).then((r) => r.data),
+  assign: (blockId: Uuid, workTypeGroupId: Uuid, siteEngineerId: number | string | null) =>
+    request<{ data: { saved: boolean } }>("POST", `/blocks/${blockId}/site-engineer-assignments`, { body: { workTypeGroupId, siteEngineerId } }),
+};

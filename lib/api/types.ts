@@ -276,6 +276,9 @@ export interface WorkItem {
    * query явуулахгүйн тулд сервер зориуд бодохгүй.
    */
   holdPointReason?: string | null;
+  /** 1-р шатны хариуцагч ба тухайн ажлыг шалгах эрх; дэлгэрэнгүйд сервер өгнө. */
+  siteEngineer?: { id: number | string; name: string; position: string | null } | null;
+  canCheckThisWorkItem?: boolean;
 
   /**
    * ҮНДСЭН төлөвлөгөө — сунгалтаар ХӨДӨЛДӨГГҮЙ.
@@ -1159,4 +1162,16 @@ export interface MyWorkItem extends WorkItem {
 }
 export interface MyWorkEnvelope extends ListEnvelope<MyWorkItem> {
   counts: Record<ReportingState, number>;
+}
+
+export interface SiteEngineerAssignmentSummary {
+  groups: {
+    groupId: Uuid;
+    groupName: string;
+    workItems: number;
+    pendingCheck: number;
+    siteEngineer: { id: number | string; name: string; position: string | null } | null;
+    needsAssignment: boolean;
+  }[];
+  engineers: { id: number | string; name: string; position: string | null }[];
 }

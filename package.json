@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:mock": "tsc -p tsconfig.verify-mock.json && node scripts/run-mock-checks.mjs verify-mock",
-    "test:my-work": "tsc -p tsconfig.verify-mock.json && node scripts/run-mock-checks.mjs verify-my-work"
+    "test:my-work": "tsc -p tsconfig.verify-mock.json && node scripts/run-mock-checks.mjs verify-my-work",
+    "test:site-engineers": "tsc -p tsconfig.verify-mock.json && node scripts/run-mock-checks.mjs verify-site-engineers"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

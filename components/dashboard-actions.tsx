@@ -49,7 +49,10 @@ export function DashboardActions({ me, counts, loading }: {
 
   return (
     <section aria-labelledby="dashboard-actions-heading">
-      <h2 id="dashboard-actions-heading" className="mb-3 font-medium">Миний хийх ажил</h2>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 id="dashboard-actions-heading" className="font-medium">Миний хийх ажил</h2>
+        {me.canAssignInspectors && <Link href="/blocks" className="text-primary text-sm hover:underline">Талбайн инженер хуваарилах →</Link>}
+      </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {actions.map((action) => {
           const pending = typeof action.count === "number" && action.count > 0;

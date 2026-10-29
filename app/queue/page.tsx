@@ -176,12 +176,14 @@ function QueueContent() {
 
   const total = list.data?.meta.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const siteEngineer = me?.role === "site_engineer";
   const active = TABS.find((t) => t.value === activeTab)!;
 
   return (
     <div>
+      {siteEngineer && <p className="text-muted-foreground mb-3 text-sm">Зөвхөн танд барилга, ажлын бүлгээр хуваарилсан ажлууд харагдана. Ажил харагдахгүй бол ерөнхий инженер эсвэл төслийн менежерээр хуваарилалтаа шалгуулна уу.</p>}
       <PageHeader
-        title="Ажлын дараалал"
+        title={me?.role === "site_engineer" ? "Миний шалгах ажлууд" : "Ажлын дараалал"}
         description={
           me?.canInspect
             ? "Таны баталгаажуулалт хүлээж буй ажлууд — барилга бүрийг нэгжих шаардлагагүй."
