@@ -103,8 +103,8 @@ export default function BlockBudgetPage() {
       <PageHeader
         title="Орсон төсөв"
         crumbs={[
-          { label: "Блокууд", href: "/blocks" },
-          { label: blockQuery.data?.name ?? "Блок", href: `/blocks/${blockId}` },
+          { label: "Барилгууд", href: "/blocks" },
+          { label: blockQuery.data?.name ?? "Барилга", href: `/blocks/${blockId}` },
           { label: "Төсөв" },
         ]}
         description="Импортоор орсон ажлын хөлс ба материалын төсөв."
@@ -171,7 +171,7 @@ export default function BlockBudgetPage() {
         b.work.length === 0 ? (
           <EmptyState
             title="Ажлын төсөв алга"
-            description="Энэ блокт ажлын хөлсний төсөв оруулаагүй байна."
+            description="Энэ барилгад ажлын хөлсний төсөв оруулаагүй байна."
           />
         ) : (
           <Card className="p-0">
@@ -237,7 +237,7 @@ export default function BlockBudgetPage() {
       ) : b.materials.length === 0 ? (
         <EmptyState
           title="Материалын төсөв алга"
-          description="Энэ блокт материалын төсөв оруулаагүй байна."
+          description="Энэ барилгад материалын төсөв оруулаагүй байна."
         />
       ) : (
         <Card className="p-0">

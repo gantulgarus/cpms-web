@@ -166,7 +166,7 @@ export default function NewAgreementPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
-            <FormField label="Блок" required>
+            <FormField label="Барилга" required>
               <select
                 value={blockId}
                 onChange={(e) => {
@@ -216,7 +216,7 @@ export default function NewAgreementPage() {
             <Input value={form.scope} onChange={(e) => set("scope")(e.target.value)} />
           </FormField>
 
-          <FormField label="Ажлын бүлэг" hint="Хоосон бол блокийн бүх ажил татагдана.">
+          <FormField label="Ажлын бүлэг" hint="Хоосон бол барилгын бүх ажил татагдана.">
             <div className="flex flex-wrap gap-1.5">
               {(groupList.data?.data ?? []).map((g) => {
                 const on = groupIds.includes(g.id);
@@ -266,7 +266,7 @@ export default function NewAgreementPage() {
           <CardContent className="space-y-3">
             {rows.length === 0 ? (
               <p className="text-muted-foreground text-sm">
-                Тоо хэмжээтэй ажил олдсонгүй. Блок эсвэл бүлгээ шалгана уу.
+                Тоо хэмжээтэй ажил олдсонгүй. Барилга эсвэл бүлгээ шалгана уу.
               </p>
             ) : (
               <>

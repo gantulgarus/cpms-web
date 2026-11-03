@@ -98,7 +98,7 @@ export function MissingQuantitiesDialog({
           <DialogTitle>Тоо хэмжээ нөхөх</DialogTitle>
           <DialogDescription>
             Эдгээр ажилд төлөвлөгөөт тоо хэмжээ бүртгэгдээгүй тул гүйцэтгэл оруулах боломжгүй байна.
-            Нэг удаа бичихэд блокийн бүх мөрөнд тарна.
+            Нэг удаа бичихэд барилгын бүх мөрөнд тарна.
           </DialogDescription>
         </DialogHeader>
 
@@ -109,7 +109,7 @@ export function MissingQuantitiesDialog({
         ) : rows.length === 0 ? (
           <EmptyState
             title="Бүгд бүртгэгдсэн"
-            description="Энэ блокийн бүх ажил төлөвлөгөөт тоо хэмжээтэй байна."
+            description="Энэ барилгын бүх ажил төлөвлөгөөт тоо хэмжээтэй байна."
           />
         ) : (
           <>

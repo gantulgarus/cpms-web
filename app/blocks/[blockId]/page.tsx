@@ -214,8 +214,8 @@ function BlockProgressContent() {
   return (
     <div>
       <PageHeader
-        title={blockQuery.data?.name ?? "Блок"}
-        crumbs={[{ label: "Блокууд", href: "/blocks" }, { label: blockQuery.data?.name ?? "Блок" }]}
+        title={blockQuery.data?.name ?? "Барилга"}
+        crumbs={[{ label: "Барилгууд", href: "/blocks" }, { label: blockQuery.data?.name ?? "Барилга" }]}
         description={
           blockQuery.data
             ? `${blockQuery.data.floors} давхар · ${blockQuery.data.unitCount} айл · барилга №${blockQuery.data.buildingNo} · давхар тутам ${blockQuery.data.taktDays ?? 5} хоног`
@@ -308,7 +308,7 @@ function BlockProgressContent() {
                 className="text-destructive hover:bg-destructive/10 ml-2"
                 onClick={() => setDeleting(true)}
               >
-                <Trash2 className="size-4" /> Блок устгах
+                <Trash2 className="size-4" /> Барилга устгах
               </Button>
             )}
           </div>

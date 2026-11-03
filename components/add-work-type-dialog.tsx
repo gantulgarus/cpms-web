@@ -132,7 +132,7 @@ export function AddWorkTypeDialog({
         onOpenChange(v);
         if (!v) reset();
       }}
-      title="Энэ блокт ажил нэмэх"
+      title="Энэ барилгад ажил нэмэх"
       submitLabel={willCreate > 0 ? `${willCreate} ажил нэмэх` : "Нэмэх"}
       submitDisabled={picked.size === 0 || locationCount === 0}
       pending={add.isPending}

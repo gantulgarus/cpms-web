@@ -96,19 +96,19 @@ function MyWorkContent({ projectId, fixedBlockId, title }: { projectId: string; 
     <div>
       <PageHeader title={fixedBlockId ? `${title} · Миний ажлууд` : "Миний ажлууд"}
         description="Оруулах боломжтой ажлууд эхэлж харагдана. Хугацаа нь түрүүлж дуусах ажлыг дээр эрэмбэлсэн."
-        crumbs={fixedBlockId ? [{ label: "Блокууд", href: "/blocks" }, { label: title }] : undefined} />
+        crumbs={fixedBlockId ? [{ label: "Барилгууд", href: "/blocks" }, { label: title }] : undefined} />
       <div className="mb-5 space-y-4">
         <div className="grid gap-3 sm:grid-cols-3">
-          <label className="space-y-1 text-xs"><span>Барилга</span><select className={SELECT_STYLE} value={blockId} disabled={Boolean(fixedBlockId) || blockList.isLoading} onChange={(e) => { setBlockId(e.target.value); setFloorId(""); setUnitId(""); setPage(1); }}>
+          <label className="space-y-1 text-sm"><span>Барилга</span><select className={SELECT_STYLE} value={blockId} disabled={Boolean(fixedBlockId) || blockList.isLoading} onChange={(e) => { setBlockId(e.target.value); setFloorId(""); setUnitId(""); setPage(1); }}>
             <option value="">Бүх барилга</option>
             {fixedBlockId && !blockList.data?.data.some((b) => b.id === fixedBlockId) && <option value={fixedBlockId}>{title}</option>}
             {blockList.data?.data.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select></label>
-          <label className="space-y-1 text-xs"><span>Давхар</span><select className={SELECT_STYLE} value={floorId} disabled={!blockId || locations.isLoading || locations.isError} onChange={(e) => { setFloorId(e.target.value); setUnitId(""); setPage(1); }}>
+          <label className="space-y-1 text-sm"><span>Давхар</span><select className={SELECT_STYLE} value={floorId} disabled={!blockId || locations.isLoading || locations.isError} onChange={(e) => { setFloorId(e.target.value); setUnitId(""); setPage(1); }}>
             <option value="">{blockId ? "Бүх давхар" : "Эхлээд барилга сонгоно уу"}</option>
             {floors.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select></label>
-          <label className="space-y-1 text-xs"><span>Айл</span><select className={SELECT_STYLE} value={unitId} disabled={!floorId || locations.isLoading || locations.isError} onChange={(e) => { setUnitId(e.target.value); setPage(1); }}>
+          <label className="space-y-1 text-sm"><span>Айл</span><select className={SELECT_STYLE} value={unitId} disabled={!floorId || locations.isLoading || locations.isError} onChange={(e) => { setUnitId(e.target.value); setPage(1); }}>
             <option value="">{floorId ? "Бүх айл" : "Эхлээд давхар сонгоно уу"}</option>
             {units.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select></label>
@@ -134,10 +134,10 @@ function MyWorkContent({ projectId, fixedBlockId, title }: { projectId: string; 
           <p className="text-muted-foreground text-sm">Нийт {total.toLocaleString("mn-MN")} ажил · {page}/{pages} хуудас</p>
           {rows.map((item) => <article key={item.id} className="space-y-3 rounded-xl border bg-card p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0"><Link href={detailHref(item.id)} className="font-medium hover:underline">{item.workType.name}</Link><p className="text-muted-foreground mt-1 text-xs">{item.blockName} · {item.location.path}</p></div>
-              <span className="text-muted-foreground text-xs">Дуусах: {formatDate(item.plannedEndDate)}{item.overdueDays > 0 && <span className="text-destructive ml-2">{item.overdueDays} хоног хоцорсон</span>}</span>
+              <div className="min-w-0"><Link href={detailHref(item.id)} className="font-medium hover:underline">{item.workType.name}</Link><p className="text-muted-foreground mt-1 text-sm">{item.blockName} · {item.location.path}</p></div>
+              <span className="text-muted-foreground text-sm">Дуусах: {formatDate(item.plannedEndDate)}{item.overdueDays > 0 && <span className="text-destructive ml-2">{item.overdueDays} хоног хоцорсон</span>}</span>
             </div>
-            {item.reportingState === "ready" && item.reportableQty > 0 ? <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm">Оруулах боломжтой: <strong className="tabular-nums">{formatQty(item.reportableQty, item.unit)}</strong></p><Button nativeButton={false} render={<Link href={`${detailHref(item.id)}#report-progress`} />}>Гүйцэтгэл оруулах</Button></div> : <div className="space-y-2"><p className="text-sm">{item.reportingReason ?? "Оруулах боломжийн мэдээллийг дахин шалгана уу."}</p>{item.blockingWorkItems.map((w) => <Link key={w.id} href={detailHref(w.id)} className="text-primary block text-xs hover:underline">Өмнөх ажлыг харах: {w.name} · {w.locationPath} →</Link>)}</div>}
+            {item.reportingState === "ready" && item.reportableQty > 0 ? <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm">Оруулах боломжтой: <strong className="tabular-nums">{formatQty(item.reportableQty, item.unit)}</strong></p><Button nativeButton={false} render={<Link href={`${detailHref(item.id)}#report-progress`} />}>Гүйцэтгэл оруулах</Button></div> : <div className="space-y-2"><p className="text-sm">{item.reportingReason ?? "Оруулах боломжийн мэдээллийг дахин шалгана уу."}</p>{item.blockingWorkItems.map((w) => <Link key={w.id} href={detailHref(w.id)} className="text-primary block text-sm hover:underline">Өмнөх ажлыг харах: {w.name} · {w.locationPath} →</Link>)}</div>}
             <DeadlineExtensionAction
               item={item}
               canRequest={Boolean(me?.canReportProgress || me?.canEditPlan)}

@@ -91,9 +91,9 @@ function Body({
   return (
     <>
       <DialogHeader>
-        <DialogTitle className="text-destructive">«{blockName}» блокийг устгах</DialogTitle>
+        <DialogTitle className="text-destructive">«{blockName}» барилгыг устгах</DialogTitle>
         <DialogDescription>
-          Энэ үйлдлийг буцаах арга БАЙХГҮЙ. Блокт хамаарах бүх өгөгдөл хамт устана.
+          Энэ үйлдлийг буцаах арга БАЙХГҮЙ. Барилгад хамаарах бүх өгөгдөл хамт устана.
         </DialogDescription>
       </DialogHeader>
 

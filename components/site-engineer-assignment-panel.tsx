@@ -29,7 +29,7 @@ export function SiteEngineerAssignmentPanel({ blockId }: { blockId: string }) {
         <h2 id="site-engineer-heading" className="font-medium">Талбайн инженер хуваарилах · 1-р шат</h2>
         <p className="text-muted-foreground mt-1 text-sm">Ажлын бүлэг бүрийг нэг талбайн инженерт хариуцуулна. Дараа нь энэ бүлэгт нэмэгдэх ажлууд мөн түүнд хамаарна. Өмнөх шалгалтын түүх хэвээр үлдэнэ.</p>
       </div>
-      {list.isLoading ? <LoadingRows rows={3} /> : list.error ? <ErrorState message={(list.error as Error).message} onRetry={() => list.refetch()} /> : list.data?.groups.length === 0 ? <EmptyState title="Хуваарилах ажил алга" description="Блокт ажлуудаа нэмсний дараа энд бүлгүүд харагдана." /> : (
+      {list.isLoading ? <LoadingRows rows={3} /> : list.error ? <ErrorState message={(list.error as Error).message} onRetry={() => list.refetch()} /> : list.data?.groups.length === 0 ? <EmptyState title="Хуваарилах ажил алга" description="Барилгад ажлуудаа нэмсний дараа энд бүлгүүд харагдана." /> : (
         <>
           {missing.length > 0 && <p className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm">{missing.length} бүлэгт хүчинтэй талбайн инженер оноогоогүй байна. Эдгээр бүлэгт шалгалт хүлээж буй {missing.reduce((sum, g) => sum + g.pendingCheck, 0)} ажил байна.</p>}
           {list.data?.engineers.length === 0 && <p className="text-muted-foreground text-sm">Энэ барилгыг хариуцах идэвхтэй талбайн инженер алга. Админаар хэрэглэгчийн эрх, хамрах барилгыг тохируулуулна уу.</p>}

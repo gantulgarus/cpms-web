@@ -9,8 +9,8 @@ export function WorkQuantitySummary({ item }: { item: WorkItem }) {
   const twoStage = (item.inspectionStages ?? 2) >= 2;
   const steps = [
     { label: "Мэдээлсэн", value: item.reportedQty, hint: "Гүйцэтгэгчийн бүртгэсэн хэмжээ" },
-    ...(twoStage ? [{ label: "Шалгагдсан", value: item.checkedQty, hint: "1-р шатны шалгалт давсан" }] : []),
-    { label: "Батлагдсан", value: item.acceptedQty, hint: twoStage ? "2-р шатны эцсийн батлалт" : "Эцэслэн баталсан хэмжээ" },
+    ...(twoStage ? [{ label: "Шалгасан", value: item.checkedQty, hint: "Талбайн инженер шалгасан хэмжээ" }] : []),
+    { label: "Баталсан", value: item.acceptedQty, hint: "Хяналтын инженер эцэслэн баталсан хэмжээ" },
   ];
 
   return (
@@ -23,7 +23,7 @@ export function WorkQuantitySummary({ item }: { item: WorkItem }) {
       <ol className={cn("grid gap-3", twoStage ? "sm:grid-cols-3" : "sm:grid-cols-2")} aria-label="Гүйцэтгэлийн үе шатууд">
         {steps.map((step, index) => (
           <li key={step.label} className={cn("min-w-0 rounded-lg border p-3", index === steps.length - 1 && item.acceptedQty > 0 && "border-emerald-500/30 bg-emerald-500/5")}>
-            <div className="text-muted-foreground flex items-center justify-between gap-2 text-xs">
+            <div className="text-muted-foreground flex items-center justify-between gap-2 text-sm">
               <span>{index + 1}. {step.label}</span>
               {index < steps.length - 1 && <ArrowRight className="size-3.5 rotate-90 sm:rotate-0" aria-hidden="true" />}
             </div>
@@ -31,11 +31,11 @@ export function WorkQuantitySummary({ item }: { item: WorkItem }) {
               <span className="break-all text-2xl font-semibold tracking-tight tabular-nums">{formatQty(step.value)}</span>
               <span className="text-muted-foreground text-sm">{item.unit}</span>
             </div>
-            <p className="text-muted-foreground mt-1 text-xs">{step.hint}</p>
+            <p className="text-muted-foreground mt-1 text-sm">{step.hint}</p>
           </li>
         ))}
       </ol>
-      <p className="text-muted-foreground text-xs">Эдгээр нь үе шат бүрийн хуримтлагдсан хэмжээ; хооронд нь нэмж тооцохгүй.</p>
+      <p className="text-muted-foreground text-sm">Гүйцэтгэлээ бүртгэсний дараа {twoStage ? "талбайн инженер шалгаж, хяналтын инженер батална" : "хяналтын инженер батална"}. Доорх явц зөвхөн эцэслэн баталсан хэмжээгээр нэмэгдэнэ. Үе шат бүрийн хэмжээг хооронд нь нэмэхгүй.</p>
 
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3 text-sm">

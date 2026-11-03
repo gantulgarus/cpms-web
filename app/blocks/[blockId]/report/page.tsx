@@ -58,9 +58,9 @@ export default function BlockReportPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Блокийн ерөнхий тайлан"
+        title="Барилгын ерөнхий тайлан"
         crumbs={[
-          { label: "Блокууд", href: "/blocks" },
+          { label: "Барилгууд", href: "/blocks" },
           { label: r.block.name, href: `/blocks/${blockId}` },
           { label: "Тайлан" },
         ]}

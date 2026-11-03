@@ -96,7 +96,7 @@ export default function BlocksPage() {
   return (
     <div>
       <PageHeader
-        title={isRep ? "Барилгууд" : "Блокууд"}
+        title="Барилгууд"
         description={
           project
             ? isRep
@@ -104,7 +104,7 @@ export default function BlocksPage() {
                 // Үүнийг тодорхой бичихгүй бол "явц 3% байна" гэж хараад
                 // барилга бүхэлдээ хоцорсон гэж андуурна.
                 `${project.name} — таны компанийн ажлын явц. Барилга сонгоод оруулах боломжтой ажлуудаа харна уу.`
-              : `${project.name} — явцыг харахын тулд блок дээр дарна уу.`
+              : `${project.name} — явцыг харахын тулд барилга дээр дарна уу.`
             : "Ачаалж байна…"
         }
         actions={
@@ -135,7 +135,7 @@ export default function BlocksPage() {
 
             {!isRep && (
               <Button nativeButton={false} render={<Link href="/blocks/new" />}>
-                <Plus className="size-4" /> Шинэ блок
+                <Plus className="size-4" /> Шинэ барилга
               </Button>
             )}
           </div>
@@ -160,11 +160,11 @@ export default function BlocksPage() {
         />
       ) : !blocksQuery.data || blocksQuery.data.data.length === 0 ? (
         <EmptyState
-          title={isRep ? "Танд оноогдсон ажил алга" : "Блок алга"}
+          title={isRep ? "Танд оноогдсон ажил алга" : "Барилга алга"}
           description={
             isRep
               ? "Ажлын хуваарь гарсны дараа энд харагдана. Хэрэв ажил хийж байгаа бол хяналтын инженертэй холбогдоно уу."
-              : "Стандарт загвараас эхний блокоо үүсгэнэ үү."
+              : "Стандарт загвараас эхний барилгаа үүсгэнэ үү."
           }
           action={
             !isRep && (
@@ -172,7 +172,7 @@ export default function BlocksPage() {
                 href="/blocks/new"
                 className="text-primary text-sm font-medium underline-offset-4 hover:underline"
               >
-                Шинэ блок үүсгэх
+                Шинэ барилга үүсгэх
               </Link>
             )
           }
@@ -193,7 +193,7 @@ export default function BlocksPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Блок</TableHead>
+                <TableHead>Барилга</TableHead>
                 <TableHead>Зориулалт</TableHead>
                 <TableHead className="text-right">Давхар / айл</TableHead>
                 <TableHead className="w-40">Батлагдсан явц</TableHead>

@@ -41,7 +41,7 @@ export default function ProjectsPage() {
     <div>
       <PageHeader
         title="Төслүүд"
-        description="Блок, дараалал, тайлан нь идэвхтэй төслийн хүрээнд харагдана."
+        description="Барилга, дараалал, тайлан нь идэвхтэй төслийн хүрээнд харагдана."
         actions={
           canCreate && (
             <Button onClick={() => setCreating(true)}>
@@ -68,7 +68,7 @@ export default function ProjectsPage() {
           title="Төсөл алга"
           description={
             canCreate
-              ? "Эхний төслөө үүсгэнэ үү — блокууд төсөл дор үүснэ."
+              ? "Эхний төслөө үүсгэнэ үү — барилгууд төсөл дор үүснэ."
               : "Төсөл бүртгэгдээгүй байна. Системийн админд хандана уу."
           }
           action={

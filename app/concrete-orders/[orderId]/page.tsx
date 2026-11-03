@@ -176,7 +176,7 @@ export default function ConcreteOrderPage() {
               label="Эхлэх цаг"
               value={`${o.pourHalf === "am" ? "Үдээс өмнө" : o.pourHalf === "pm" ? "Үдээс хойш" : "—"} ${o.pourTime ?? ""}`}
             />
-            <Row label="Блок / давхар" value={`${o.blockName} / ${o.locationName}`} />
+            <Row label="Барилга / давхар" value={`${o.blockName} / ${o.locationName}`} />
             <Row label="Хийц нэршил" value={o.structure} />
             <Row label="Бетоны марк" value={o.grade ?? "—"} />
             <Row label="Бетон анги" value={o.concreteClass ?? "—"} />

@@ -247,14 +247,14 @@ export default function ImportsPage() {
     <div className="space-y-4">
       <PageHeader
         title="Төсөв оруулах"
-        description="Excel-ээс ажлын тоо хэмжээ, материалын төсвийг блокт буулгана."
+        description="Excel-ээс ажлын тоо хэмжээ, материалын төсвийг барилгад буулгана."
       />
 
       <Card>
         <CardContent className="space-y-4 pt-6">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="max-w-xs min-w-56 flex-1 space-y-1.5">
-              <label className="text-muted-foreground text-xs">Блок</label>
+              <label className="text-muted-foreground text-xs">Барилга</label>
               <Select
                 value={blockId}
                 items={blockLabels}
@@ -264,7 +264,7 @@ export default function ImportsPage() {
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Блок сонгоно уу" />
+                  <SelectValue placeholder="Барилга сонгоно уу" />
                 </SelectTrigger>
                 <SelectContent>
                   {blockOptions.map((b) => (
@@ -286,7 +286,7 @@ export default function ImportsPage() {
               variant="ghost"
               disabled={!blockId || template.isPending}
               onClick={() => template.mutate()}
-              title={blockId ? undefined : "Эхлээд блокоо сонгоно уу"}
+              title={blockId ? undefined : "Эхлээд барилгаа сонгоно уу"}
             >
               <Download className="size-4" />
               {template.isPending ? "Бэлдэж байна…" : "Жишээ файл татах"}
@@ -316,7 +316,7 @@ export default function ImportsPage() {
             <p className="text-sm">
               {blockId
                 ? ".xlsx файлаа энд чирэх, эсвэл"
-                : "Эхлээд блокоо сонгоно уу"}
+                : "Эхлээд барилгаа сонгоно уу"}
             </p>
             <input
               ref={fileInput}
@@ -402,7 +402,7 @@ export default function ImportsPage() {
                       [
                         "replace",
                         "Шинээр оруулах",
-                        "Блокийн ажлыг бүхэлд нь солино. Бүх гүйцэтгэл УСТАНА.",
+                        "Барилгын ажлыг бүхэлд нь солино. Бүх гүйцэтгэл УСТАНА.",
                       ],
                     ] as const
                   ).map(([value, label, hint]) => (
@@ -566,7 +566,7 @@ function Part({
               tone={s.rejected > 0 ? "red" : undefined}
             />
             <Stat label="Алгассан дэд дүн" value={s.skipped} />
-            <Stat label={`Блокт байсан ${unit}`} value={s.existing} />
+            <Stat label={`Барилгад байсан ${unit}`} value={s.existing} />
           </div>
 
           {report.result && (
@@ -870,7 +870,7 @@ function History({
     return (
       <EmptyState
         title="Импортын түүх алга"
-        description="Энэ блокт төсөв оруулсан бүртгэл байхгүй байна."
+        description="Энэ барилгад төсөв оруулсан бүртгэл байхгүй байна."
       />
     );
   }

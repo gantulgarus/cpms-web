@@ -229,7 +229,7 @@ function QueueContent() {
             }}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Бүх блок" />
+              <SelectValue placeholder="Бүх барилга" />
             </SelectTrigger>
             <SelectContent>
               {blockOptions.map((b) => (
@@ -250,7 +250,7 @@ function QueueContent() {
               setPage(1);
             }}
           >
-            Бүх блок харах
+            Бүх барилга харах
           </Button>
         )}
 
@@ -279,7 +279,7 @@ function QueueContent() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Ажил</TableHead>
-                  <TableHead>Блок, байршил</TableHead>
+                  <TableHead>Барилга, байршил</TableHead>
                   <TableHead>Гүйцэтгэгч</TableHead>
                   <TableHead className="text-right">Хүлээгдэж буй</TableHead>
                   <TableHead className="text-right">Хугацаа</TableHead>

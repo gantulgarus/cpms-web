@@ -224,8 +224,8 @@ export default function WorkItemDetailPage() {
                 { label: item.workType.name },
               ]
             : [
-                { label: "Блокууд", href: "/blocks" },
-                { label: "Блок", href: `/blocks/${item.blockId}` },
+                { label: "Барилгууд", href: "/blocks" },
+                { label: "Барилга", href: `/blocks/${item.blockId}` },
                 { label: item.workType.name },
               ]
         }

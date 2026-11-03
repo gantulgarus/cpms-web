@@ -153,7 +153,7 @@ export default function MaterialOrdersPage() {
         <div className="w-44">
           <Select value={blockId} items={blockLabels} onValueChange={(v) => setBlockId(v ?? "")}>
             <SelectTrigger>
-              <SelectValue placeholder="Бүх блок" />
+              <SelectValue placeholder="Бүх барилга" />
             </SelectTrigger>
             <SelectContent>
               {blockOptions.map((b) => (
@@ -186,8 +186,8 @@ export default function MaterialOrdersPage() {
       {view === "balance" ? (
         !blockId ? (
           <EmptyState
-            title="Блокоо сонгоно уу"
-            description="Төсвийн үлдэгдэл нь блок тус бүрээр бодогдоно."
+            title="Барилгаа сонгоно уу"
+            description="Төсвийн үлдэгдэл нь барилга тус бүрээр бодогдоно."
           />
         ) : balance.isLoading ? (
           <LoadingRows rows={6} />
@@ -196,7 +196,7 @@ export default function MaterialOrdersPage() {
         ) : (balance.data ?? []).length === 0 ? (
           <EmptyState
             title="Материалын төсөв алга"
-            description="Энэ блокт материалын төсөв оруулаагүй байна."
+            description="Энэ барилгад материалын төсөв оруулаагүй байна."
           />
         ) : (
           <Card className="p-0">

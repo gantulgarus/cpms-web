@@ -180,7 +180,7 @@ function OrderForm({
 
         <div className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Блок">
+            <Field label="Барилга">
               <Select
                 value={blockId}
                 items={blockLabels}
@@ -210,7 +210,7 @@ function OrderForm({
                 disabled={!blockId}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={blockId ? "Сонгоно уу" : "Эхлээд блок"} />
+                  <SelectValue placeholder={blockId ? "Сонгоно уу" : "Эхлээд барилга"} />
                 </SelectTrigger>
                 <SelectContent>
                   {rows.map((r) => (

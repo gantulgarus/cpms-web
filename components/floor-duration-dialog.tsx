@@ -87,7 +87,7 @@ export function FloorDurationDialog({
         />
       </FormField>
 
-      <FormField label="Эхлэх огноо" hint="Хоосон бол блокийн одоогийн огноо хэвээр.">
+      <FormField label="Эхлэх огноо" hint="Хоосон бол барилгын одоогийн огноо хэвээр.">
         <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
       </FormField>
 

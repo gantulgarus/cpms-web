@@ -157,7 +157,7 @@ export default function ConcreteOrdersPage() {
         <div className="w-44">
           <Select value={blockId} items={blockLabels} onValueChange={(v) => setBlockId(v ?? "")}>
             <SelectTrigger>
-              <SelectValue placeholder="Бүх блок" />
+              <SelectValue placeholder="Бүх барилга" />
             </SelectTrigger>
             <SelectContent>
               {blockOptions.map((b) => (
@@ -190,8 +190,8 @@ export default function ConcreteOrdersPage() {
       {view === "balance" ? (
         !blockId ? (
           <EmptyState
-            title="Блокоо сонгоно уу"
-            description="Төсвийн үлдэгдэл нь блок тус бүрээр бодогдоно."
+            title="Барилгаа сонгоно уу"
+            description="Төсвийн үлдэгдэл нь барилга тус бүрээр бодогдоно."
           />
         ) : balance.isLoading ? (
           <LoadingRows rows={6} />
@@ -203,7 +203,7 @@ export default function ConcreteOrdersPage() {
         ) : (balance.data ?? []).length === 0 ? (
           <EmptyState
             title="Бетоны төсөв алга"
-            description="Энэ блокт материалын төсөв оруулаагүй, эсвэл бетоны мөр байхгүй байна."
+            description="Энэ барилгад материалын төсөв оруулаагүй, эсвэл бетоны мөр байхгүй байна."
           />
         ) : (
           <Card className="p-0">

@@ -103,7 +103,7 @@ export function AssignContractorDialog({
       )}
 
       <p className="text-muted-foreground text-xs">
-        Энэ нь <strong>зөвхөн энэ нэг мөрөнд</strong> нөлөөлнө. Бүлгээр оноох бол блокийн хуудасны
+        Энэ нь <strong>зөвхөн энэ нэг мөрөнд</strong> нөлөөлнө. Бүлгээр оноох бол барилгын хуудасны
         «Хариуцагч оноох» хэсгийг ашиглана уу.
       </p>
     </FormDialog>

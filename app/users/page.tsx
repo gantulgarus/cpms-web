@@ -188,7 +188,7 @@ export default function UsersPage() {
                     {[
                       u.canReportProgress && "мэдээлнэ",
                       u.canInspect && "батална",
-                      u.scopeBlockIds.length > 0 && `${u.scopeBlockIds.length} блок`,
+                      u.scopeBlockIds.length > 0 && `${u.scopeBlockIds.length} барилга`,
                     ]
                       .filter(Boolean)
                       .join(" · ") || "—"}

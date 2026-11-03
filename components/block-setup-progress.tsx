@@ -46,9 +46,9 @@ export function BlockSetupProgress({ blockId, totals, me, onAdd, onQuantities, o
   const ready = completed === steps.length;
 
   return (
-    <Card className="mb-6 gap-4 p-4" aria-label="Блокийн тохиргооны явц">
+    <Card className="mb-6 gap-4 p-4" aria-label="Барилгын тохиргооны явц">
       <div>
-        <h2 className="font-medium">{ready ? "Гүйцэтгэл бүртгэхэд бэлэн" : "Блокоо ажил эхлэхэд бэлдэе"}</h2>
+        <h2 className="font-medium">{ready ? "Гүйцэтгэл бүртгэхэд бэлэн" : "Барилгаа ажил эхлэхэд бэлдэе"}</h2>
         <p className="text-muted-foreground text-sm">{completed}/{steps.length} алхам бэлэн. {ready ? "Ажлаа сонгоод гүйцэтгэлээ бүртгэнэ үү." : "Дутуу алхам дээр дарж тохируулна уу. Эрхгүй алхмыг хариуцсан ажилтнаар хийлгэнэ."}</p>
       </div>
       <ol className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">

@@ -65,6 +65,9 @@ export function AssignInspectorDialog({
       qc.invalidateQueries({ queryKey: ["work-item", item.id] });
       qc.invalidateQueries({ queryKey: ["work-items"] });
       qc.invalidateQueries({ queryKey: ["summary"] });
+      for (const key of ["queue", "queue-counts", "dashboard", "block-setup"]) {
+        void qc.invalidateQueries({ queryKey: [key] });
+      }
       onDone?.();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -74,7 +77,7 @@ export function AssignInspectorDialog({
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Хяналтын инженер солих"
+      title={item.inspector ? "Хяналтын инженер солих" : "Хяналтын инженер оноох"}
       submitLabel="Хадгалах"
       submitDisabled={inspectorId === String(item.inspector?.id ?? "")}
       pending={save.isPending}

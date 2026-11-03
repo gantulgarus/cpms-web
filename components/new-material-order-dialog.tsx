@@ -162,7 +162,7 @@ function OrderForm({
 
       <div className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-3">
-          <Field label="Блок">
+          <Field label="Барилга">
             <Select
               value={blockId}
               items={blockLabels}
@@ -285,7 +285,7 @@ function LineRow({
             disabled={disabled}
           >
             <SelectTrigger>
-              <SelectValue placeholder={disabled ? "Эхлээд блок" : "Материал сонгох"} />
+              <SelectValue placeholder={disabled ? "Эхлээд барилга" : "Материал сонгох"} />
             </SelectTrigger>
             <SelectContent>
               {rows.map((r) => (

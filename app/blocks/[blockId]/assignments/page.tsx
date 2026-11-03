@@ -13,11 +13,14 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { AlertTriangle, Users } from "lucide-react";
 import { toast } from "sonner";
 
+import { BulkAssignmentPanel } from "@/components/bulk-assignment-panel";
 import { SiteEngineerAssignmentPanel } from "@/components/site-engineer-assignment-panel";
+import { InspectorAssignmentPanel } from "@/components/inspector-assignment-panel";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/states";
 import { ToneBadge } from "@/components/tone-badge";
@@ -35,8 +38,7 @@ import { assignments, blocks, contractors } from "@/lib/api/endpoints";
 import type { Uuid } from "@/lib/api/types";
 import { useMe } from "@/lib/api/use-me";
 
-export default function AssignmentsPage() {
-  const { blockId } = useParams<{ blockId: string }>();
+function ContractorAssignmentsPanel({ blockId }: { blockId: string }) {
   const qc = useQueryClient();
   const { me } = useMe();
   const canAssign = Boolean(me?.canManageContractors);
@@ -44,10 +46,6 @@ export default function AssignmentsPage() {
   /** Бүлэг бүрт сонгосон гүйцэтгэгч — хадгалахаас өмнөх төлөв. */
   const [picked, setPicked] = useState<Record<string, string>>({});
 
-  const blockQuery = useQuery({
-    queryKey: ["block", blockId],
-    queryFn: () => blocks.get(blockId),
-  });
   const list = useQuery({
     queryKey: ["assignments", blockId],
     queryFn: () => assignments.forBlock(blockId),
@@ -82,17 +80,6 @@ export default function AssignmentsPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Ажил хуваарилах"
-        crumbs={[
-          { label: "Блокууд", href: "/blocks" },
-          { label: blockQuery.data?.name ?? "Блок", href: `/blocks/${blockId}` },
-          { label: "Хариуцагч" },
-        ]}
-        description="Талбайн инженерийн шалгах ажил болон гүйцэтгэгчийн ажлыг бүлгээр хуваарилна."
-      />
-
-      {me?.canAssignInspectors && <SiteEngineerAssignmentPanel blockId={blockId} />}
       <h2 className="mb-3 font-medium">Гүйцэтгэгч хуваарилах</h2>
       {totalUnassigned > 0 && (
         <div className="bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-200 mb-4 flex gap-2 rounded-lg p-3 text-sm">
@@ -109,7 +96,7 @@ export default function AssignmentsPage() {
       ) : list.error ? (
         <ErrorState message={(list.error as Error).message} onRetry={() => list.refetch()} />
       ) : rows.length === 0 ? (
-        <EmptyState title="Ажил алга" description="Энэ блокт ажил үүсээгүй байна." />
+        <EmptyState title="Ажил алга" description="Энэ барилгад ажил үүсээгүй байна." />
       ) : (
         <Card className="p-0">
           <Table>
@@ -191,10 +178,59 @@ export default function AssignmentsPage() {
         </Card>
       )}
 
-      <p className="text-muted-foreground mt-3 text-xs">
+      <p className="text-muted-foreground mt-3 text-sm">
         Зөвхөн <strong>хариуцагчгүй</strong> ажилд ононо — өөр компанид зориудаар оноосон ажил
         хэвээр үлдэнэ. Гүйцэтгэл бүртгэгдсэн ажлын хариуцагчийг солих боломжгүй.
       </p>
+    </div>
+  );
+}
+
+
+function subscribeToHash(onChange: () => void) {
+  window.addEventListener("hashchange", onChange);
+  return () => window.removeEventListener("hashchange", onChange);
+}
+
+export default function AssignmentsPage() {
+  const { blockId } = useParams<{ blockId: string }>();
+  const { me } = useMe();
+  const hash = useSyncExternalStore(subscribeToHash, () => window.location.hash, () => "");
+  const block = useQuery({ queryKey: ["block", blockId], queryFn: () => blocks.get(blockId) });
+  const defaultTab = me?.canManageContractors ? "contractors" : me?.canAssignInspectors ? "site-engineers" : "contractors";
+  const requested = hash.slice(1);
+  const active = requested === "contractors" ? "contractors"
+    : me?.canAssignInspectors && ["site-engineers", "inspectors"].includes(requested) ? requested : defaultTab;
+
+  return (
+    <div>
+      <PageHeader title="Хариуцагч оноох"
+        crumbs={[{ label: "Барилгууд", href: "/blocks" }, { label: block.data?.name ?? "Барилга", href: `/blocks/${blockId}` }, { label: "Хариуцагч" }]}
+        description="Хэнийг оноохоо сонгоод тухайн төрлийн хуваарилалтыг хийнэ." />
+      {block.error ? <ErrorState message={(block.error as Error).message} onRetry={() => block.refetch()} /> : (
+        <Tabs value={active} onValueChange={(value) => { window.location.hash = String(value); }}>
+          <TabsList className="mb-4 h-auto! w-full flex-wrap justify-start gap-2 p-1" aria-label="Хариуцагчийн төрөл">
+            <TabsTrigger className="min-h-11 px-3" value="contractors">Гүйцэтгэгч · Гүйцэтгэл оруулах</TabsTrigger>
+            {me?.canAssignInspectors && <TabsTrigger className="min-h-11 px-3" value="site-engineers">Талбайн инженер · Шалгах</TabsTrigger>}
+            {me?.canAssignInspectors && <TabsTrigger className="min-h-11 px-3" value="inspectors">Хяналтын инженер · Батлах</TabsTrigger>}
+          </TabsList>
+          <TabsContent value="contractors" keepMounted>
+            {me?.canManageContractors && <BulkAssignmentPanel key={`${blockId}:contractor`} blockId={blockId} blockName={block.data?.name ?? "Барилга"} mode="contractor" />}
+            <details className="rounded-xl border p-4" open={!me?.canManageContractors}>
+              <summary className="cursor-pointer text-sm font-medium">Бүлэг бүрийн гүйцэтгэгчийг харах, тусад нь оноох</summary>
+              <div className="mt-4"><ContractorAssignmentsPanel key={blockId} blockId={blockId} /></div>
+            </details>
+          </TabsContent>
+          {me?.canAssignInspectors && <TabsContent value="site-engineers" keepMounted>
+            <BulkAssignmentPanel key={`${blockId}:site`} blockId={blockId} blockName={block.data?.name ?? "Барилга"} mode="site" />
+            <details className="rounded-xl border p-4">
+              <summary className="cursor-pointer text-sm font-medium">Бүлэг бүрийн инженерийг харах, өөрчлөх эсвэл оноолтыг авах</summary>
+              <div className="mt-4"><SiteEngineerAssignmentPanel key={blockId} blockId={blockId} /></div>
+            </details>
+          </TabsContent>}
+          {me?.canAssignInspectors && <TabsContent value="inspectors" keepMounted><InspectorAssignmentPanel key={blockId} blockId={blockId} /></TabsContent>}
+        </Tabs>
+      )}
     </div>
   );
 }

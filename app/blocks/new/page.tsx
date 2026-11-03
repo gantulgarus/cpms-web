@@ -138,8 +138,8 @@ export default function NewBlockPage() {
   return (
     <div>
       <PageHeader
-        title="Шинэ блок үүсгэх"
-        crumbs={[{ label: "Төслүүд", href: "/" }, { label: "Шинэ блок" }]}
+        title="Шинэ барилга үүсгэх"
+        crumbs={[{ label: "Төслүүд", href: "/" }, { label: "Шинэ барилга" }]}
         description="Стандарт загвараас хувилна, эсвэл хоосон үүсгээд загварыг дараа буулгана."
       />
 
@@ -182,7 +182,7 @@ export default function NewBlockPage() {
                     designId === "" ? "border-primary bg-accent" : "hover:bg-accent/40",
                   )}
                 >
-                  <div className="font-medium">Загваргүй (хоосон блок)</div>
+                  <div className="font-medium">Загваргүй (хоосон барилга)</div>
                   <p className="text-muted-foreground text-sm">
                     Давхар, айл нь үүснэ; ажил үүсэхгүй. Загварыг дараа буулгах эсвэл ажлаа гараар
                     нэмэх боломжтой.
@@ -229,14 +229,14 @@ export default function NewBlockPage() {
             )}
 
             <section>
-              <h2 className="mb-3 text-sm font-medium">2. Блокийн мэдээлэл</h2>
+              <h2 className="mb-3 text-sm font-medium">2. Барилгын мэдээлэл</h2>
               <Card>
                 <CardContent className="space-y-4 pt-6">
-                  <FormField label="Блокийн нэр" required>
+                  <FormField label="Барилгын нэр" required>
                     <Input
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="Б блок — 16 давхар орон сууц"
+                      placeholder="Б барилга — 16 давхар орон сууц"
                       disabled={create.isPending}
                     />
                   </FormField>
@@ -268,7 +268,7 @@ export default function NewBlockPage() {
               <CardContent className="space-y-3 pt-6">
                 <h2 className="text-sm font-medium">Юу үүсэх вэ</h2>
                 {!selected ? (
-                  <p className="text-muted-foreground text-sm">{floors || "0"} давхар, давхар бүрт {unitsPerFloor || "0"} айлтай хоосон блок үүснэ. Дараа нь ажлаа нэмж, тоо хэмжээ, хугацаа, хариуцагчийг тохируулна.</p>
+                  <p className="text-muted-foreground text-sm">{floors || "0"} давхар, давхар бүрт {unitsPerFloor || "0"} айлтай хоосон барилга үүснэ. Дараа нь ажлаа нэмж, тоо хэмжээ, хугацаа, хариуцагчийг тохируулна.</p>
                 ) : (
                   <>
                     <dl className="space-y-2 text-sm">
@@ -336,7 +336,7 @@ export default function NewBlockPage() {
               </Card>
             ) : (
               <Button className="w-full" disabled={!ready} onClick={() => create.mutate()}>
-                Блок үүсгэх
+                Барилга үүсгэх
               </Button>
             )}
           </aside>

@@ -163,7 +163,7 @@ export function AppSidebar() {
             ]),
         {
           href: isRep ? "/my-work" : "/blocks",
-          label: isRep ? "Миний ажлууд" : "Блокууд",
+          label: isRep ? "Миний ажлууд" : "Барилгууд",
           icon: Building2,
           match: (p) => (isRep ? p.startsWith("/my-work") : p.startsWith("/blocks")) || p.startsWith("/work-items"),
         },

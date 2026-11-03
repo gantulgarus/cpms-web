@@ -86,7 +86,7 @@ export default function DashboardPage() {
         <EmptyState title="Эхний барилгаа нэмье" description="Төсөл бэлэн байна. Барилга нэмсний дараа ажлуудаа тохируулж, гүйцэтгэл бүртгэж эхэлнэ."
           action={me?.canEditPlan ? <Button nativeButton={false} render={<Link href="/blocks/new" />}>Эхний барилгаа нэмэх</Button> : undefined} />
       ) : !d ? (
-        <EmptyState title="Өгөгдөл алга" description="Төсөлд блок үүсээгүй байна." />
+        <EmptyState title="Өгөгдөл алга" description="Төсөлд барилга үүсээгүй байна." />
       ) : (
         <div className="space-y-6">
           {me && <DashboardActions me={me} counts={queueCounts} loading={counts.isPending} />}
@@ -126,6 +126,7 @@ export default function DashboardPage() {
               Явц нь ЗӨВХӨН энд харагдана. Барилга бүр өөрийн хувьтай — нэг
               тоонд шахаж нэгтгэвэл хаана асуудалтай байгаа нь алга болно. */}
           <BlockSection blocks={d.blocks} counts={d} />
+          <p className="text-muted-foreground text-sm">Барилгын явц нь эцэслэн баталсан гүйцэтгэлээр тооцогдоно. Шалгах, батлахыг хүлээж буй гүйцэтгэл энэ хувьд хараахан ороогүй.</p>
 
           {/* --- Саатлын шалтгаан --- */}
           {d.openIssues > 0 && (

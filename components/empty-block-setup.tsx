@@ -73,7 +73,7 @@ export function EmptyBlockSetup({
       <Card>
         <CardContent className="space-y-4 pt-6">
           <div>
-            <h2 className="font-medium">Энэ блокт ажил үүсээгүй байна</h2>
+            <h2 className="font-medium">Энэ барилгад ажил үүсээгүй байна</h2>
             <p className="text-muted-foreground text-sm">
               Давхар, айл нь бэлэн. Одоо ажлаа үүсгэнэ үү — эс бөгөөс гүйцэтгэл бүртгэх зүйл
               байхгүй.
