@@ -2146,7 +2146,13 @@ export function handleMock(
     const user = mockUsers.find((u) => u.id === b);
     if (!user) return fail(404, "NotFound", "Хэрэглэгч олдсонгүй.");
 
-    if (c === "reset-password") return ok({ data: { temporaryPassword: "MOCK-RESET-5678" } });
+    if (c === "reset-password" && method === "POST") {
+      const password = (body as { password?: unknown } | undefined)?.password;
+      if (password !== undefined && (typeof password !== "string" || password.length < 8)) {
+        return fail(422, "ValidationError", "Нууц үг хамгийн багадаа 8 тэмдэгт байна.");
+      }
+      return ok({ data: { temporaryPassword: password ?? "MOCK-RESET-5678" } });
+    }
 
     // Идэвхгүй болгоно — устгахгүй. Түүний мэдээлсэн явц эзэнгүй үлдэх ёсгүй.
     if (method === "DELETE") {

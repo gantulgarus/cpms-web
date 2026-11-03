@@ -11,6 +11,7 @@ import { useMemo, useState } from "react";
 import { KeyRound, Pencil, ShieldCheck, ShieldOff, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
+import { ResetPasswordDialog } from "@/components/reset-password-dialog";
 import { EditUserDialog } from "@/components/edit-user-dialog";
 import { FormDialog, FormField } from "@/components/form-dialog";
 import { PageHeader } from "@/components/page-header";
@@ -44,6 +45,7 @@ export default function UsersPage() {
   const qc = useQueryClient();
   const { me } = useMe();
   const { project } = useProject();
+  const [passwordUser, setPasswordUser] = useState<ManagedUser | null>(null);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<ManagedUser | null>(null);
   const [form, setForm] = useState(EMPTY);
@@ -89,12 +91,6 @@ export default function UsersPage() {
         { duration: 20000 },
       );
     },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const reset = useMutation({
-    mutationFn: (id: ManagedUser["id"]) => users.resetPassword(id),
-    onSuccess: (password) => toast.success(`Шинэ түр нууц үг: ${password}`, { duration: 20000 }),
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -201,10 +197,7 @@ export default function UsersPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled={reset.isPending}
-                        onClick={() => {
-                          if (confirm(`${u.name}-ийн нууц үгийг сэргээх үү?`)) reset.mutate(u.id);
-                        }}
+                        onClick={() => setPasswordUser(u)}
                       >
                         <KeyRound className="size-3.5" /> Нууц үг
                       </Button>
@@ -330,6 +323,7 @@ export default function UsersPage() {
 
       {/* `key` нь чухал: өөр хэрэглэгч сонгоход цонх өөрийн төлөвөө шинээр
           эхлүүлэх ёстой, эс бөгөөс өмнөх хүний нэр үлдэнэ. */}
+      {passwordUser && <ResetPasswordDialog key={passwordUser.id} user={passwordUser} onClose={() => setPasswordUser(null)} />}
       {editing && (
         <EditUserDialog
           key={editing.id}

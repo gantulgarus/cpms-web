@@ -393,8 +393,8 @@ export const users = {
   update: (id: ManagedUser["id"], body: Record<string, unknown>) =>
     request<Item<ManagedUser>>("PATCH", `/users/${id}`, { body }).then((r) => r.data),
 
-  resetPassword: (id: ManagedUser["id"]) =>
-    request<{ data: { temporaryPassword: string } }>("POST", `/users/${id}/reset-password`).then(
+  resetPassword: (id: ManagedUser["id"], password?: string) =>
+    request<{ data: { temporaryPassword: string } }>("POST", `/users/${id}/reset-password`, { body: password === undefined ? undefined : { password } }).then(
       (r) => r.data.temporaryPassword,
     ),
 

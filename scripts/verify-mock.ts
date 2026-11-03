@@ -1225,6 +1225,15 @@ const newUser = post("users", {
   role: "inspector",
 });
 t("Хэрэглэгч үүслээ", newUser.status === 201, String(newUser.status));
+const passwordUserId = body<{ data: { id: string } }>(newUser).data.id;
+const resetPath = `users/${passwordUserId}/reset-password`;
+const chosenPassword = "Chosen-Test-4829!";
+const passwordResult = post(resetPath, { password: chosenPassword });
+t("Сонгосон нууц үгийг автоматаар солихгүй", passwordResult.status === 200 && body<{ data: { temporaryPassword: string } }>(passwordResult).data.temporaryPassword === chosenPassword);
+t("Богино нууц үг 422", post(resetPath, { password: "short" }).status === 422);
+t("Буруу төрлийн нууц үг 422", post(resetPath, { password: 12345678 }).status === 422);
+t("Хуучин автомат сэргээх API хэвээр", post(resetPath, {}).status === 200);
+
 t(
   "Түр нууц үг буцаана",
   Boolean(body<{ meta: { temporaryPassword: string } }>(newUser).meta.temporaryPassword),
