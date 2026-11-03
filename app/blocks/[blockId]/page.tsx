@@ -28,6 +28,8 @@ import {
   Wallet,
 } from "lucide-react";
 
+import { BlockWorkSequence } from "@/components/block-work-sequence";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { MyWorkList } from "@/components/my-work-list";
 import { BlockSetupProgress } from "@/components/block-setup-progress";
 import { PageHeader } from "@/components/page-header";
@@ -110,6 +112,7 @@ function BlockProgressContent() {
   const { me } = useMe();
   const [deleting, setDeleting] = useState(false);
 
+  const [view, setView] = useState("progress");
   const [groupBy, setGroupBy] = useState<SummaryGroupBy>("floor");
   const [selected, setSelected] = useState<Selection | null>(null);
   const [reviewState, setReviewState] = useState<ReviewFilter>("");
@@ -179,6 +182,7 @@ function BlockProgressContent() {
 
   /** Дээд талын тоон дээр дарахад — тэр ажлуудыг шууд нээнэ. */
   const focusOn = (label: string, filter: WorkItemFilters, review: ReviewFilter = "") => {
+    setView("progress");
     const same = focus?.label === label;
     setFocus(same ? null : { key: label, label, filter });
     setSelected(null);
@@ -326,12 +330,14 @@ function BlockProgressContent() {
           onQuantities={() => setFixingQuantities(true)}
           onSchedule={() => setEditingDuration(true)}
           onInspectors={() => {
+            setView("progress");
             setFocus({ key: "inspectors", label: "Хяналтын инженер оноох ажлууд", filter: { inspectorId: "none" } });
             setSelected(null);
             setReviewState("");
             setPage(1);
           }}
           onWork={() => {
+            setView("progress");
             setFocus({ key: "all", label: "Гүйцэтгэл оруулах ажлаа сонгох", filter: {} });
             setSelected(null);
             setReviewState("");
@@ -364,6 +370,13 @@ function BlockProgressContent() {
         </div>
       </div>
 
+      <Tabs value={view} onValueChange={(value) => setView(String(value))} className="mt-6">
+        <TabsList className="mb-3 h-auto!" aria-label="Барилгын ажлын харагдац">
+          <TabsTrigger value="progress" className="min-h-10 px-4">Гүйцэтгэлийн тойм</TabsTrigger>
+          <TabsTrigger value="sequence" className="min-h-10 px-4">Ажлын дараалал</TabsTrigger>
+        </TabsList>
+        <TabsContent value="sequence"><BlockWorkSequence key={blockId} blockId={blockId} /></TabsContent>
+        <TabsContent value="progress">
       {/* Ажилгүй блок бол мухардмал төлөв болох ёсгүй — гарцыг нь тэр
           дор нь харуулна. */}
       {!summaryQuery.isLoading && !summaryQuery.error && summary?.totals.workItems === 0 ? (
@@ -538,6 +551,8 @@ function BlockProgressContent() {
           )}
         </>
       )}
+        </TabsContent>
+      </Tabs>
       {me?.canEditPlan && (
         <>
           <AddWorkTypeDialog

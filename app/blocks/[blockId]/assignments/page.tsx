@@ -17,6 +17,7 @@ import { useState, useSyncExternalStore } from "react";
 import { AlertTriangle, Users } from "lucide-react";
 import { toast } from "sonner";
 
+import { PriorityContractorAssignment } from "@/components/priority-contractor-assignment";
 import { BulkAssignmentPanel } from "@/components/bulk-assignment-panel";
 import { SiteEngineerAssignmentPanel } from "@/components/site-engineer-assignment-panel";
 import { InspectorAssignmentPanel } from "@/components/inspector-assignment-panel";
@@ -215,8 +216,8 @@ export default function AssignmentsPage() {
             {me?.canAssignInspectors && <TabsTrigger className="min-h-11 px-3" value="inspectors">Хяналтын инженер · Батлах</TabsTrigger>}
           </TabsList>
           <TabsContent value="contractors" keepMounted>
-            {me?.canManageContractors && <BulkAssignmentPanel key={`${blockId}:contractor`} blockId={blockId} blockName={block.data?.name ?? "Барилга"} mode="contractor" />}
-            <details className="rounded-xl border p-4" open={!me?.canManageContractors}>
+            {me?.canManageContractors && <PriorityContractorAssignment key={blockId} blockId={blockId} />}
+            <details className="mt-6 rounded-xl border p-4" open={!me?.canManageContractors}>
               <summary className="cursor-pointer text-sm font-medium">Бүлэг бүрийн гүйцэтгэгчийг харах, тусад нь оноох</summary>
               <div className="mt-4"><ContractorAssignmentsPanel key={blockId} blockId={blockId} /></div>
             </details>

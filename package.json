@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test:mock": "tsc -p tsconfig.verify-mock.json && node scripts/run-mock-checks.mjs verify-mock",
     "test:my-work": "tsc -p tsconfig.verify-mock.json && node scripts/run-mock-checks.mjs verify-my-work",
+    "test:assignment-priority": "tsc -p tsconfig.verify-mock.json && node scripts/run-mock-checks.mjs verify-assignment-priority",
     "test:site-engineers": "tsc -p tsconfig.verify-mock.json && node scripts/run-mock-checks.mjs verify-site-engineers"
   },
   "dependencies": {

@@ -12,6 +12,7 @@
     "lib/proxy.ts",
     "scripts/verify-mock.ts",
     "scripts/verify-my-work.ts",
-    "scripts/verify-site-engineers.ts"
+    "scripts/verify-site-engineers.ts",
+    "scripts/verify-assignment-priority.ts"
   ]
 }
