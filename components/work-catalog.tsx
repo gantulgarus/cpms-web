@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { referenceData, type LocationLevel, type WorkCatalogEntry } from "@/lib/api/endpoints";
 import { FormDialog, FormField } from "@/components/form-dialog";
@@ -21,6 +21,7 @@ export function WorkCatalog({ canManage }: { canManage: boolean }) {
   const [group, setGroup] = useState("");
   const [missingOnly, setMissingOnly] = useState(false);
   const [locationMissingOnly, setLocationMissingOnly] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<WorkCatalogEntry | null>(null);
   const [deleting, setDeleting] = useState<WorkCatalogEntry | null>(null);
   const entries = query.data?.data ?? [];
@@ -40,6 +41,7 @@ export function WorkCatalog({ canManage }: { canManage: boolean }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
+        {canManage && <Button onClick={() => setCreating(true)}><Plus className="size-4" />Шинэ ажил нэмэх</Button>}
         <Input aria-label="Хийгдэх ажил хайх" placeholder="Код, нэр, дэд бүлгээр хайх…" className="max-w-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
         <select aria-label="Бүлэг" className="border-input bg-background h-9 max-w-full rounded-md border px-3 text-sm" value={group} onChange={(e) => setGroup(e.target.value)}>
           <option value="">Бүх бүлэг</option>
@@ -89,6 +91,7 @@ export function WorkCatalog({ canManage }: { canManage: boolean }) {
           </Table>
         </Card>
       )}
+      {creating && <EditCatalog create entry={{ id: "", workTypeId: null, level: null, inferredLevel: null, locationLevelOverride: null, inUse: false, systemCode: "Автоматаар олгогдоно", sourceKey: null, sourceRow: null, sequenceNumber: Math.max(0, ...entries.map((row) => row.sequenceNumber)) + 1, groupName: group, subgroupNumber: "", typeName: "", name: "", unit: null, locationDescription: null, floorDescription: null, description: null }} onClose={() => setCreating(false)} />}
       {editing && <EditCatalog key={editing.id} entry={editing} onClose={() => setEditing(null)} />}
       {deleting && <DeleteCatalog entry={deleting} onClose={() => setDeleting(null)} />}
     </div>
@@ -111,19 +114,28 @@ function DeleteCatalog({ entry, onClose }: { entry: WorkCatalogEntry; onClose: (
   </FormDialog>;
 }
 
-function EditCatalog({ entry, onClose }: { entry: WorkCatalogEntry; onClose: () => void }) {
+function EditCatalog({ entry, onClose, create = false }: { entry: WorkCatalogEntry; onClose: () => void; create?: boolean }) {
   const qc = useQueryClient();
   const [name, setName] = useState(entry.name);
   const [unit, setUnit] = useState(entry.unit ?? "");
   const [description, setDescription] = useState(entry.description ?? "");
-  const needsClarification = !inferWorkLocation({ ...entry, name }) || Boolean(entry.locationLevelOverride);
+  const [fields, setFields] = useState({ groupName: entry.groupName, subgroupNumber: entry.subgroupNumber, typeName: entry.typeName, locationDescription: entry.locationDescription ?? "", floorDescription: entry.floorDescription ?? "", sequenceNumber: entry.sequenceNumber });
+  const needsClarification = !inferWorkLocation({ ...entry, ...fields, name }) || Boolean(entry.locationLevelOverride);
   const [level, setLevel] = useState<LocationLevel | "">(entry.locationLevelOverride ?? "");
   const save = useMutation({
-    mutationFn: () => referenceData.updateCatalog(entry.id, { name: name.trim(), unit: unit.trim() || null, description: description.trim() || null, ...(needsClarification ? { level: level || null } : {}) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["work-catalog"] }); qc.invalidateQueries({ queryKey: ["work-types"] }); qc.invalidateQueries({ queryKey: ["wt-groups"] }); toast.success("Ажлын мэдээлэл шинэчлэгдлээ"); onClose(); },
+    mutationFn: () => { const body = { ...fields, name: name.trim(), unit: unit.trim() || null, description: description.trim() || null, ...(needsClarification ? { level: level || null } : {}) }; return create ? referenceData.createCatalog(body) : referenceData.updateCatalog(entry.id, body); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["work-catalog"] }); qc.invalidateQueries({ queryKey: ["work-types"] }); qc.invalidateQueries({ queryKey: ["wt-groups"] }); toast.success(create ? "Шинэ ажил нэмэгдлээ" : "Ажлын мэдээлэл шинэчлэгдлээ"); onClose(); },
     onError: (error: Error) => toast.error(error.message),
   });
-  return <FormDialog open onOpenChange={(open) => { if (!open && !save.isPending) onClose(); }} title={`Ажил засах · ${entry.systemCode}`} submitLabel="Хадгалах" submitDisabled={!name.trim() || Boolean(entry.workTypeId && !unit.trim()) || Boolean(entry.workTypeId && needsClarification && !level)} pending={save.isPending} onSubmit={() => save.mutate()}>
+  return <FormDialog open onOpenChange={(open) => { if (!open && !save.isPending) onClose(); }} title={create ? "Шинэ ажил нэмэх" : `Ажил засах · ${entry.systemCode}`} submitLabel="Хадгалах" submitDisabled={!name.trim() || !fields.groupName.trim() || !fields.subgroupNumber.trim() || !fields.typeName.trim() || !Number.isInteger(fields.sequenceNumber) || fields.sequenceNumber < 1 || Boolean(entry.workTypeId && !unit.trim()) || Boolean(entry.workTypeId && needsClarification && !level)} pending={save.isPending} onSubmit={() => save.mutate()}>
+    <FormField label="Ажлын код"><Input value={entry.systemCode} disabled /></FormField>
+    {([
+      ["groupName", "Бүлэг", 255], ["subgroupNumber", "Дэд бүлэг", 50], ["typeName", "Ажлын төрөл", 255],
+      ["locationDescription", "Байршил", 5000], ["floorDescription", "Давхар", 5000],
+    ] as const).map(([key, label, maxLength]) => <FormField key={key} label={label} required={["groupName", "subgroupNumber", "typeName"].includes(key)}>
+      <Input aria-label={label} value={fields[key]} maxLength={maxLength} onChange={(event) => setFields({ ...fields, [key]: event.target.value })} />
+    </FormField>)}
+    <FormField label="Дэс дараалал" required><Input type="number" min={1} max={2147483647} value={fields.sequenceNumber} onChange={(event) => setFields({ ...fields, sequenceNumber: Number(event.target.value) })} /></FormField>
     <FormField label="Хийгдэх ажлын нэр" required><Input value={name} maxLength={255} onChange={(e) => setName(e.target.value)} /></FormField>
     <FormField label="Хэмжих нэгж" hint={entry.inUse ? "Төлөвлөгөөнд ашигласан тул нэгж өөрчлөх боломжгүй." : "Тодорхойгүй бол хоосон үлдээнэ."}><Input value={unit} disabled={entry.inUse} maxLength={20} onChange={(e) => setUnit(e.target.value)} /></FormField>
     {needsClarification && <FormField label="Байршил тодруулах" hint={entry.inUse ? "Төлөвлөгөөнд ашигласан тул байршлын түвшин өөрчлөх боломжгүй." : "Эх мэдээлэл тодорхойгүй тул нэг удаа тодруулна уу."}>

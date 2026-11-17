@@ -127,8 +127,8 @@ export interface WorkCatalogEntry {
   locationLevelOverride: LocationLevel | null;
   inUse: boolean;
   systemCode: string;
-  sourceKey: string;
-  sourceRow: number;
+  sourceKey: string | null;
+  sourceRow: number | null;
   sequenceNumber: number;
   groupName: string;
   subgroupNumber: string;

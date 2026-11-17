@@ -406,9 +406,10 @@ export const users = {
 
 export const referenceData = {
   catalog: () => request<{ data: WorkCatalogEntry[] }>("GET", "/work-catalog"),
+  createCatalog: (body: { name: string; unit: string | null; description: string | null; level?: LocationLevel | null; groupName?: string; subgroupNumber?: string; typeName?: string; locationDescription?: string | null; floorDescription?: string | null; sequenceNumber?: number }) => request<Item<WorkCatalogEntry>>("POST", "/work-catalog", { body }).then((r) => r.data),
   deleteCatalog: (id: string) => request<void>("DELETE", `/work-catalog/${id}`),
 
-  updateCatalog: (id: string, body: { name: string; unit: string | null; description: string | null; level?: LocationLevel | null }) =>
+  updateCatalog: (id: string, body: { name: string; unit: string | null; description: string | null; level?: LocationLevel | null; groupName?: string; subgroupNumber?: string; typeName?: string; locationDescription?: string | null; floorDescription?: string | null; sequenceNumber?: number }) =>
     request<Item<WorkCatalogEntry>>("PATCH", `/work-catalog/${id}`, { body }).then((r) => r.data),
 
   groups: () => request<ListEnvelope<WorkTypeGroup>>("GET", "/work-type-groups"),
@@ -482,6 +483,7 @@ export const plan = {
       workTypeId?: Uuid;
       plannedQty?: number;
       locationId?: Uuid;
+      locationIds?: Uuid[];
       contractorId?: Uuid;
     },
   ) =>

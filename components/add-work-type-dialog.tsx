@@ -17,6 +17,7 @@ import { Check, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { FormDialog, FormField } from "@/components/form-dialog";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { blocks as blocksApi, plan, referenceData } from "@/lib/api/endpoints";
 import type { LocationLevel, Uuid } from "@/lib/api/types";
@@ -52,6 +53,8 @@ export function AddWorkTypeDialog({
   const [level, setLevel] = useState<LocationLevel>("floor");
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
+  const [selectedLocations, setSelectedLocations] = useState<Set<string>>(new Set());
+  const [locationSearch, setLocationSearch] = useState("");
   const [plannedQty, setPlannedQty] = useState("");
 
   const typesQuery = useQuery({
@@ -84,6 +87,8 @@ export function AddWorkTypeDialog({
 
   const reset = () => {
     setPicked(new Set());
+    setSelectedLocations(new Set());
+    setLocationSearch("");
     setSearch("");
     setPlannedQty("");
   };
@@ -101,6 +106,7 @@ export function AddWorkTypeDialog({
     mutationFn: () =>
       plan.addWorkType(blockId, {
         workTypeIds: [...picked],
+        locationIds: [...selectedLocations],
         plannedQty: plannedQty ? Number(plannedQty) : undefined,
       }),
     onSuccess: (res) => {
@@ -119,8 +125,11 @@ export function AddWorkTypeDialog({
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const locations = locationsQuery.data?.data ?? [];
+  const availableLocations = locations.filter((location) => location.level === level);
+  const visibleLocations = availableLocations.filter((location) => location.path.toLocaleLowerCase().includes(locationSearch.trim().toLocaleLowerCase()));
   const willCreate = (typesQuery.data?.data ?? []).filter((entry) => entry.workTypeId && picked.has(entry.workTypeId))
-    .reduce((sum, entry) => sum + (locationsQuery.data?.data ?? []).filter((location) => location.level === entry.level
+    .reduce((sum, entry) => sum + (locationsQuery.data?.data ?? []).filter((location) => location.level === entry.level && selectedLocations.has(location.id)
       && matchesCatalogFloor(entry, location, locationsQuery.data?.data ?? [])).length, 0);
 
   return (
@@ -131,14 +140,15 @@ export function AddWorkTypeDialog({
         if (!v) reset();
       }}
       title="Энэ барилгад ажил нэмэх"
+      className="sm:max-w-2xl"
       submitLabel={willCreate > 0 ? `${willCreate} ажил нэмэх` : "Нэмэх"}
-      submitDisabled={picked.size === 0 || willCreate === 0}
+      submitDisabled={picked.size === 0 || willCreate === 0 || locationsQuery.isLoading || typesQuery.isLoading}
       pending={add.isPending}
       onSubmit={() => add.mutate()}
     >
       {/* 1. Түвшин — «давхрын ажил нэмэх» гэдэг нь энэ. */}
       <FormField label="Ажил хаана хийгдэх вэ" required>
-        <div className="grid gap-1.5">
+        <div className="grid gap-2 sm:grid-cols-3">
           {LEVELS.map((l) => {
             const n = (locationsQuery.data?.data ?? []).filter((x) => x.level === l.value).length;
 
@@ -150,6 +160,8 @@ export function AddWorkTypeDialog({
                 onClick={() => {
                   setLevel(l.value);
                   setPicked(new Set());
+                  setSelectedLocations(new Set());
+                  setLocationSearch("");
                 }}
                 className={cn(
                   "rounded-md border px-3 py-2 text-left text-sm transition-colors",
@@ -157,7 +169,7 @@ export function AddWorkTypeDialog({
                   n === 0 && "cursor-not-allowed opacity-45",
                 )}
               >
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-medium">{l.label}</span>
                   <span className="text-muted-foreground text-xs tabular-nums">
                     {n === 0 ? "байхгүй" : `${n} байршил`}
@@ -167,6 +179,21 @@ export function AddWorkTypeDialog({
               </button>
             );
           })}
+        </div>
+      </FormField>
+
+      <FormField label="Байршил сонгох" required>
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => setSelectedLocations(new Set(availableLocations.map((location) => location.id)))}>Бүгдийг сонгох</Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedLocations(new Set())}>Сонголт цэвэрлэх</Button>
+          <span className="text-muted-foreground text-xs">{selectedLocations.size} байршил сонгосон</span>
+        </div>
+        <Input aria-label="Байршил хайх" placeholder="Давхар, тоотоор хайх…" value={locationSearch} onChange={(event) => setLocationSearch(event.target.value)} className="mb-2" />
+        <div className="max-h-40 space-y-1 overflow-y-auto rounded-md border p-2">
+          {locationsQuery.isLoading ? <p className="text-sm">Байршил ачаалж байна…</p> : locationsQuery.error ? <p role="alert" className="text-destructive text-sm">Байршил ачаалсангүй. Цонхоо дахин нээнэ үү.</p> : visibleLocations.length === 0 ? <p className="text-muted-foreground text-sm">Байршил олдсонгүй.</p> : visibleLocations.map((location) => <label key={location.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent/40">
+            <input type="checkbox" checked={selectedLocations.has(location.id)} onChange={() => setSelectedLocations((previous) => { const next = new Set(previous); if (next.has(location.id)) next.delete(location.id); else next.add(location.id); return next; })} />
+            <span>{location.path}</span>
+          </label>)}
         </div>
       </FormField>
 
@@ -182,7 +209,7 @@ export function AddWorkTypeDialog({
           />
         </div>
 
-        <div className="max-h-64 space-y-2 overflow-y-auto rounded-md border p-2">
+        <div className="max-h-[35dvh] min-h-32 space-y-2 overflow-y-auto rounded-md border p-2">
           {grouped.length === 0 ? (
             <p className="text-muted-foreground p-2 text-sm">Энэ түвшинд ажлын төрөл олдсонгүй.</p>
           ) : (
@@ -213,7 +240,7 @@ export function AddWorkTypeDialog({
                         >
                           {on && <Check className="size-3" />}
                         </span>
-                        <span className="min-w-0 flex-1 truncate">{t.name}</span>
+                        <span className="min-w-0 flex-1 whitespace-normal break-words">{t.name}</span>
                         <span className="text-muted-foreground shrink-0 text-xs">{t.unit}</span>
                       </button>
                     );
@@ -244,7 +271,7 @@ export function AddWorkTypeDialog({
           </>
         ) : (
           <>
-            Сонгосон <strong>{picked.size} ажил</strong>-ыг эх мэдээлэлд заасан давхруудад нэмж,
+            Сонгосон <strong>{picked.size} ажил</strong>-ыг сонгосон байршлуудад эх мэдээллийн давхрын хязгаарын дагуу нэмж,
             нийт <strong>{willCreate} мөр</strong> үүсгэнэ. Аль хэдийн нэмэгдсэн нь алгасагдана.
           </>
         )}

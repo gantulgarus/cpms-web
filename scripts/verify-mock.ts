@@ -3870,6 +3870,16 @@ t(
   t("Шинэ лавлах бүх 293 үе шаттай", catalog.length === 293);
   t("Автомат код бүр давтагдашгүй", new Set(catalog.map((row) => row.systemCode)).size === 293);
   t("Хоосон болон 0 тэмдэглэгээтэй дөрвөн нэгжийг таамаглаагүй", catalog.filter((row) => !row.unit).length === 4);
+  const newPayload = { groupName: "Шинэ бүлэг", subgroupNumber: "9.1", typeName: "Шинэ төрөл", name: "Нэмсэн ажил", unit: "м2", locationDescription: "Барилга бүхэлдээ", sequenceNumber: 294 };
+  t("Дутуу мэдээллээр ажил нэмэхгүй", handleMock("POST", ["work-catalog"], "", {}).status === 422);
+  const addedResult = handleMock("POST", ["work-catalog"], "", newPayload);
+  const added = body<{ data: import("../lib/api/types").WorkCatalogEntry }>(addedResult).data;
+  t("Шинэ ажил кодтой бүртгэгдэнэ", addedResult.status === 201 && added.name === newPayload.name && !catalog.some((entry) => entry.systemCode === added.systemCode));
+  t("Шинэ ажил төлөвлөлтийн төрөлтэй холбогдоно", Boolean(added.workTypeId) && added.level === "block");
+  handleMock("POST", ["auth", "login"], "", { email: "site_engineer@cpms.test" });
+  t("Эрхгүй хэрэглэгч ажил нэмэхгүй", handleMock("POST", ["work-catalog"], "", newPayload).status === 403);
+  handleMock("POST", ["auth", "login"], "", { email: "admin@cpms.test" });
+  handleMock("DELETE", ["work-catalog", added.id], "", undefined);
   const row = catalog[0];
   const original = { name: row.name, unit: row.unit, description: row.description };
   const code = row.systemCode;

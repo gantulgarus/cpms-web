@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 /** Controlled dialog wrapping a simple create/edit form. */
 export function FormDialog({
@@ -20,6 +21,7 @@ export function FormDialog({
   submitLabel = "Хадгалах",
   submitDisabled,
   pending,
+  className,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -29,22 +31,23 @@ export function FormDialog({
   submitLabel?: string;
   submitDisabled?: boolean;
   pending?: boolean;
+  className?: string;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className={cn("flex max-h-[90dvh] flex-col overflow-hidden sm:max-w-md", className)}>
+        <DialogHeader className="shrink-0 pr-8">
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <form
-          className="space-y-4"
+          className="flex min-h-0 flex-col gap-4"
           onSubmit={(e) => {
             e.preventDefault();
             onSubmit();
           }}
         >
-          {children}
-          <DialogFooter className="mt-2">
+          <div className="min-h-0 space-y-4 overflow-y-auto px-1 -mx-1">{children}</div>
+          <DialogFooter className="shrink-0">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Болих
             </Button>

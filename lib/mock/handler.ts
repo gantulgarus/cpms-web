@@ -9,6 +9,7 @@ import catalogSource from "../reference/work-catalog-20261116.json";
 import { inferWorkLocation, matchesCatalogFloor } from "../reference/infer-work-location";
 import type { WorkCatalogEntry } from "@/lib/api/types";
 
+let nextCatalogId = catalogSource.length + 1;
 const catalogEntries: WorkCatalogEntry[] = catalogSource.map((entry, index) => ({
   ...entry,
   unit: entry.unit === "0" ? null : entry.unit,
@@ -1927,6 +1928,17 @@ export function handleMock(
   const [a, b, c] = segments;
 
   if (a === "work-catalog") {
+    if (method === "POST" && !b) {
+      if (!session.canManageReferenceData) return fail(403, "Forbidden", "Танд лавлах сан засах эрх байхгүй.");
+      const input = (body ?? {}) as Record<string, unknown>;
+      if (["groupName", "subgroupNumber", "typeName", "name"].some((key) => typeof input[key] !== "string" || !String(input[key]).trim()) || !("sequenceNumber" in input)) return fail(422, "ValidationError", "Шаардлагатай талбаруудыг бөглөнө үү.");
+      const id = String(nextCatalogId++);
+      const entry: WorkCatalogEntry = { id, workTypeId: null, level: null, inferredLevel: null, locationLevelOverride: null, inUse: false, systemCode: `WT-${id.padStart(6, "0")}`, sourceKey: null, sourceRow: null, sequenceNumber: 1, groupName: "", subgroupNumber: "", typeName: "", name: "", unit: null, locationDescription: null, floorDescription: null, description: null };
+      catalogEntries.push(entry);
+      const result = handleMock("PATCH", ["work-catalog", id], "", input);
+      if (result.status !== 200) { catalogEntries.splice(catalogEntries.indexOf(entry), 1); return result; }
+      return { ...result, status: 201 };
+    }
     if (method === "DELETE" && b) {
       if (!session.canManageReferenceData) return fail(403, "Forbidden", "Танд лавлах сан засах эрх байхгүй.");
       const index = catalogEntries.findIndex((entry) => entry.id === b);
@@ -1950,7 +1962,7 @@ export function handleMock(
         db.workTypes.push(type);
         entry.workTypeId = type.id;
       }
-      Object.assign(type, { name: entry.name, unit: entry.unit, level: entry.level });
+      Object.assign(type, { name: entry.name, unit: entry.unit, level: entry.level, groupId: group.id, groupName: group.name, sequenceNumber: entry.sequenceNumber });
     };
     if (method === "GET" && !b) {
       catalogEntries.forEach(syncPlanningType);
@@ -1961,16 +1973,21 @@ export function handleMock(
       const entry = catalogEntries.find((row) => row.id === b);
       if (!entry) return fail(404, "NotFound", "Үе шат олдсонгүй.");
       const patch = (body ?? {}) as Record<string, unknown>;
-      for (const [key, max] of [["name", 255], ["unit", 20], ["description", 5000]] as const) {
+      for (const [key, max] of [["name", 255], ["unit", 20], ["description", 5000], ["groupName", 255], ["subgroupNumber", 50], ["typeName", 255], ["locationDescription", 5000], ["floorDescription", 5000]] as const) {
         if (!(key in patch)) continue;
         const value = patch[key];
         if ((value !== null && typeof value !== "string") || (typeof value === "string" && value.length > max)
-          || (key === "name" && (typeof value !== "string" || !value.trim()))) {
+          || (["name", "groupName", "subgroupNumber", "typeName"].includes(key) && (typeof value !== "string" || !value.trim()))) {
           return fail(422, "ValidationError", "Нэр, нэгж, тодорхойлолтоо шалгана уу.");
         }
       }
       if ("level" in patch && patch.level !== null && !["block", "floor", "unit"].includes(String(patch.level))) return fail(422, "ValidationError", "Байршлын түвшин буруу.");
-      const inferredLevel = inferWorkLocation({ ...entry, name: typeof patch.name === "string" ? patch.name.trim() : entry.name });
+      if ("sequenceNumber" in patch && (!Number.isInteger(patch.sequenceNumber) || Number(patch.sequenceNumber) < 1 || Number(patch.sequenceNumber) > 2147483647)) return fail(422, "ValidationError", "Дэс дарааллаа шалгана уу.");
+      const next = { ...entry };
+      for (const key of ["name", "groupName", "subgroupNumber", "typeName", "locationDescription", "floorDescription"] as const) {
+        if (key in patch) Object.assign(next, { [key]: typeof patch[key] === "string" ? patch[key].trim() : null });
+      }
+      const inferredLevel = inferWorkLocation(next);
       const inUse = Boolean(entry.workTypeId && db.workItems.some((work) => work.workTypeId === entry.workTypeId));
       if (patch.level && inferredLevel && patch.level !== inferredLevel && !entry.locationLevelOverride) return fail(inUse ? 409 : 422, "Conflict", "Байршлыг эх мэдээллээс автоматаар тодорхойлно.");
       const override = ("level" in patch ? (inferredLevel && !entry.locationLevelOverride ? null : patch.level) : entry.locationLevelOverride) as WorkCatalogEntry["level"];
@@ -1979,7 +1996,8 @@ export function handleMock(
       const nextUnit = submittedUnit === "0" ? null : submittedUnit;
       if (entry.workTypeId && (!nextUnit || !nextLevel)) return fail(422, "ValidationError", "Нэгж, байршлыг тодруулна уу.");
       if (entry.workTypeId && db.workItems.some((work) => work.workTypeId === entry.workTypeId) && (nextUnit !== entry.unit || nextLevel !== entry.level)) return fail(409, "Conflict", "Ашиглагдсан ажлын нэгж, түвшин өөрчлөх боломжгүй.");
-      if (typeof patch.name === "string") entry.name = patch.name.trim();
+      Object.assign(entry, next);
+      if ("sequenceNumber" in patch) entry.sequenceNumber = Number(patch.sequenceNumber);
       for (const key of ["unit", "description"] as const) {
         if (key in patch) entry[key] = typeof patch[key] === "string" ? patch[key].trim() || null : null;
       }
@@ -4323,6 +4341,7 @@ export function handleMock(
           workTypeIds?: string[];
           plannedQty?: number;
           locationId?: string;
+          locationIds?: string[];
         };
 
         // Барилгын төлөвлөлт "нэг давхарт ямар ажлууд" гэсэн БАГЦААР явдаг тул
@@ -4330,6 +4349,7 @@ export function handleMock(
         const ids = p?.workTypeIds?.length ? p.workTypeIds : p?.workTypeId ? [p.workTypeId] : [];
         if (ids.length === 0) return fail(422, "ValidationError", "Ажлын төрөл сонгоно уу.");
 
+        if (p?.locationIds !== undefined && (!Array.isArray(p.locationIds) || !p.locationIds.length || new Set(p.locationIds).size !== p.locationIds.length || p.locationIds.some((id) => !db.locations.some((location) => location.id === id && location.blockId === b)) || p.locationId)) return fail(422, "ValidationError", "Энэ барилгын байршлыг сонгоно уу.");
         const qty = Number(p?.plannedQty) || 0;
         const skipped: { name: string; reason: string }[] = [];
         let created = 0;
@@ -4341,7 +4361,7 @@ export function handleMock(
           const catalogEntry = catalogEntries.find((entry) => entry.workTypeId === wt.id);
           const targets = db.locations.filter(
             (l) =>
-              l.blockId === b && (p?.locationId ? l.id === p.locationId : l.level === wt.level)
+              l.blockId === b && l.level === wt.level && (!p?.locationId || l.id === p.locationId) && (!p?.locationIds || p.locationIds.includes(l.id))
               && (!catalogEntry || (l.level === wt.level && matchesCatalogFloor(catalogEntry, l, db.locations))),
           );
           if (targets.length === 0) {
