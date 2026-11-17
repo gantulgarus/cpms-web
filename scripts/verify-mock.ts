@@ -5,6 +5,7 @@ import { handleMock } from "../lib/mock/handler";
 import { forwardResponseHeaders, responseHasBody } from "../lib/proxy";
 import { photoUrl } from "../lib/photo-url";
 import { getDb, GROUP_ORDER } from "../lib/mock/store";
+import { inferWorkLocation, matchesCatalogFloor } from "../lib/reference/infer-work-location";
 
 let fail = 0;
 const t = (n: string, c: boolean, e = "") => {
@@ -3106,13 +3107,17 @@ t(
   {
     const draft = body<{ data: { id: string } }>(upload("ajliin-tosov.xlsx")).data;
 
-    const res = handleMock("POST", ["imports", draft.id, "apply"], "", { mode: "update" });
+    const unsafe = handleMock("POST", ["imports", draft.id, "apply"], "", { mode: "update" });
+    t("Хуучин тоо хэмжээ шинэчлэх горимыг зөвшөөрөхгүй", unsafe.status === 422);
+    const before = getDb().workItems.filter((work) => work.blockId === "blk-a-01").map((work) => ({ ...work }));
+    const res = handleMock("POST", ["imports", draft.id, "apply"], "", { mode: "prices" });
     const result = body<{ reports: { result?: { updated?: number; conflicts?: unknown[] } }[] }>(res)
       .reports[0].result;
 
     t("Шинэчлэх горим ажиллана", res.status === 200, String(res.status));
     t("Шинэчлэгдсэн тоо гарна", (result?.updated ?? 0) > 0, String(result?.updated));
-    t("Зөрчлийг жагсаана", (result?.conflicts?.length ?? 0) > 0);
+    t("Тоо хэмжээний зөрчил үүсгэхгүй", (result?.conflicts?.length ?? 0) === 0);
+    t("Ажлын тоо хэмжээ, явц, оноолтыг өөрчлөхгүй", JSON.stringify(before) === JSON.stringify(getDb().workItems.filter((work) => work.blockId === "blk-a-01")));
   }
 
   t(
@@ -3146,7 +3151,7 @@ t(
     both.data.typeLabel === "Ажлын хөлсний төсөв + Материалын төсөв",
     both.data.typeLabel,
   );
-  t("Түүхийн дүн нийлбэр", both.data.summary.planned === 1991 + 155, String(both.data.summary.planned));
+  t("Түүхийн дүн нийлбэр", both.data.summary.planned === getDb().workItems.filter((work) => work.blockId === "blk-a-01").length + 155, String(both.data.summary.planned));
 
   // Хоёрын НЭГИЙГ нь л оруулж болно.
   const partial = handleMock("POST", ["imports", both.data.id, "apply"], "", {
@@ -3857,6 +3862,71 @@ t(
   t("Блок жагсаалтаас алга", !db.blocks.some((x) => x.id === target));
   t("Байршил нь ч устав", !db.locations.some((l) => l.blockId === target));
   t("Ажлын мөр нь ч устав", !db.workItems.some((w) => w.blockId === target));
+}
+
+{
+  handleMock("POST", ["auth", "login"], "", { email: "admin@cpms.test" });
+  const catalog = body<{ data: import("../lib/api/types").WorkCatalogEntry[] }>(get("work-catalog")).data;
+  t("Шинэ лавлах бүх 293 үе шаттай", catalog.length === 293);
+  t("Автомат код бүр давтагдашгүй", new Set(catalog.map((row) => row.systemCode)).size === 293);
+  t("Хоосон болон 0 тэмдэглэгээтэй дөрвөн нэгжийг таамаглаагүй", catalog.filter((row) => !row.unit).length === 4);
+  const row = catalog[0];
+  const original = { name: row.name, unit: row.unit, description: row.description };
+  const code = row.systemCode;
+  const saved = handleMock("PATCH", ["work-catalog", row.id], "", { name: "Зассан нэр", unit: "м3", systemCode: "BAD" });
+  const savedEntry = body<{ data: import("../lib/api/types").WorkCatalogEntry }>(saved).data;
+  t("Лавлахын үе шат засагдана", saved.status === 200 && savedEntry.name === "Зассан нэр" && savedEntry.unit === "м3");
+  t("Засахад автомат код өөрчлөгдөхгүй", savedEntry.systemCode === code);
+  t("Хоосон нэрийг хориглоно", handleMock("PATCH", ["work-catalog", row.id], "", { name: " " }).status === 422);
+  handleMock("POST", ["auth", "login"], "", { email: "site_engineer@cpms.test" });
+  t("Эрхгүй хэрэглэгч үе шат засахгүй", handleMock("PATCH", ["work-catalog", row.id], "", { unit: "ш" }).status === 403);
+  handleMock("POST", ["auth", "login"], "", { email: "admin@cpms.test" });
+  handleMock("PATCH", ["work-catalog", row.id], "", original);
+
+  const ready = body<{ data: import("../lib/api/types").WorkCatalogEntry }>(
+    handleMock("PATCH", ["work-catalog", row.id], "", { level: "block" }),
+  ).data;
+  t("Шинэ лавлахын ажил төлөвлөлттэй холбогдоно", Boolean(ready.workTypeId && db.workTypes.some((type) => type.id === ready.workTypeId)));
+  const result = handleMock("POST", ["blocks", emptyBlock.id, "work-items"], "", { workTypeIds: [ready.workTypeId], plannedQty: 5 });
+  t("Шинэ лавлахаас барилгын ажил үүснэ", result.status === 201 && body<{ data: { created: number } }>(result).data.created === 1 && db.workItems.some((work) => work.workTypeId === ready.workTypeId));
+  t("Ашиглагдсан шинэ ажлын түвшин цоожтой", handleMock("PATCH", ["work-catalog", row.id], "", { level: "floor" }).status === 409);
+  const missing = catalog.find((entry) => !entry.unit)!;
+  const missingSaved = handleMock("PATCH", ["work-catalog", missing.id], "", { level: "floor" });
+  t("Нэгжгүй ажлыг төлөвлөлтөд холбохгүй", missingSaved.status === 200 && !body<{ data: import("../lib/api/types").WorkCatalogEntry }>(missingSaved).data.workTypeId);
+  t("Зоорийн ажлын түвшинг автоматаар тодорхойлно", catalog.find((entry) => entry.sequenceNumber === 24)?.level === "floor");
+  t("Айлын ажлын түвшинг автоматаар тодорхойлно", catalog.find((entry) => entry.sequenceNumber === 254)?.level === "unit");
+  t("Байршилгүй ажлыг таамаглахгүй", !catalog.find((entry) => entry.sequenceNumber === 210)?.level);
+  t("Хана гэдэг нь түвшин тогтоох хангалттай мэдээлэл биш", inferWorkLocation({ name: "Хэмжилт", locationDescription: "Хана", floorDescription: null }) === null);
+  t("Зоорь дахь айлын ажил зөрчилтэй тул тодруулна", inferWorkLocation({ name: "Айлын самбар", locationDescription: null, floorDescription: "Зоорь" }) === null);
+  const ambiguous = catalog.find((entry) => entry.sequenceNumber === 210)!;
+  const clarified = handleMock("PATCH", ["work-catalog", ambiguous.id], "", { level: "floor" });
+  t("Зөвхөн тодорхойгүй ажлын байршлыг нөхөж болно", clarified.status === 200 && body<{ data: import("../lib/api/types").WorkCatalogEntry }>(clarified).data.locationLevelOverride === "floor");
+  const floors = db.locations.filter((location) => location.blockId === emptyBlock.id && location.level === "floor");
+  const basementWork = catalog.find((entry) => entry.sequenceNumber === 24)!;
+  t("Зоорийн ажлыг зөвхөн зооринд шүүнэ", floors.filter((location) => matchesCatalogFloor(basementWork, location, db.locations)).length === 1);
+  const apartmentWork = catalog.find((entry) => entry.sequenceNumber === 254)!;
+  const tech = floors.find((location) => location.name.includes("Техник"))!;
+  t("2–16 давхрын айлын ажил техникийн давхарт орохгүй", Boolean(tech) && !matchesCatalogFloor(apartmentWork, tech, db.locations));
+  t("Ашиглагдсан лавлахын ажил устахгүй", handleMock("DELETE", ["work-catalog", ready.id], "", undefined).status === 409);
+  const removable = catalog.find((entry) => entry.sequenceNumber === 293)!;
+  handleMock("POST", ["auth", "login"], "", { email: "site_engineer@cpms.test" });
+  t("Эрхгүй хэрэглэгч лавлахын ажил устгахгүй", handleMock("DELETE", ["work-catalog", removable.id], "", undefined).status === 403);
+  handleMock("POST", ["auth", "login"], "", { email: "admin@cpms.test" });
+  t("Ашиглаагүй лавлахын ажил устна", handleMock("DELETE", ["work-catalog", removable.id], "", undefined).status === 204);
+  t("Устгасан ажил жагсаалтад дахин гарахгүй", !body<{ data: import("../lib/api/types").WorkCatalogEntry[] }>(get("work-catalog")).data.some((entry) => entry.id === removable.id));
+  t("Устгасан ажлыг дахин устгахад 404", handleMock("DELETE", ["work-catalog", removable.id], "", undefined).status === 404);
+}
+
+{
+  handleMock("POST", ["auth", "login"], "", { email: "admin@cpms.test" });
+  const project = body<{ data: { id: string } }>(handleMock("POST", ["projects"], "", {
+    name: "Сонгох төслийн тест", companyName: "Тестийн компани",
+  })).data;
+  const response = handleMock("POST", ["projects", project.id, "blocks"], "", {
+    name: "Дугааргүй барилга", floors: 1, unitsPerFloor: 0, startDate: "2026-11-16",
+  });
+  t("Дугаар шаардахгүйгээр барилга үүсгэнэ", response.status === 201);
+  t("Барилга сонгосон төсөлдөө үүснэ", body<{ data: { projectId: string } }>(response).data.projectId === project.id);
 }
 
 console.log("\nАмжилтгүй: " + fail);

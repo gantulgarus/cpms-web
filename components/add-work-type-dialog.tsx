@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { blocks as blocksApi, plan, referenceData } from "@/lib/api/endpoints";
 import type { LocationLevel, Uuid } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
+import { matchesCatalogFloor } from "@/lib/reference/infer-work-location";
 
 const LEVELS: { value: LocationLevel; label: string; hint: string }[] = [
   {
@@ -54,8 +55,8 @@ export function AddWorkTypeDialog({
   const [plannedQty, setPlannedQty] = useState("");
 
   const typesQuery = useQuery({
-    queryKey: ["work-types", ""],
-    queryFn: () => referenceData.types(),
+    queryKey: ["work-catalog"],
+    queryFn: () => referenceData.catalog(),
     enabled: open,
   });
   const locationsQuery = useQuery({
@@ -64,18 +65,13 @@ export function AddWorkTypeDialog({
     enabled: open,
   });
 
-  /** Энэ түвшинд блокт хэдэн байршил байна — мөрийн тоог тооцоход. */
-  const locationCount = useMemo(
-    () => (locationsQuery.data?.data ?? []).filter((l) => l.level === level).length,
-    [locationsQuery.data, level],
-  );
-
   /** Сонгосон түвшний ажлын төрлүүд, бүлгээр бүлэглэсэн. */
   const grouped = useMemo(() => {
     const q = search.trim().toLowerCase();
     const rows = (typesQuery.data?.data ?? [])
-      .filter((t) => t.level === level)
-      .filter((t) => !q || `${t.name} ${t.groupName ?? ""}`.toLowerCase().includes(q));
+      .filter((t) => t.workTypeId && t.unit && t.level === level)
+      .filter((t) => !q || `${t.systemCode} ${t.name} ${t.typeName} ${t.groupName}`.toLowerCase().includes(q))
+      .map((t) => ({ ...t, id: t.workTypeId! }));
 
     const map = new Map<string, typeof rows>();
     for (const t of rows) {
@@ -123,7 +119,9 @@ export function AddWorkTypeDialog({
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const willCreate = picked.size * locationCount;
+  const willCreate = (typesQuery.data?.data ?? []).filter((entry) => entry.workTypeId && picked.has(entry.workTypeId))
+    .reduce((sum, entry) => sum + (locationsQuery.data?.data ?? []).filter((location) => location.level === entry.level
+      && matchesCatalogFloor(entry, location, locationsQuery.data?.data ?? [])).length, 0);
 
   return (
     <FormDialog
@@ -134,7 +132,7 @@ export function AddWorkTypeDialog({
       }}
       title="Энэ барилгад ажил нэмэх"
       submitLabel={willCreate > 0 ? `${willCreate} ажил нэмэх` : "Нэмэх"}
-      submitDisabled={picked.size === 0 || locationCount === 0}
+      submitDisabled={picked.size === 0 || willCreate === 0}
       pending={add.isPending}
       onSubmit={() => add.mutate()}
     >
@@ -241,13 +239,13 @@ export function AddWorkTypeDialog({
       <p className="text-muted-foreground text-xs">
         {picked.size === 0 ? (
           <>
-            Хэрэгтэй ажил жагсаалтад байхгүй бол эхлээд <strong>Лавлах сан → Ажлын төрөл</strong>{" "}
-            хэсэгт үүсгэнэ үү.
+            Хэрэгтэй ажил жагсаалтад байхгүй бол <strong>Лавлах сан → Ажлын жагсаалт</strong>{" "}
+            хэсэгт тухайн ажлын дутуу нэгж эсвэл «Байршил тодруулах» мэдээллийг нөхнө үү.
           </>
         ) : (
           <>
-            <strong>{picked.size} төрөл</strong> × <strong>{locationCount} байршил</strong> ={" "}
-            <strong>{willCreate} ажил</strong> үүснэ. Аль хэдийн нэмэгдсэн нь алгасагдана.
+            Сонгосон <strong>{picked.size} ажил</strong>-ыг эх мэдээлэлд заасан давхруудад нэмж,
+            нийт <strong>{willCreate} мөр</strong> үүсгэнэ. Аль хэдийн нэмэгдсэн нь алгасагдана.
           </>
         )}
       </p>

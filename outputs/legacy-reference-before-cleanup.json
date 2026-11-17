@@ -1,0 +1,2531 @@
+{
+    "workTypes": [
+        {
+            "id": "01a154dc-17c7-7226-8911-4e0fb9ded2d2",
+            "work_type_group_id": "01a154dc-17c1-7278-bcf5-82177e72a458",
+            "name": "Газар шорооны ажил",
+            "code": "1.2",
+            "code_part": null,
+            "unit": "м3",
+            "level": "block",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 1,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17ca-7210-8f3b-44cfe22149bb",
+            "work_type_group_id": "01a154dc-17c9-7299-adc3-16810a3fe8fe",
+            "name": "суурь угсралтын ажил",
+            "code": "2.6.1",
+            "code_part": null,
+            "unit": "м2",
+            "level": "block",
+            "inspection_stages": 2,
+            "is_hold_point": 1,
+            "sequence_number": 2,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17cc-71fa-81b0-0c7c83c8582e",
+            "work_type_group_id": "01a154dc-17c9-7299-adc3-16810a3fe8fe",
+            "name": "зоориос техникийн давхар угсралтын ажил",
+            "code": "2.6.2",
+            "code_part": null,
+            "unit": "м2",
+            "level": "floor",
+            "inspection_stages": 2,
+            "is_hold_point": 1,
+            "sequence_number": 3,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17cf-7153-b819-7faba0e9ba1b",
+            "work_type_group_id": "01a154dc-17c9-7299-adc3-16810a3fe8fe",
+            "name": "парпет угсралтын ажил",
+            "code": "2.6.4",
+            "code_part": null,
+            "unit": "м2",
+            "level": "block",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 4,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17d1-71a1-b486-980e96a9aed8",
+            "work_type_group_id": "01a154dc-17d0-7032-8b9b-bef58610f4b2",
+            "name": "Дээврийн ажил",
+            "code": "3.2.1",
+            "code_part": null,
+            "unit": "м2",
+            "level": "block",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 5,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17d3-703d-965b-b96f3409532d",
+            "work_type_group_id": "01a154dc-17d2-73ba-afbe-a5d80719c10d",
+            "name": "блокон өрлөг",
+            "code": "4.1.7",
+            "code_part": null,
+            "unit": "м2",
+            "level": "floor",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 6,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17d4-73f7-9fe9-53e7445d8b8a",
+            "work_type_group_id": "01a154dc-17d2-73ba-afbe-a5d80719c10d",
+            "name": "Тоосгон өрлөг-Үндсэн",
+            "code": "4.2.9",
+            "code_part": null,
+            "unit": "м2",
+            "level": "floor",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 7,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17d5-7225-a347-b0a0047a479a",
+            "work_type_group_id": "01a154dc-17d2-73ba-afbe-a5d80719c10d",
+            "name": "Тоосгон өрлөг-Шахт",
+            "code": "4.3.7",
+            "code_part": null,
+            "unit": "м2",
+            "level": "floor",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 8,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17d8-72f7-a715-4dbf2b0554b2",
+            "work_type_group_id": "01a154dc-17d6-7246-bd9d-06231b119ad3",
+            "name": "Цонх суулгалт-Энгийн",
+            "code": "5.5",
+            "code_part": null,
+            "unit": "ш",
+            "level": "unit",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 9,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17d9-7066-8e17-360804d47913",
+            "work_type_group_id": "01a154dc-17d6-7246-bd9d-06231b119ad3",
+            "name": "Цонх суулгалт-Хаалгатай",
+            "code": null,
+            "code_part": null,
+            "unit": "ш",
+            "level": "unit",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 10,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17db-7109-8f8c-9a0cd4fd6088",
+            "work_type_group_id": "01a154dc-17da-7381-8997-a05ca658fbb7",
+            "name": "чулуун фасад",
+            "code": "6.4",
+            "code_part": null,
+            "unit": "м2",
+            "level": "floor",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 11,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17dc-72ee-8e86-3c0e261e0996",
+            "work_type_group_id": "01a154dc-17da-7381-8997-a05ca658fbb7",
+            "name": "метал фасад",
+            "code": "6.6",
+            "code_part": null,
+            "unit": "м2",
+            "level": "floor",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 12,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17dd-7193-9e5d-d5a403691f71",
+            "work_type_group_id": "01a154dc-17da-7381-8997-a05ca658fbb7",
+            "name": "шилэн фасад",
+            "code": "6.8",
+            "code_part": null,
+            "unit": "м2",
+            "level": "floor",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 13,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17df-7326-8cb8-1e11933cab54",
+            "work_type_group_id": "01a154dc-17de-7170-ab4b-61e2bb230c71",
+            "name": "Цахилгааны ажил",
+            "code": "7.2",
+            "code_part": null,
+            "unit": "м2",
+            "level": "floor",
+            "inspection_stages": 2,
+            "is_hold_point": 1,
+            "sequence_number": 14,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17e1-7376-b1e3-1f61b5d83f31",
+            "work_type_group_id": "01a154dc-17e0-72d6-8f4d-4df41b62656a",
+            "name": "Сантехникын ажил",
+            "code": "9.2",
+            "code_part": null,
+            "unit": "м2",
+            "level": "floor",
+            "inspection_stages": 2,
+            "is_hold_point": 1,
+            "sequence_number": 15,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17e3-71e7-b185-583dfcf24840",
+            "work_type_group_id": "01a154dc-17e2-738c-a7a4-2f07dee05392",
+            "name": "Агааржуулалтын ажил",
+            "code": "10.2",
+            "code_part": null,
+            "unit": "м2",
+            "level": "floor",
+            "inspection_stages": 2,
+            "is_hold_point": 1,
+            "sequence_number": 16,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17e5-72a8-8eb0-ff15abcfce7d",
+            "work_type_group_id": "01a154dc-17e4-726b-9bef-f062576deb9d",
+            "name": "Хар шалны ажил",
+            "code": "12.7.1",
+            "code_part": null,
+            "unit": "м2",
+            "level": "unit",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 17,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17e7-72dd-9715-afa93a37ee21",
+            "work_type_group_id": "01a154dc-17e4-726b-9bef-f062576deb9d",
+            "name": "паркетан шалны ажил",
+            "code": "12.9",
+            "code_part": null,
+            "unit": "м2",
+            "level": "unit",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 18,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17e9-7367-811a-7ecef3e1ad77",
+            "work_type_group_id": "01a154dc-17e8-7070-af19-24903c443e60",
+            "name": "Нийтийн эдэлбэрийн  чулууны ажил",
+            "code": "13.19",
+            "code_part": null,
+            "unit": "м2",
+            "level": "floor",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 19,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17ea-717c-b317-5df16cfc8f1b",
+            "work_type_group_id": "01a154dc-17e8-7070-af19-24903c443e60",
+            "name": "Шатны хонгилын чулууны ажил",
+            "code": "13.21",
+            "code_part": null,
+            "unit": "м2",
+            "level": "floor",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 20,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17eb-70f4-95b4-7206c3568854",
+            "work_type_group_id": "01a154dc-17e8-7070-af19-24903c443e60",
+            "name": "Тагтны босгоны чулууны ажил",
+            "code": "13.22",
+            "code_part": null,
+            "unit": "м2",
+            "level": "unit",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 21,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17ec-702d-9cae-32df243f9b61",
+            "work_type_group_id": "01a154dc-17e8-7070-af19-24903c443e60",
+            "name": "Цонхны тавцангийн чулууны ажил",
+            "code": "13.23",
+            "code_part": null,
+            "unit": "м2",
+            "level": "unit",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 22,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17ee-707d-ab1e-f43575cb866e",
+            "work_type_group_id": "01a154dc-17ed-7164-9130-9728f9d7692d",
+            "name": "гипсэн хана угсралтын ажил",
+            "code": "15.14",
+            "code_part": null,
+            "unit": "м2",
+            "level": "floor",
+            "inspection_stages": 2,
+            "is_hold_point": 1,
+            "sequence_number": 23,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17f0-71cc-81f7-23985ee482b1",
+            "work_type_group_id": "01a154dc-17ef-72a6-b9d9-0363e5f0a92f",
+            "name": "Шавардлага-Бетон",
+            "code": "16.1.1.4",
+            "code_part": null,
+            "unit": "м2",
+            "level": "unit",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 24,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17f1-72f7-b423-85796ef8aa0a",
+            "work_type_group_id": "01a154dc-17ef-72a6-b9d9-0363e5f0a92f",
+            "name": "Шавардлага-Блок",
+            "code": null,
+            "code_part": null,
+            "unit": "м2",
+            "level": "unit",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 25,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17f2-7166-95fa-07404cc30fe4",
+            "work_type_group_id": "01a154dc-17ef-72a6-b9d9-0363e5f0a92f",
+            "name": "Шавардлага-Тоосго",
+            "code": null,
+            "code_part": null,
+            "unit": "м2",
+            "level": "unit",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 26,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17f4-7035-b81f-1e238533a884",
+            "work_type_group_id": "01a154dc-17ef-72a6-b9d9-0363e5f0a92f",
+            "name": "хананы замаска",
+            "code": "16.2.1.4",
+            "code_part": null,
+            "unit": "м2",
+            "level": "unit",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 27,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17f5-72c0-92f8-bc44d907b647",
+            "work_type_group_id": "01a154dc-17ef-72a6-b9d9-0363e5f0a92f",
+            "name": "таазны замаска",
+            "code": "16.2.2.4",
+            "code_part": null,
+            "unit": "м2",
+            "level": "unit",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 28,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17f6-7193-a760-bc0da14c255d",
+            "work_type_group_id": "01a154dc-17ef-72a6-b9d9-0363e5f0a92f",
+            "name": "хананы эмульс",
+            "code": "16.3.1.4",
+            "code_part": null,
+            "unit": "м2",
+            "level": "unit",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 29,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17f8-7053-ba90-955b2029a373",
+            "work_type_group_id": "01a154dc-17ef-72a6-b9d9-0363e5f0a92f",
+            "name": "таазны эмульс",
+            "code": "16.3.2.4",
+            "code_part": null,
+            "unit": "м2",
+            "level": "unit",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 30,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17f9-7232-adda-75131a3dd611",
+            "work_type_group_id": "01a154dc-17ef-72a6-b9d9-0363e5f0a92f",
+            "name": "Пилта-Ариун цэврийн өрөө шал",
+            "code": "17.1.6",
+            "code_part": "Айлын 00 өрөө шал",
+            "unit": "м2",
+            "level": "unit",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 31,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17fa-73fd-aad5-6b9b3b66e95c",
+            "work_type_group_id": "01a154dc-17ef-72a6-b9d9-0363e5f0a92f",
+            "name": "Пилта-Үүд",
+            "code": "17.1.6",
+            "code_part": "Айлын үүд хэсэгт",
+            "unit": "м2",
+            "level": "unit",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 32,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17fc-7367-9a70-e9543364c5c1",
+            "work_type_group_id": "01a154dc-17ef-72a6-b9d9-0363e5f0a92f",
+            "name": "Пилта-Тагт",
+            "code": "17.1.6",
+            "code_part": "Айлын тагт",
+            "unit": "м2",
+            "level": "unit",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 33,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17fd-7056-893e-2303555efab7",
+            "work_type_group_id": "01a154dc-17ef-72a6-b9d9-0363e5f0a92f",
+            "name": "Пилта-Нийтийн эдэлбэр",
+            "code": "17.1.6",
+            "code_part": "Нийтийн эдэлбэр",
+            "unit": "м2",
+            "level": "floor",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 34,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17fe-701f-a609-51615503854f",
+            "work_type_group_id": "01a154dc-17ef-72a6-b9d9-0363e5f0a92f",
+            "name": "Пилта-Ариун цэврийн өрөө хана",
+            "code": "17.1.6",
+            "code_part": "Айлын 00 өрөө хана",
+            "unit": "м2",
+            "level": "unit",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 35,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1800-70bc-8835-4bdffe4dd5c0",
+            "work_type_group_id": "01a154dc-17ef-72a6-b9d9-0363e5f0a92f",
+            "name": "обой наах ажил",
+            "code": "16.4.6",
+            "code_part": null,
+            "unit": "м2",
+            "level": "unit",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 36,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1801-70d4-b52d-f364672f54c1",
+            "work_type_group_id": "01a154dc-17ef-72a6-b9d9-0363e5f0a92f",
+            "name": "ханын хавтан наах ажил",
+            "code": "16.5.5",
+            "code_part": null,
+            "unit": "м2",
+            "level": "unit",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 37,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1803-7005-a37e-09530b54c12f",
+            "work_type_group_id": "01a154dc-1802-73cd-a1ef-63bdd8775d35",
+            "name": "Айлийн гадна төмөр хаалга",
+            "code": null,
+            "code_part": null,
+            "unit": "ш",
+            "level": "unit",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 38,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1804-7340-9c50-2a81edf0bb41",
+            "work_type_group_id": "01a154dc-1802-73cd-a1ef-63bdd8775d35",
+            "name": "Гадна металл шилэн хаалга",
+            "code": null,
+            "code_part": null,
+            "unit": "ш",
+            "level": "block",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 39,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1805-704b-ab2c-509659c9d3aa",
+            "work_type_group_id": "01a154dc-1802-73cd-a1ef-63bdd8775d35",
+            "name": "Шатны хонгилын галын хаалга",
+            "code": null,
+            "code_part": null,
+            "unit": "ш",
+            "level": "floor",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 40,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1807-73df-814c-9f05f970cd4c",
+            "work_type_group_id": "01a154dc-1802-73cd-a1ef-63bdd8775d35",
+            "name": "Гадна металл хаалга",
+            "code": null,
+            "code_part": null,
+            "unit": "ш",
+            "level": "block",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 41,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1807-73df-814c-9f05fa61236b",
+            "work_type_group_id": "01a154dc-1802-73cd-a1ef-63bdd8775d35",
+            "name": "Грашийн автомат хаалга",
+            "code": null,
+            "code_part": null,
+            "unit": "ш",
+            "level": "block",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 42,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1809-704e-ae37-af4ec2705a00",
+            "work_type_group_id": "01a154dc-1802-73cd-a1ef-63bdd8775d35",
+            "name": "Айлын дотор модон хаалга",
+            "code": null,
+            "code_part": null,
+            "unit": "ш",
+            "level": "unit",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 43,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-180a-71f6-bb1e-5266b53168fb",
+            "work_type_group_id": "01a154dc-1809-704e-ae37-af4ec36df401",
+            "name": "Довжооны ажил",
+            "code": "19.14",
+            "code_part": null,
+            "unit": "м2",
+            "level": "block",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 44,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-180b-726d-a7d7-f1ab4c943c04",
+            "work_type_group_id": "01a154dc-1809-704e-ae37-af4ec36df401",
+            "name": "Пандусны ажил",
+            "code": "19.15",
+            "code_part": null,
+            "unit": "м2",
+            "level": "block",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 45,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-180c-7150-884f-e72fb8a82cdd",
+            "work_type_group_id": "01a154dc-1809-704e-ae37-af4ec36df401",
+            "name": "хаявч цутгах ажил",
+            "code": "19.16",
+            "code_part": null,
+            "unit": "м2",
+            "level": "block",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 46,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-180d-7181-bdff-9b3cf7723912",
+            "work_type_group_id": "01a154dc-1809-704e-ae37-af4ec36df401",
+            "name": "Тохижилтын ажил",
+            "code": "19.17",
+            "code_part": null,
+            "unit": "м2",
+            "level": "block",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 47,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-180e-734a-a03b-e0de0324372d",
+            "work_type_group_id": "01a154dc-17c9-7299-adc3-16810a3fe8fe",
+            "name": "Техникийн давхрын угсралтын ажил",
+            "code": "2.6.3",
+            "code_part": null,
+            "unit": "м2",
+            "level": "block",
+            "inspection_stages": 2,
+            "is_hold_point": 1,
+            "sequence_number": 48,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-180f-7242-9a83-1e6395b2b545",
+            "work_type_group_id": "01a154dc-17de-7170-ab4b-61e2bb230c71",
+            "name": "Цахилгаан лифтний угсралт",
+            "code": "11.2",
+            "code_part": null,
+            "unit": "ш",
+            "level": "block",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 49,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1810-7208-b401-addc2e81eb05",
+            "work_type_group_id": "01a154dc-180f-7242-9a83-1e6396761480",
+            "name": "Холбоо дохиоллын ажил",
+            "code": "8.2",
+            "code_part": null,
+            "unit": "м2",
+            "level": "floor",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 50,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1811-7385-9050-188f217ddd32",
+            "work_type_group_id": "01a154dc-17e8-7070-af19-24903c443e60",
+            "name": "Шатны бариул",
+            "code": "14.5",
+            "code_part": null,
+            "unit": "м",
+            "level": "block",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 51,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1812-7155-8a6a-18c1b7297011",
+            "work_type_group_id": "01a154dc-17ef-72a6-b9d9-0363e5f0a92f",
+            "name": "Зүлгүүр-Хана",
+            "code": "16.2.1.5",
+            "code_part": null,
+            "unit": "м2",
+            "level": "unit",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 52,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1813-727b-8320-113833e3ee20",
+            "work_type_group_id": "01a154dc-17ef-72a6-b9d9-0363e5f0a92f",
+            "name": "Зүлгүүр-Тааз",
+            "code": "16.2.2.5",
+            "code_part": null,
+            "unit": "м2",
+            "level": "unit",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 53,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1813-727b-8320-113834145000",
+            "work_type_group_id": "01a154dc-1809-704e-ae37-af4ec36df401",
+            "name": "Явган зам",
+            "code": "19.17",
+            "code_part": null,
+            "unit": "м2",
+            "level": "block",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 54,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1814-725f-a8ce-3b1f1b22b105",
+            "work_type_group_id": "01a154dc-1809-704e-ae37-af4ec36df401",
+            "name": "Авто зам, зогсоол",
+            "code": "19.18",
+            "code_part": null,
+            "unit": "м2",
+            "level": "block",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 55,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1815-73a8-8fb0-01ab89f62834",
+            "work_type_group_id": "01a154dc-1809-704e-ae37-af4ec36df401",
+            "name": "Тоглоомын талбай",
+            "code": "19.19",
+            "code_part": null,
+            "unit": "м2",
+            "level": "block",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 56,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1816-72c9-b9f0-993f3275975f",
+            "work_type_group_id": "01a154dc-1816-72c9-b9f0-993f31b054a9",
+            "name": "Зүлэгжүүлэлтийн ажил",
+            "code": "20.4",
+            "code_part": null,
+            "unit": "м2",
+            "level": "block",
+            "inspection_stages": 2,
+            "is_hold_point": 0,
+            "sequence_number": 57,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        }
+    ],
+    "groups": [
+        {
+            "id": "01a154dc-17c1-7278-bcf5-82177e72a458",
+            "name": "Газар шороо",
+            "sequence_number": 1,
+            "build_order": 0,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17c9-7299-adc3-16810a3fe8fe",
+            "name": "Угсралт",
+            "sequence_number": 2,
+            "build_order": 1,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17d0-7032-8b9b-bef58610f4b2",
+            "name": "Дээвэр",
+            "sequence_number": 3,
+            "build_order": 2,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17d2-73ba-afbe-a5d80719c10d",
+            "name": "Өрлөг",
+            "sequence_number": 4,
+            "build_order": 3,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17d6-7246-bd9d-06231b119ad3",
+            "name": "Цонх",
+            "sequence_number": 5,
+            "build_order": 4,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17da-7381-8997-a05ca658fbb7",
+            "name": "Фасад",
+            "sequence_number": 6,
+            "build_order": 5,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17de-7170-ab4b-61e2bb230c71",
+            "name": "цахилгаан",
+            "sequence_number": 7,
+            "build_order": 5,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17e0-72d6-8f4d-4df41b62656a",
+            "name": "сантехник",
+            "sequence_number": 8,
+            "build_order": 5,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17e2-738c-a7a4-2f07dee05392",
+            "name": "ХАС",
+            "sequence_number": 9,
+            "build_order": 6,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17e4-726b-9bef-f062576deb9d",
+            "name": "шал",
+            "sequence_number": 10,
+            "build_order": 8,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17e8-7070-af19-24903c443e60",
+            "name": "чулуу",
+            "sequence_number": 11,
+            "build_order": 8,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17ed-7164-9130-9728f9d7692d",
+            "name": "гипсэн хана",
+            "sequence_number": 12,
+            "build_order": 6,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-17ef-72a6-b9d9-0363e5f0a92f",
+            "name": "Засал",
+            "sequence_number": 13,
+            "build_order": 7,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1802-73cd-a1ef-63bdd8775d35",
+            "name": "хаалга",
+            "sequence_number": 14,
+            "build_order": 9,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1809-704e-ae37-af4ec36df401",
+            "name": "Гадна ажил",
+            "sequence_number": 15,
+            "build_order": 9,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-180f-7242-9a83-1e6396761480",
+            "name": "холбоо",
+            "sequence_number": 16,
+            "build_order": 5,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1816-72c9-b9f0-993f31b054a9",
+            "name": "Ногоон байгууламж",
+            "sequence_number": 17,
+            "build_order": 10,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        }
+    ],
+    "designItems": [
+        {
+            "id": "01a154dc-181d-72d1-964c-a386a848d7fe",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17c7-7226-8911-4e0fb9ded2d2",
+            "qty_per_location": "3110.400",
+            "sequence_number": 1,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-181e-715c-bb8f-e649d1d9b87e",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17ca-7210-8f3b-44cfe22149bb",
+            "qty_per_location": "767.520",
+            "sequence_number": 2,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-181f-72aa-833c-754236a78586",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17cc-71fa-81b0-0c7c83c8582e",
+            "qty_per_location": "648.000",
+            "sequence_number": 3,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1821-7044-beaa-d52c79f6e189",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17cf-7153-b819-7faba0e9ba1b",
+            "qty_per_location": "712.800",
+            "sequence_number": 4,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1822-7246-9182-bbf96a767fbb",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17d1-71a1-b486-980e96a9aed8",
+            "qty_per_location": "648.000",
+            "sequence_number": 5,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1823-7019-a3ad-748fd13ad713",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17d3-703d-965b-b96f3409532d",
+            "qty_per_location": "80.486",
+            "sequence_number": 6,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1824-736c-9a38-19425df37ffb",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17d4-73f7-9fe9-53e7445d8b8a",
+            "qty_per_location": "134.481",
+            "sequence_number": 7,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1825-7349-a329-b357f3cac143",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17d5-7225-a347-b0a0047a479a",
+            "qty_per_location": "111.905",
+            "sequence_number": 8,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1826-7033-932b-a23cf1b2a4c5",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17d8-72f7-a715-4dbf2b0554b2",
+            "qty_per_location": "2.778",
+            "sequence_number": 9,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1827-7077-8789-614c84d81073",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17d9-7066-8e17-360804d47913",
+            "qty_per_location": "1.000",
+            "sequence_number": 10,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1828-723c-91c9-99f100f7f4f7",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17db-7109-8f8c-9a0cd4fd6088",
+            "qty_per_location": "15.020",
+            "sequence_number": 11,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1829-7027-99db-39b8bc07d489",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17dc-72ee-8e86-3c0e261e0996",
+            "qty_per_location": "234.133",
+            "sequence_number": 12,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-182a-73e7-835e-262cabd158fb",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17dd-7193-9e5d-d5a403691f71",
+            "qty_per_location": "96.000",
+            "sequence_number": 13,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-182b-73f9-b021-de795135b5e3",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17df-7326-8cb8-1e11933cab54",
+            "qty_per_location": "654.829",
+            "sequence_number": 14,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-182c-7332-b6ea-48b01f340569",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17e1-7376-b1e3-1f61b5d83f31",
+            "qty_per_location": "654.829",
+            "sequence_number": 15,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-182d-7301-940b-28188ab6d683",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17e3-71e7-b185-583dfcf24840",
+            "qty_per_location": "654.829",
+            "sequence_number": 16,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-182e-70a2-9fe2-574e8c5f1bc4",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17e5-72a8-8eb0-ff15abcfce7d",
+            "qty_per_location": "483.610",
+            "sequence_number": 17,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-182f-730a-bd0d-b10c5df36ca6",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17e7-72dd-9715-afa93a37ee21",
+            "qty_per_location": "50.924",
+            "sequence_number": 18,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-182f-730a-bd0d-b10c5e2f1291",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17e9-7367-811a-7ecef3e1ad77",
+            "qty_per_location": "4.492",
+            "sequence_number": 19,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1831-7374-afea-b97722dcf64b",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17ea-717c-b317-5df16cfc8f1b",
+            "qty_per_location": "12.424",
+            "sequence_number": 20,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1832-72c5-835a-eedb0d52c15c",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17eb-70f4-95b4-7206c3568854",
+            "qty_per_location": "0.329",
+            "sequence_number": 21,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1833-732f-9713-dd28c4c833d7",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17ec-702d-9cae-32df243f9b61",
+            "qty_per_location": "0.836",
+            "sequence_number": 22,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1834-71f4-be05-288ac232cce6",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17ee-707d-ab1e-f43575cb866e",
+            "qty_per_location": "109.249",
+            "sequence_number": 23,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1835-71ce-bc9e-c581edf796d4",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17f0-71cc-81f7-23985ee482b1",
+            "qty_per_location": "74.696",
+            "sequence_number": 24,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1836-71af-b431-64632b53a2bf",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17f1-72f7-b423-85796ef8aa0a",
+            "qty_per_location": "43.600",
+            "sequence_number": 25,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1836-71af-b431-64632c111bac",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17f2-7166-95fa-07404cc30fe4",
+            "qty_per_location": "43.600",
+            "sequence_number": 26,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1837-71af-8647-d43a1c079f5f",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17f4-7035-b81f-1e238533a884",
+            "qty_per_location": "161.946",
+            "sequence_number": 27,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1838-7176-a632-153116ef0946",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17f5-72c0-92f8-bc44d907b647",
+            "qty_per_location": "69.954",
+            "sequence_number": 28,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1839-7084-934a-11da191e9dfb",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17f6-7193-a760-bc0da14c255d",
+            "qty_per_location": "50.011",
+            "sequence_number": 29,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-183a-735f-8e05-64e6dd1217fb",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17f8-7053-ba90-955b2029a373",
+            "qty_per_location": "69.954",
+            "sequence_number": 30,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-183b-703a-87c5-4940071e09e0",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17f9-7232-adda-75131a3dd611",
+            "qty_per_location": "41.680",
+            "sequence_number": 31,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-183c-71af-ba99-83b52727e82a",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17fa-73fd-aad5-6b9b3b66e95c",
+            "qty_per_location": "26.210",
+            "sequence_number": 32,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-183c-71af-ba99-83b527c1598e",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17fc-7367-9a70-e9543364c5c1",
+            "qty_per_location": "29.330",
+            "sequence_number": 33,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-183d-7006-b6d8-2e5a7581bddb",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17fd-7056-893e-2303555efab7",
+            "qty_per_location": "73.260",
+            "sequence_number": 34,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-183e-71f7-ab00-ac10a5bbc714",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-17fe-701f-a609-51615503854f",
+            "qty_per_location": "43.600",
+            "sequence_number": 35,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-183f-7151-b075-012bf91a0f56",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-1800-70bc-8835-4bdffe4dd5c0",
+            "qty_per_location": "148.428",
+            "sequence_number": 36,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1840-7202-807e-cefea1819a8c",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-1801-70d4-b52d-f364672f54c1",
+            "qty_per_location": "2.580",
+            "sequence_number": 37,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1841-73ff-b606-3c120594e304",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-1803-7005-a37e-09530b54c12f",
+            "qty_per_location": "1.000",
+            "sequence_number": 38,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1842-724b-84d9-0d72bb2e89a3",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-1804-7340-9c50-2a81edf0bb41",
+            "qty_per_location": "2.000",
+            "sequence_number": 39,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1842-724b-84d9-0d72bc283264",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-1805-704b-ab2c-509659c9d3aa",
+            "qty_per_location": "2.000",
+            "sequence_number": 40,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1843-7340-815a-f32c21f5442f",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-1807-73df-814c-9f05f970cd4c",
+            "qty_per_location": "3.000",
+            "sequence_number": 41,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1844-7076-9150-d611baf03624",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-1807-73df-814c-9f05fa61236b",
+            "qty_per_location": "1.000",
+            "sequence_number": 42,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1845-728f-a8da-38d1ddf727a5",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-1809-704e-ae37-af4ec2705a00",
+            "qty_per_location": "4.000",
+            "sequence_number": 43,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1846-71da-a1e3-61732ab2f680",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-180a-71f6-bb1e-5266b53168fb",
+            "qty_per_location": "253.360",
+            "sequence_number": 44,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1847-71b3-9353-b622397913ac",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-180b-726d-a7d7-f1ab4c943c04",
+            "qty_per_location": "82.500",
+            "sequence_number": 45,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1848-70dd-af1c-d14bad4db342",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-180c-7150-884f-e72fb8a82cdd",
+            "qty_per_location": "100.530",
+            "sequence_number": 46,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1849-73eb-89fb-517f31e39537",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-180d-7181-bdff-9b3cf7723912",
+            "qty_per_location": "120.000",
+            "sequence_number": 47,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-184a-7021-9d04-81a8a6443f8c",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-180e-734a-a03b-e0de0324372d",
+            "qty_per_location": "116.100",
+            "sequence_number": 48,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-184a-7021-9d04-81a8a691641d",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-180f-7242-9a83-1e6395b2b545",
+            "qty_per_location": "34.000",
+            "sequence_number": 49,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-184b-71bf-8222-1df49ee2c5eb",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-1810-7208-b401-addc2e81eb05",
+            "qty_per_location": "654.829",
+            "sequence_number": 50,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-184c-721c-af31-8c6a7f256c11",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-1811-7385-9050-188f217ddd32",
+            "qty_per_location": "126.000",
+            "sequence_number": 51,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-184d-732b-b8ad-f4087ddc6281",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-1812-7155-8a6a-18c1b7297011",
+            "qty_per_location": "162.570",
+            "sequence_number": 52,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-184e-72f4-9ab2-637b9d4a68cf",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-1813-727b-8320-113833e3ee20",
+            "qty_per_location": "69.954",
+            "sequence_number": 53,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-184f-73ce-a484-47fc649e8abf",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-1813-727b-8320-113834145000",
+            "qty_per_location": "120.000",
+            "sequence_number": 54,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1850-71a0-8c46-0d48b1d49197",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-1814-725f-a8ce-3b1f1b22b105",
+            "qty_per_location": "525.000",
+            "sequence_number": 55,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1851-7016-b750-1bc2fe7d7546",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-1815-73a8-8fb0-01ab89f62834",
+            "qty_per_location": "124.000",
+            "sequence_number": 56,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1852-73b3-bca9-9e6076933050",
+            "block_design_id": "01a154dc-181b-73ea-b612-83fc2e582905",
+            "work_type_id": "01a154dc-1816-72c9-b9f0-993f3275975f",
+            "qty_per_location": "175.000",
+            "sequence_number": 57,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1854-7119-9b1d-be6539bc9183",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17c7-7226-8911-4e0fb9ded2d2",
+            "qty_per_location": "3110.400",
+            "sequence_number": 1,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1855-7192-a1aa-163e72900af8",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17ca-7210-8f3b-44cfe22149bb",
+            "qty_per_location": "767.520",
+            "sequence_number": 2,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1856-72ca-be42-e8c1d96e3353",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17cc-71fa-81b0-0c7c83c8582e",
+            "qty_per_location": "648.000",
+            "sequence_number": 3,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1857-7154-8e41-45f68c4b0555",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17cf-7153-b819-7faba0e9ba1b",
+            "qty_per_location": "712.800",
+            "sequence_number": 4,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1858-7023-a967-de399bff0f31",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17d1-71a1-b486-980e96a9aed8",
+            "qty_per_location": "648.000",
+            "sequence_number": 5,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1858-7023-a967-de399cc97795",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17d3-703d-965b-b96f3409532d",
+            "qty_per_location": "80.486",
+            "sequence_number": 6,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1859-7015-ae3a-5a0eab4de092",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17d4-73f7-9fe9-53e7445d8b8a",
+            "qty_per_location": "134.481",
+            "sequence_number": 7,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-185a-705d-a2ab-a53b42de2324",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17d5-7225-a347-b0a0047a479a",
+            "qty_per_location": "111.905",
+            "sequence_number": 8,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-185b-7224-b243-581526d4ca9d",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17d8-72f7-a715-4dbf2b0554b2",
+            "qty_per_location": "2.778",
+            "sequence_number": 9,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-185c-70e9-9976-ada91964a621",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17d9-7066-8e17-360804d47913",
+            "qty_per_location": "1.000",
+            "sequence_number": 10,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-185d-71b1-adc6-945e5a3c39c7",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17db-7109-8f8c-9a0cd4fd6088",
+            "qty_per_location": "15.020",
+            "sequence_number": 11,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-185e-73f2-a94b-722ffad19754",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17dc-72ee-8e86-3c0e261e0996",
+            "qty_per_location": "234.133",
+            "sequence_number": 12,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-185e-73f2-a94b-722ffae839a7",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17dd-7193-9e5d-d5a403691f71",
+            "qty_per_location": "96.000",
+            "sequence_number": 13,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-185f-7282-b5da-a65a3019e574",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17df-7326-8cb8-1e11933cab54",
+            "qty_per_location": "654.829",
+            "sequence_number": 14,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1860-73f5-ab8e-fbe071e8bb6f",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17e1-7376-b1e3-1f61b5d83f31",
+            "qty_per_location": "654.829",
+            "sequence_number": 15,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1861-70e2-9dd4-4fcf488ccc7e",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17e3-71e7-b185-583dfcf24840",
+            "qty_per_location": "654.829",
+            "sequence_number": 16,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1862-730d-9f7b-177814744df8",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17e5-72a8-8eb0-ff15abcfce7d",
+            "qty_per_location": "483.610",
+            "sequence_number": 17,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1863-716d-b1c1-9b3dcfdd3d07",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17e7-72dd-9715-afa93a37ee21",
+            "qty_per_location": "50.924",
+            "sequence_number": 18,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1864-718f-af75-dc1781b77923",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17e9-7367-811a-7ecef3e1ad77",
+            "qty_per_location": "4.492",
+            "sequence_number": 19,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1865-71de-9440-4cac0104d3d5",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17ea-717c-b317-5df16cfc8f1b",
+            "qty_per_location": "12.424",
+            "sequence_number": 20,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1865-71de-9440-4cac01383a23",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17eb-70f4-95b4-7206c3568854",
+            "qty_per_location": "0.329",
+            "sequence_number": 21,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1866-7214-acd4-766d1802f3f8",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17ec-702d-9cae-32df243f9b61",
+            "qty_per_location": "0.836",
+            "sequence_number": 22,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1867-71a9-9b6d-b02b5cd0ad08",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17ee-707d-ab1e-f43575cb866e",
+            "qty_per_location": "109.249",
+            "sequence_number": 23,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1868-72b4-8497-83f4f74402e0",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17f0-71cc-81f7-23985ee482b1",
+            "qty_per_location": "74.696",
+            "sequence_number": 24,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1869-703b-ac24-e2b2b1a429e8",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17f1-72f7-b423-85796ef8aa0a",
+            "qty_per_location": "43.600",
+            "sequence_number": 25,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1869-703b-ac24-e2b2b21f46d5",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17f2-7166-95fa-07404cc30fe4",
+            "qty_per_location": "43.600",
+            "sequence_number": 26,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-186a-70cd-951a-8091549fb3b8",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17f4-7035-b81f-1e238533a884",
+            "qty_per_location": "161.946",
+            "sequence_number": 27,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-186b-70b5-a040-a536c7214501",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17f5-72c0-92f8-bc44d907b647",
+            "qty_per_location": "69.954",
+            "sequence_number": 28,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-186c-724a-b08c-30b2a68b9188",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17f6-7193-a760-bc0da14c255d",
+            "qty_per_location": "50.011",
+            "sequence_number": 29,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-186d-72d6-b09a-866e113b0d4f",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17f8-7053-ba90-955b2029a373",
+            "qty_per_location": "69.954",
+            "sequence_number": 30,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-186e-7313-b8a2-2f5fbcf32c96",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17f9-7232-adda-75131a3dd611",
+            "qty_per_location": "41.680",
+            "sequence_number": 31,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-186f-738e-a59c-d8c187d1a990",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17fa-73fd-aad5-6b9b3b66e95c",
+            "qty_per_location": "26.210",
+            "sequence_number": 32,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-186f-738e-a59c-d8c187de663d",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17fc-7367-9a70-e9543364c5c1",
+            "qty_per_location": "29.330",
+            "sequence_number": 33,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1870-7285-88f8-8a80796e531d",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17fd-7056-893e-2303555efab7",
+            "qty_per_location": "73.260",
+            "sequence_number": 34,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1871-7083-b187-52c6b431274a",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-17fe-701f-a609-51615503854f",
+            "qty_per_location": "43.600",
+            "sequence_number": 35,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1872-7107-8b6e-5169c3a4fc04",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-1800-70bc-8835-4bdffe4dd5c0",
+            "qty_per_location": "148.428",
+            "sequence_number": 36,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1873-7188-974d-272ac17170cf",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-1801-70d4-b52d-f364672f54c1",
+            "qty_per_location": "2.580",
+            "sequence_number": 37,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1873-7188-974d-272ac1b6a774",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-1803-7005-a37e-09530b54c12f",
+            "qty_per_location": "1.000",
+            "sequence_number": 38,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1874-7013-9325-cc07222a98d7",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-1804-7340-9c50-2a81edf0bb41",
+            "qty_per_location": "2.000",
+            "sequence_number": 39,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1875-737a-af29-9394bc6d58a4",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-1805-704b-ab2c-509659c9d3aa",
+            "qty_per_location": "2.000",
+            "sequence_number": 40,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1876-701e-81cb-5fe18806fb28",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-1807-73df-814c-9f05f970cd4c",
+            "qty_per_location": "3.000",
+            "sequence_number": 41,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1877-70e0-b69d-48588b8f2e3b",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-1807-73df-814c-9f05fa61236b",
+            "qty_per_location": "1.000",
+            "sequence_number": 42,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1877-70e0-b69d-48588c5d0c8b",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-1809-704e-ae37-af4ec2705a00",
+            "qty_per_location": "4.000",
+            "sequence_number": 43,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1878-7342-a6fe-40e1aa553e03",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-180a-71f6-bb1e-5266b53168fb",
+            "qty_per_location": "253.360",
+            "sequence_number": 44,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1879-7270-959f-e2ba28592fdb",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-180b-726d-a7d7-f1ab4c943c04",
+            "qty_per_location": "82.500",
+            "sequence_number": 45,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-187a-7055-9fd1-d2df0458bfe8",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-180c-7150-884f-e72fb8a82cdd",
+            "qty_per_location": "100.530",
+            "sequence_number": 46,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-187c-70c5-b468-c7a07402d957",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-180d-7181-bdff-9b3cf7723912",
+            "qty_per_location": "120.000",
+            "sequence_number": 47,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-187c-70c5-b468-c7a0745c8626",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-180e-734a-a03b-e0de0324372d",
+            "qty_per_location": "116.100",
+            "sequence_number": 48,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-187d-7260-bfdd-1d7a18f828e5",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-180f-7242-9a83-1e6395b2b545",
+            "qty_per_location": "34.000",
+            "sequence_number": 49,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-187e-70fa-b502-48c372ab587e",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-1810-7208-b401-addc2e81eb05",
+            "qty_per_location": "654.829",
+            "sequence_number": 50,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-187f-7384-903b-e7cce907e2e9",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-1811-7385-9050-188f217ddd32",
+            "qty_per_location": "126.000",
+            "sequence_number": 51,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1880-70f4-987a-d6133e3089ea",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-1812-7155-8a6a-18c1b7297011",
+            "qty_per_location": "162.570",
+            "sequence_number": 52,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1880-70f4-987a-d6133e3a8e36",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-1813-727b-8320-113833e3ee20",
+            "qty_per_location": "69.954",
+            "sequence_number": 53,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1882-708e-b5b4-dc661a0a6083",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-1813-727b-8320-113834145000",
+            "qty_per_location": "120.000",
+            "sequence_number": 54,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1882-708e-b5b4-dc661a18f48e",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-1814-725f-a8ce-3b1f1b22b105",
+            "qty_per_location": "525.000",
+            "sequence_number": 55,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1883-7356-9cb5-6a3ca39f30cd",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-1815-73a8-8fb0-01ab89f62834",
+            "qty_per_location": "124.000",
+            "sequence_number": 56,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1884-729e-b349-446fe5124a22",
+            "block_design_id": "01a154dc-1853-7314-89bd-7e6acad402ee",
+            "work_type_id": "01a154dc-1816-72c9-b9f0-993f3275975f",
+            "qty_per_location": "175.000",
+            "sequence_number": 57,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1887-710f-bd8f-301446436c81",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-17c7-7226-8911-4e0fb9ded2d2",
+            "qty_per_location": "3110.400",
+            "sequence_number": 1,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1887-710f-bd8f-3014465a8dcc",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-17ca-7210-8f3b-44cfe22149bb",
+            "qty_per_location": "767.520",
+            "sequence_number": 2,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1888-7290-8079-74102856a6ae",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-17cc-71fa-81b0-0c7c83c8582e",
+            "qty_per_location": "648.000",
+            "sequence_number": 3,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1889-70fb-952f-9fbb02f5c6ac",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-17cf-7153-b819-7faba0e9ba1b",
+            "qty_per_location": "712.800",
+            "sequence_number": 4,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-188a-7203-aca0-87451fd9391e",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-17d1-71a1-b486-980e96a9aed8",
+            "qty_per_location": "648.000",
+            "sequence_number": 5,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-188a-7203-aca0-8745200e2ec3",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-17d3-703d-965b-b96f3409532d",
+            "qty_per_location": "80.486",
+            "sequence_number": 6,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-188b-708f-bd04-ac17eff3d5f5",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-17d4-73f7-9fe9-53e7445d8b8a",
+            "qty_per_location": "134.481",
+            "sequence_number": 7,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-188c-7268-bc0d-9d757515859c",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-17d5-7225-a347-b0a0047a479a",
+            "qty_per_location": "111.905",
+            "sequence_number": 8,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-188d-7081-a2cb-4a88823f7474",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-17db-7109-8f8c-9a0cd4fd6088",
+            "qty_per_location": "15.020",
+            "sequence_number": 11,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-188e-7343-9dba-c694000b6518",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-17dc-72ee-8e86-3c0e261e0996",
+            "qty_per_location": "234.133",
+            "sequence_number": 12,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-188e-7343-9dba-c694004d784a",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-17dd-7193-9e5d-d5a403691f71",
+            "qty_per_location": "96.000",
+            "sequence_number": 13,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-188f-71f5-b954-c01345ea6007",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-17df-7326-8cb8-1e11933cab54",
+            "qty_per_location": "654.829",
+            "sequence_number": 14,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1890-70bd-a8f8-9edf289f82fc",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-17e1-7376-b1e3-1f61b5d83f31",
+            "qty_per_location": "654.829",
+            "sequence_number": 15,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1891-71b2-bd51-e40c168d25ca",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-17e3-71e7-b185-583dfcf24840",
+            "qty_per_location": "654.829",
+            "sequence_number": 16,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1892-72d7-ab7e-ad2191d09133",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-17e9-7367-811a-7ecef3e1ad77",
+            "qty_per_location": "4.492",
+            "sequence_number": 19,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1892-72d7-ab7e-ad21925cb68d",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-17ea-717c-b317-5df16cfc8f1b",
+            "qty_per_location": "12.424",
+            "sequence_number": 20,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1893-706d-a10c-8f4ada6ea184",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-17ee-707d-ab1e-f43575cb866e",
+            "qty_per_location": "109.249",
+            "sequence_number": 23,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1894-70e1-8b64-871b16ef69d3",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-17fd-7056-893e-2303555efab7",
+            "qty_per_location": "73.260",
+            "sequence_number": 34,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1895-7251-82a3-03e48410c1d8",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-1804-7340-9c50-2a81edf0bb41",
+            "qty_per_location": "2.000",
+            "sequence_number": 39,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1896-714b-8636-a3e7485e3e29",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-1805-704b-ab2c-509659c9d3aa",
+            "qty_per_location": "2.000",
+            "sequence_number": 40,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1896-714b-8636-a3e74899e32b",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-1807-73df-814c-9f05f970cd4c",
+            "qty_per_location": "3.000",
+            "sequence_number": 41,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1897-70d0-9afa-dfffee9862ef",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-1807-73df-814c-9f05fa61236b",
+            "qty_per_location": "1.000",
+            "sequence_number": 42,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1898-70bb-af3b-ab1368bbda8b",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-180a-71f6-bb1e-5266b53168fb",
+            "qty_per_location": "253.360",
+            "sequence_number": 44,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-1899-72e1-a9e0-35d0f23d8816",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-180b-726d-a7d7-f1ab4c943c04",
+            "qty_per_location": "82.500",
+            "sequence_number": 45,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-189b-73be-a0e5-3d5d5e125762",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-180c-7150-884f-e72fb8a82cdd",
+            "qty_per_location": "100.530",
+            "sequence_number": 46,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-189c-71fe-8f71-1e030c1e49d2",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-180d-7181-bdff-9b3cf7723912",
+            "qty_per_location": "120.000",
+            "sequence_number": 47,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-189c-71fe-8f71-1e030c7ab6ba",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-180e-734a-a03b-e0de0324372d",
+            "qty_per_location": "116.100",
+            "sequence_number": 48,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-189d-7126-a381-b20e05dbe147",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-180f-7242-9a83-1e6395b2b545",
+            "qty_per_location": "34.000",
+            "sequence_number": 49,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-189e-71ac-a5f3-e3e42ccfa7bf",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-1810-7208-b401-addc2e81eb05",
+            "qty_per_location": "654.829",
+            "sequence_number": 50,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-189f-7253-8f17-9d44f186cdf2",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-1811-7385-9050-188f217ddd32",
+            "qty_per_location": "126.000",
+            "sequence_number": 51,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-189f-7253-8f17-9d44f1deac6f",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-1813-727b-8320-113834145000",
+            "qty_per_location": "120.000",
+            "sequence_number": 54,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-18a0-73e6-b2d9-e6e283caf1ee",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-1814-725f-a8ce-3b1f1b22b105",
+            "qty_per_location": "525.000",
+            "sequence_number": 55,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-18a1-70ee-b730-40f3396b7173",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-1815-73a8-8fb0-01ab89f62834",
+            "qty_per_location": "124.000",
+            "sequence_number": 56,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        },
+        {
+            "id": "01a154dc-18a2-728b-9b3c-e0bd156818a4",
+            "block_design_id": "01a154dc-1886-70ac-87a8-63ac7acf33bc",
+            "work_type_id": "01a154dc-1816-72c9-b9f0-993f3275975f",
+            "qty_per_location": "175.000",
+            "sequence_number": 57,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z"
+        }
+    ],
+    "checklists": [
+        {
+            "id": "01a154dc-18aa-7107-9ebf-6d9e04ce0752",
+            "name": "Угсралт — чанарын шалгалт",
+            "work_type_id": null,
+            "work_type_group_id": "01a154dc-17c9-7299-adc3-16810a3fe8fe",
+            "is_active": true,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z",
+            "items": [
+                {
+                    "id": "01a154dc-18ae-71b3-8f95-656d06d7030d",
+                    "checklist_template_id": "01a154dc-18aa-7107-9ebf-6d9e04ce0752",
+                    "sequence_number": 0,
+                    "text": "Арматурын диаметр, алхам зурагтай тохирч байна",
+                    "guidance": null,
+                    "is_required": true,
+                    "created_at": "2026-10-19T15:51:12.000000Z",
+                    "updated_at": "2026-10-19T15:51:12.000000Z"
+                },
+                {
+                    "id": "01a154dc-18af-7188-8d68-27efeb809556",
+                    "checklist_template_id": "01a154dc-18aa-7107-9ebf-6d9e04ce0752",
+                    "sequence_number": 1,
+                    "text": "Хэвний бэхэлгээ бат бөх, гажилтгүй",
+                    "guidance": null,
+                    "is_required": true,
+                    "created_at": "2026-10-19T15:51:12.000000Z",
+                    "updated_at": "2026-10-19T15:51:12.000000Z"
+                },
+                {
+                    "id": "01a154dc-18af-7188-8d68-27efeb937a3a",
+                    "checklist_template_id": "01a154dc-18aa-7107-9ebf-6d9e04ce0752",
+                    "sequence_number": 2,
+                    "text": "Хамгаалалтын давхаргын зузаан хангасан",
+                    "guidance": null,
+                    "is_required": true,
+                    "created_at": "2026-10-19T15:51:12.000000Z",
+                    "updated_at": "2026-10-19T15:51:12.000000Z"
+                },
+                {
+                    "id": "01a154dc-18b0-7023-83ef-22549583a389",
+                    "checklist_template_id": "01a154dc-18aa-7107-9ebf-6d9e04ce0752",
+                    "sequence_number": 3,
+                    "text": "Бетоны маркийн гэрчилгээ хавсаргасан",
+                    "guidance": null,
+                    "is_required": true,
+                    "created_at": "2026-10-19T15:51:12.000000Z",
+                    "updated_at": "2026-10-19T15:51:12.000000Z"
+                },
+                {
+                    "id": "01a154dc-18b2-722e-8bed-5d238f5e03b2",
+                    "checklist_template_id": "01a154dc-18aa-7107-9ebf-6d9e04ce0752",
+                    "sequence_number": 4,
+                    "text": "Ажлын байрны цэвэрлэгээ хийгдсэн",
+                    "guidance": null,
+                    "is_required": false,
+                    "created_at": "2026-10-19T15:51:12.000000Z",
+                    "updated_at": "2026-10-19T15:51:12.000000Z"
+                }
+            ]
+        },
+        {
+            "id": "01a154dc-18b4-7210-852d-08661352185e",
+            "name": "Өрлөг — чанарын шалгалт",
+            "work_type_id": null,
+            "work_type_group_id": "01a154dc-17d2-73ba-afbe-a5d80719c10d",
+            "is_active": true,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z",
+            "items": [
+                {
+                    "id": "01a154dc-18b5-73c1-ad7a-d57f810713f5",
+                    "checklist_template_id": "01a154dc-18b4-7210-852d-08661352185e",
+                    "sequence_number": 0,
+                    "text": "Өрлөгийн эгнээ хэвтээ, босоо түвшин зөв",
+                    "guidance": null,
+                    "is_required": true,
+                    "created_at": "2026-10-19T15:51:12.000000Z",
+                    "updated_at": "2026-10-19T15:51:12.000000Z"
+                },
+                {
+                    "id": "01a154dc-18b6-72e4-9377-7e6563c4d31a",
+                    "checklist_template_id": "01a154dc-18b4-7210-852d-08661352185e",
+                    "sequence_number": 1,
+                    "text": "Заадасны зузаан жигд",
+                    "guidance": null,
+                    "is_required": true,
+                    "created_at": "2026-10-19T15:51:12.000000Z",
+                    "updated_at": "2026-10-19T15:51:12.000000Z"
+                },
+                {
+                    "id": "01a154dc-18b6-72e4-9377-7e65647bd492",
+                    "checklist_template_id": "01a154dc-18b4-7210-852d-08661352185e",
+                    "sequence_number": 2,
+                    "text": "Зуурмагийн харьцаа стандартын дагуу",
+                    "guidance": null,
+                    "is_required": true,
+                    "created_at": "2026-10-19T15:51:12.000000Z",
+                    "updated_at": "2026-10-19T15:51:12.000000Z"
+                },
+                {
+                    "id": "01a154dc-18b7-73cd-9df5-3e8fa60de507",
+                    "checklist_template_id": "01a154dc-18b4-7210-852d-08661352185e",
+                    "sequence_number": 3,
+                    "text": "Хаалга, цонхны нүх зурагтай тохирч байна",
+                    "guidance": null,
+                    "is_required": true,
+                    "created_at": "2026-10-19T15:51:12.000000Z",
+                    "updated_at": "2026-10-19T15:51:12.000000Z"
+                }
+            ]
+        },
+        {
+            "id": "01a154dc-18b8-719b-9d76-67c8427f184e",
+            "name": "Засал — чанарын шалгалт",
+            "work_type_id": null,
+            "work_type_group_id": "01a154dc-17ef-72a6-b9d9-0363e5f0a92f",
+            "is_active": true,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z",
+            "items": [
+                {
+                    "id": "01a154dc-18b9-7113-8cde-2c6304f5696f",
+                    "checklist_template_id": "01a154dc-18b8-719b-9d76-67c8427f184e",
+                    "sequence_number": 0,
+                    "text": "Гадаргуу тэгш, ан цавгүй",
+                    "guidance": null,
+                    "is_required": true,
+                    "created_at": "2026-10-19T15:51:12.000000Z",
+                    "updated_at": "2026-10-19T15:51:12.000000Z"
+                },
+                {
+                    "id": "01a154dc-18b9-7113-8cde-2c6305057acf",
+                    "checklist_template_id": "01a154dc-18b8-719b-9d76-67c8427f184e",
+                    "sequence_number": 1,
+                    "text": "Өнгө, материал зурагт заасантай тохирч байна",
+                    "guidance": null,
+                    "is_required": true,
+                    "created_at": "2026-10-19T15:51:12.000000Z",
+                    "updated_at": "2026-10-19T15:51:12.000000Z"
+                },
+                {
+                    "id": "01a154dc-18ba-7255-9dd8-35a2b3d9efb4",
+                    "checklist_template_id": "01a154dc-18b8-719b-9d76-67c8427f184e",
+                    "sequence_number": 2,
+                    "text": "Булан, уулзвар цэвэр",
+                    "guidance": null,
+                    "is_required": true,
+                    "created_at": "2026-10-19T15:51:12.000000Z",
+                    "updated_at": "2026-10-19T15:51:12.000000Z"
+                },
+                {
+                    "id": "01a154dc-18ba-7255-9dd8-35a2b4924aa3",
+                    "checklist_template_id": "01a154dc-18b8-719b-9d76-67c8427f184e",
+                    "sequence_number": 3,
+                    "text": "Ажлын дараа хог цэвэрлэгдсэн",
+                    "guidance": null,
+                    "is_required": false,
+                    "created_at": "2026-10-19T15:51:12.000000Z",
+                    "updated_at": "2026-10-19T15:51:12.000000Z"
+                }
+            ]
+        },
+        {
+            "id": "01a154dc-18bc-7070-bf46-3c4931b6a14b",
+            "name": "цахилгаан — чанарын шалгалт",
+            "work_type_id": null,
+            "work_type_group_id": "01a154dc-17de-7170-ab4b-61e2bb230c71",
+            "is_active": true,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z",
+            "items": [
+                {
+                    "id": "01a154dc-18bc-7070-bf46-3c4932551a0b",
+                    "checklist_template_id": "01a154dc-18bc-7070-bf46-3c4931b6a14b",
+                    "sequence_number": 0,
+                    "text": "Кабелийн хөндлөн огтлол төслийн дагуу",
+                    "guidance": null,
+                    "is_required": true,
+                    "created_at": "2026-10-19T15:51:12.000000Z",
+                    "updated_at": "2026-10-19T15:51:12.000000Z"
+                },
+                {
+                    "id": "01a154dc-18bd-73d2-8a80-8554761edae5",
+                    "checklist_template_id": "01a154dc-18bc-7070-bf46-3c4931b6a14b",
+                    "sequence_number": 1,
+                    "text": "Тусгаарлалтын эсэргүүцэл хэмжигдсэн",
+                    "guidance": null,
+                    "is_required": true,
+                    "created_at": "2026-10-19T15:51:12.000000Z",
+                    "updated_at": "2026-10-19T15:51:12.000000Z"
+                },
+                {
+                    "id": "01a154dc-18be-7151-92b4-55b78ff97d81",
+                    "checklist_template_id": "01a154dc-18bc-7070-bf46-3c4931b6a14b",
+                    "sequence_number": 2,
+                    "text": "Газардуулга холбогдсон",
+                    "guidance": null,
+                    "is_required": true,
+                    "created_at": "2026-10-19T15:51:12.000000Z",
+                    "updated_at": "2026-10-19T15:51:12.000000Z"
+                },
+                {
+                    "id": "01a154dc-18be-7151-92b4-55b7906e4268",
+                    "checklist_template_id": "01a154dc-18bc-7070-bf46-3c4931b6a14b",
+                    "sequence_number": 3,
+                    "text": "Тэмдэглэгээ, шошго хийгдсэн",
+                    "guidance": null,
+                    "is_required": false,
+                    "created_at": "2026-10-19T15:51:12.000000Z",
+                    "updated_at": "2026-10-19T15:51:12.000000Z"
+                }
+            ]
+        },
+        {
+            "id": "01a154dc-18bf-703f-abcb-31f201b8e79a",
+            "name": "сантехник — чанарын шалгалт",
+            "work_type_id": null,
+            "work_type_group_id": "01a154dc-17e0-72d6-8f4d-4df41b62656a",
+            "is_active": true,
+            "created_at": "2026-10-19T15:51:12.000000Z",
+            "updated_at": "2026-10-19T15:51:12.000000Z",
+            "items": [
+                {
+                    "id": "01a154dc-18c0-731a-b8ae-aba7ff00b137",
+                    "checklist_template_id": "01a154dc-18bf-703f-abcb-31f201b8e79a",
+                    "sequence_number": 0,
+                    "text": "Даралтын сорил хийгдэж, алдагдалгүй",
+                    "guidance": null,
+                    "is_required": true,
+                    "created_at": "2026-10-19T15:51:12.000000Z",
+                    "updated_at": "2026-10-19T15:51:12.000000Z"
+                },
+                {
+                    "id": "01a154dc-18c1-73a0-b967-d86718fe6b41",
+                    "checklist_template_id": "01a154dc-18bf-703f-abcb-31f201b8e79a",
+                    "sequence_number": 1,
+                    "text": "Налуу, хаялбар зөв",
+                    "guidance": null,
+                    "is_required": true,
+                    "created_at": "2026-10-19T15:51:12.000000Z",
+                    "updated_at": "2026-10-19T15:51:12.000000Z"
+                },
+                {
+                    "id": "01a154dc-18c1-73a0-b967-d86719b9a26e",
+                    "checklist_template_id": "01a154dc-18bf-703f-abcb-31f201b8e79a",
+                    "sequence_number": 2,
+                    "text": "Холболтын битүүмжлэл шалгагдсан",
+                    "guidance": null,
+                    "is_required": true,
+                    "created_at": "2026-10-19T15:51:12.000000Z",
+                    "updated_at": "2026-10-19T15:51:12.000000Z"
+                }
+            ]
+        }
+    ]
+}

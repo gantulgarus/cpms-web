@@ -1,4 +1,11 @@
-import type { Location, WorkItem, WorkTypeGroup } from "./api/types";
+import type { Location, WorkCatalogEntry, WorkItem, WorkTypeGroup } from "./api/types";
+
+export function matchesWorkSearch(item: WorkItem, search: string, catalogEntry?: WorkCatalogEntry): boolean {
+  const text = [item.workType.name, item.workType.groupName, item.location.path, item.contractor?.name,
+    catalogEntry?.systemCode, catalogEntry?.subgroupNumber, catalogEntry?.typeName]
+    .filter(Boolean).join(" ").toLocaleLowerCase();
+  return search.trim().toLocaleLowerCase().split(/\s+/).every((term) => text.includes(term));
+}
 
 /** Group order is the configured technology order; dates are only a tie-breaker. */
 export function sortWorkSequence(items: WorkItem[], groups: WorkTypeGroup[], locations: Location[]) {

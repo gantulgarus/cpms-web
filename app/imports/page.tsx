@@ -76,16 +76,7 @@ export default function ImportsPage() {
   const qc = useQueryClient();
 
   const [blockId, setBlockId] = useState<string>("");
-  const [prune, setPrune] = useState(false);
-  /*
-   * ГОРИМ — ажлын төсвийн хамгийн чухал сонголт.
-   *
-   * Анхдагч нь `update`: төсөв нэг удаа эцэслэгддэггүй тул засвар
-   * оруулах нь ердийн тохиолдол. Шинээр эхэлж байгаа блокт хоёр
-   * горим ижил үр дүн өгнө (устгах гүйцэтгэл байхгүй), тиймээс
-   * аюулгүй талыг нь анхдагч болгов.
-   */
-  const [mode, setMode] = useState<ImportMode>("update");
+  const mode: ImportMode = "prices";
   const [dragging, setDragging] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -158,7 +149,7 @@ export default function ImportsPage() {
 
   const applyMutation = useMutation({
     mutationFn: () =>
-      budgetImports.apply(pending!.id, pending!.chosen, prune, mode),
+      budgetImports.apply(pending!.id, pending!.chosen, false, mode),
     onSuccess: (res) => {
       setPending({
         id: res.data.id,
@@ -247,7 +238,7 @@ export default function ImportsPage() {
     <div className="space-y-4">
       <PageHeader
         title="Төсөв оруулах"
-        description="Excel-ээс ажлын тоо хэмжээ, материалын төсвийг барилгад буулгана."
+        description="Барилгад үүссэн ажлын нэгж үнэ болон материалын төсвийг Excel-ээс оруулна."
       />
 
       <Card>
@@ -289,7 +280,7 @@ export default function ImportsPage() {
               title={blockId ? undefined : "Эхлээд барилгаа сонгоно уу"}
             >
               <Download className="size-4" />
-              {template.isPending ? "Бэлдэж байна…" : "Жишээ файл татах"}
+              {template.isPending ? "Бэлдэж байна…" : "Үнийн файл татах"}
             </Button>
           </div>
 
@@ -384,56 +375,7 @@ export default function ImportsPage() {
                 </div>
               )}
 
-              {/*
-                ГОРИМ СОНГОХ — зөвхөн ажлын төсөвт.
-
-                Материалын төсөвт гүйцэтгэл гэж байхгүй тул устгах
-                зүйл ч алга: тэр нь үргэлж бүхэлдээ солигдоно.
-              */}
-              {!pending.applied && hasQuantities && (
-                <div className="space-y-2 border-t pt-4">
-                  {(
-                    [
-                      [
-                        "update",
-                        "Шинэчлэх",
-                        "Тоо хэмжээ, үнэ, инженер солигдоно. Явц, шалгалт, зураг ҮЛДЭНЭ.",
-                      ],
-                      [
-                        "replace",
-                        "Шинээр оруулах",
-                        "Барилгын ажлыг бүхэлд нь солино. Бүх гүйцэтгэл УСТАНА.",
-                      ],
-                    ] as const
-                  ).map(([value, label, hint]) => (
-                    <label
-                      key={value}
-                      className={cn(
-                        "flex cursor-pointer gap-2.5 rounded-md border p-2.5 text-sm",
-                        mode === value &&
-                          value === "replace" &&
-                          "border-red-500/50 bg-red-500/5",
-                        mode === value &&
-                          value === "update" &&
-                          "border-primary/50 bg-primary/5",
-                      )}
-                    >
-                      <input
-                        type="radio"
-                        className="mt-1"
-                        checked={mode === value}
-                        onChange={() => setMode(value)}
-                      />
-                      <span>
-                        <span className="font-medium">{label}</span>
-                        <span className="text-muted-foreground block text-xs">
-                          {hint}
-                        </span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              )}
+              {!pending.applied && hasQuantities && <p className="text-muted-foreground border-t pt-4 text-sm">Байгаа ажлын зөвхөн нэгж үнийг шинэчилнэ. Тоо хэмжээ болон гүйцэтгэл хэвээр үлдэнэ.</p>}
 
               {!pending.applied && (
                 <div className="flex flex-wrap items-center gap-2 border-t pt-4">
@@ -443,7 +385,7 @@ export default function ImportsPage() {
                       хайна — яг тэр болсон. */}
                   <Button
                     onClick={() => applyMutation.mutate()}
-                    disabled={plannedTotal === 0 || applyMutation.isPending}
+                    disabled={plannedTotal === 0 || shown.some((report) => !report.canApply) || applyMutation.isPending}
                   >
                     <Check className="size-4" />
                     {applyMutation.isPending ? "Бичиж байна…" : "Батлах"}
@@ -456,19 +398,6 @@ export default function ImportsPage() {
                     <X className="size-4" /> Цуцлах
                   </Button>
 
-                  {/* `prune` нь зөвхөн ШИНЭЭР ОРУУЛАХ горимд утгатай:
-                      шинэчлэх үед гүйцэтгэлтэй ажил устах эрсдэлтэй
-                      тул сервер үүнийг үл тоомсорлодог. */}
-                  {hasQuantities && mode === "replace" && (
-                    <label className="text-muted-foreground ml-2 flex items-center gap-1.5 text-xs">
-                      <input
-                        type="checkbox"
-                        checked={prune}
-                        onChange={(e) => setPrune(e.target.checked)}
-                      />
-                      Төсөвт таараагүй ажлыг устгах
-                    </label>
-                  )}
                 </div>
               )}
 

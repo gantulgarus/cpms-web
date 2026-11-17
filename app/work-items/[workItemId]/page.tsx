@@ -28,6 +28,8 @@ import { toast } from "sonner";
 import { WorkQuantitySummary } from "@/components/work-quantity-summary";
 import { FormField } from "@/components/form-dialog";
 import { PageHeader } from "@/components/page-header";
+import { WorkCatalogIdentity } from "@/components/work-catalog-identity";
+import { useWorkCatalog } from "@/lib/api/use-work-catalog";
 import {
   ChecklistForm,
   checklistBlocker,
@@ -131,6 +133,7 @@ export default function WorkItemDetailPage() {
   const [editingQty, setEditingQty] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [assigningInspector, setAssigningInspector] = useState(false);
+  const catalog = useWorkCatalog();
 
   const itemQuery = useQuery({
     queryKey: ["work-item", workItemId],
@@ -231,6 +234,9 @@ export default function WorkItemDetailPage() {
         }
         description={item.location.path}
       />
+      <div className="mb-6">
+        <WorkCatalogIdentity entry={catalog.byWorkTypeId.get(item.workTypeId)} />
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="min-w-0 space-y-6 lg:col-span-2">

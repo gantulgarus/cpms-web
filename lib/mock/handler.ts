@@ -5,6 +5,22 @@
  * сервер талын нэгтгэл бүгд хэрэгжсэн. Бүх мөрийг нэг дор буцаадаг хялбар
  * mock хийвэл хуудаслалтын алдааг нуух тул ашиггүй байх байсан.
  */
+import catalogSource from "../reference/work-catalog-20261116.json";
+import { inferWorkLocation, matchesCatalogFloor } from "../reference/infer-work-location";
+import type { WorkCatalogEntry } from "@/lib/api/types";
+
+const catalogEntries: WorkCatalogEntry[] = catalogSource.map((entry, index) => ({
+  ...entry,
+  unit: entry.unit === "0" ? null : entry.unit,
+  id: String(index + 1),
+  workTypeId: null,
+  level: inferWorkLocation(entry),
+  inferredLevel: inferWorkLocation(entry),
+  locationLevelOverride: null,
+  inUse: false,
+  systemCode: `WT-${String(index + 1).padStart(6, "0")}`,
+}));
+
 import {
   createBlock,
   getDb,
@@ -1378,8 +1394,19 @@ function importReport(
   block: Block,
   type: BudgetImportType,
   applied: boolean,
-  mode: "replace" | "update" = "replace",
+  mode: "prices" | "replace" | "update" = "prices",
 ): ImportReport {
+  if (type === "quantities" && mode === "prices") {
+    const works = getDb().workItems.filter((work) => work.blockId === block.id);
+    return {
+      type, typeLabel: "Ажлын хөлсний үнэ", sheet: "Ажлын хөлсний төсөв", blockId: block.id, blockName: block.name,
+      canApply: works.length > 0,
+      summary: { sourceRows: new Set(works.map((work) => work.workTypeId)).size, planned: works.length, rejected: 0, skipped: 0, existing: works.length },
+      sections: [{ title: "Ажлын нэгж үнэ", rows: [{ label: "Үнэ шинэчлэх ажил", value: works.length, format: "count" }] }],
+      warnings: [], errors: [], errorsByReason: [],
+      ...(applied ? { result: { items: works.length, created: 0, updated: works.length, pruned: 0, conflicts: [] } } : {}),
+    };
+  }
   const report: ImportReport =
     type === "materials"
       ? {
@@ -1524,7 +1551,7 @@ function importReport(
 function importEnvelope(
   record: BudgetImport,
   block: Block,
-  mode: "replace" | "update" = "replace",
+  mode: "prices" | "replace" | "update" = "prices",
 ): MockResponse {
   return ok({
     data: record,
@@ -1898,6 +1925,73 @@ export function handleMock(
   }
   const q = new URLSearchParams(search);
   const [a, b, c] = segments;
+
+  if (a === "work-catalog") {
+    if (method === "DELETE" && b) {
+      if (!session.canManageReferenceData) return fail(403, "Forbidden", "Танд лавлах сан засах эрх байхгүй.");
+      const index = catalogEntries.findIndex((entry) => entry.id === b);
+      if (index < 0) return fail(404, "NotFound", "Ажил олдсонгүй.");
+      const entry = catalogEntries[index];
+      if (entry.workTypeId && db.workItems.some((work) => work.workTypeId === entry.workTypeId)) return fail(409, "Conflict", "Энэ ажил төлөвлөгөөнд ашиглагдсан тул устгах боломжгүй.");
+      if (entry.workTypeId) db.workTypes = db.workTypes.filter((type) => type.id !== entry.workTypeId);
+      catalogEntries.splice(index, 1);
+      return { status: 204, body: null };
+    }
+    const syncPlanningType = (entry: WorkCatalogEntry) => {
+      if (!entry.level || !entry.unit) return;
+      let group = db.groups.find((group) => group.name === entry.groupName);
+      if (!group) {
+        group = { id: mockId("wtg"), name: entry.groupName, sequenceNumber: Number.parseInt(entry.groupName) };
+        db.groups.push(group);
+      }
+      let type = db.workTypes.find((type) => type.id === entry.workTypeId);
+      if (!type) {
+        type = { id: mockId("wt"), groupId: group.id, groupName: group.name, name: entry.name, unit: entry.unit, level: entry.level };
+        db.workTypes.push(type);
+        entry.workTypeId = type.id;
+      }
+      Object.assign(type, { name: entry.name, unit: entry.unit, level: entry.level });
+    };
+    if (method === "GET" && !b) {
+      catalogEntries.forEach(syncPlanningType);
+      return ok({ data: catalogEntries.map((entry) => ({ ...entry, inUse: Boolean(entry.workTypeId && db.workItems.some((work) => work.workTypeId === entry.workTypeId)) })) });
+    }
+    if (method === "PATCH" && b) {
+      if (!session.canManageReferenceData) return fail(403, "Forbidden", "Танд лавлах сан засах эрх байхгүй.");
+      const entry = catalogEntries.find((row) => row.id === b);
+      if (!entry) return fail(404, "NotFound", "Үе шат олдсонгүй.");
+      const patch = (body ?? {}) as Record<string, unknown>;
+      for (const [key, max] of [["name", 255], ["unit", 20], ["description", 5000]] as const) {
+        if (!(key in patch)) continue;
+        const value = patch[key];
+        if ((value !== null && typeof value !== "string") || (typeof value === "string" && value.length > max)
+          || (key === "name" && (typeof value !== "string" || !value.trim()))) {
+          return fail(422, "ValidationError", "Нэр, нэгж, тодорхойлолтоо шалгана уу.");
+        }
+      }
+      if ("level" in patch && patch.level !== null && !["block", "floor", "unit"].includes(String(patch.level))) return fail(422, "ValidationError", "Байршлын түвшин буруу.");
+      const inferredLevel = inferWorkLocation({ ...entry, name: typeof patch.name === "string" ? patch.name.trim() : entry.name });
+      const inUse = Boolean(entry.workTypeId && db.workItems.some((work) => work.workTypeId === entry.workTypeId));
+      if (patch.level && inferredLevel && patch.level !== inferredLevel && !entry.locationLevelOverride) return fail(inUse ? 409 : 422, "Conflict", "Байршлыг эх мэдээллээс автоматаар тодорхойлно.");
+      const override = ("level" in patch ? (inferredLevel && !entry.locationLevelOverride ? null : patch.level) : entry.locationLevelOverride) as WorkCatalogEntry["level"];
+      const nextLevel = override ?? inferredLevel;
+      const submittedUnit = "unit" in patch ? (typeof patch.unit === "string" ? patch.unit.trim() || null : null) : entry.unit;
+      const nextUnit = submittedUnit === "0" ? null : submittedUnit;
+      if (entry.workTypeId && (!nextUnit || !nextLevel)) return fail(422, "ValidationError", "Нэгж, байршлыг тодруулна уу.");
+      if (entry.workTypeId && db.workItems.some((work) => work.workTypeId === entry.workTypeId) && (nextUnit !== entry.unit || nextLevel !== entry.level)) return fail(409, "Conflict", "Ашиглагдсан ажлын нэгж, түвшин өөрчлөх боломжгүй.");
+      if (typeof patch.name === "string") entry.name = patch.name.trim();
+      for (const key of ["unit", "description"] as const) {
+        if (key in patch) entry[key] = typeof patch[key] === "string" ? patch[key].trim() || null : null;
+      }
+      entry.unit = nextUnit;
+      entry.level = nextLevel;
+      entry.inferredLevel = inferredLevel;
+      entry.locationLevelOverride = override;
+      syncPlanningType(entry);
+      return ok({ data: entry });
+    }
+    return fail(405, "MethodNotAllowed", "Энэ үйлдэл дэмжигдэхгүй.");
+  }
 
   // --- нэвтрэлт ---
   // AuthGate token-ыг сервер дээр шалгадаг тул mock ч хариулах ёстой.
@@ -2630,6 +2724,7 @@ export function handleMock(
         }
 
         const block = createBlock({
+          projectId: b,
           name: p.name.trim(),
           buildingNo: p.buildingNo?.trim() || "—",
           designId: p.designId,
@@ -3279,6 +3374,9 @@ export function handleMock(
         return fail(422, "ValidationError", "Оруулах төсөв сонгогдоогүй байна.");
       }
 
+      const requestedMode = (body as { mode?: string })?.mode;
+      if (requestedMode && requestedMode !== "prices") return fail(422, "ValidationError", "Төсвөөр зөвхөн үнэ шинэчилнэ.");
+      if (types.some((type) => !importReport(block, type, false).canApply)) return fail(422, "ValidationError", "Эхлээд барилгын ажлуудыг үүсгэнэ үү.");
       record.types = types;
       record.type = types.join(",");
       record.typeLabel = importTypeLabel(types);
@@ -3286,7 +3384,7 @@ export function handleMock(
       record.statusLabel = "Орсон";
       record.appliedBy = session.name;
       record.appliedAt = new Date().toISOString();
-      const mode = (body as { mode?: string })?.mode === "update" ? "update" : "replace";
+      const mode = "prices" as const;
 
       record.summary = totalImportSummary(
         types.map((t) => importReport(block, t, true, mode)),
@@ -4240,9 +4338,11 @@ export function handleMock(
           const wt = db.workTypes.find((x) => x.id === id);
           if (!wt) return fail(422, "ValidationError", "Ажлын төрөл олдсонгүй.");
 
+          const catalogEntry = catalogEntries.find((entry) => entry.workTypeId === wt.id);
           const targets = db.locations.filter(
             (l) =>
-              l.blockId === b && (p?.locationId ? l.id === p.locationId : l.level === wt.level),
+              l.blockId === b && (p?.locationId ? l.id === p.locationId : l.level === wt.level)
+              && (!catalogEntry || (l.level === wt.level && matchesCatalogFloor(catalogEntry, l, db.locations))),
           );
           if (targets.length === 0) {
             skipped.push({ name: wt.name, reason: "Тохирох байршил алга" });

@@ -5,12 +5,14 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { blocks, referenceData, workItems } from "@/lib/api/endpoints";
 import { loadAssignmentWork } from "@/lib/assignment-priority";
-import { sortWorkSequence } from "@/lib/work-sequence";
+import { matchesWorkSearch, sortWorkSequence } from "@/lib/work-sequence";
 import { formatDate } from "@/lib/domain";
 import { ErrorState, EmptyState, LoadingRows } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProgressBar } from "@/components/progress-bar";
+import { useWorkCatalog } from "@/lib/api/use-work-catalog";
+import { WorkCatalogIdentity } from "@/components/work-catalog-identity";
 
 function WorkDependency({ id }: { id: string }) {
   const detail = useQuery({ queryKey: ["work-item", id], queryFn: () => workItems.get(id), staleTime: 30_000 });
@@ -33,6 +35,7 @@ export function BlockWorkSequence({ blockId }: { blockId: string }) {
   const [floor, setFloor] = useState("");
   const [assignment, setAssignment] = useState("");
   const [page, setPage] = useState(1);
+  const catalog = useWorkCatalog();
   const list = useQuery({ queryKey: ["assignment-priority", blockId], queryFn: () => loadAssignmentWork((page) => workItems.listForBlock(blockId, { page, pageSize: 200 })) });
   const groups = useQuery({ queryKey: ["work-type-groups"], queryFn: () => referenceData.groups() });
   const locations = useQuery({ queryKey: ["locations", blockId], queryFn: () => blocks.locations(blockId) });
@@ -50,18 +53,18 @@ export function BlockWorkSequence({ blockId }: { blockId: string }) {
       while (id && id !== floor && !visited.has(id)) { visited.add(id); id = locationMap.get(id)?.parentId; }
       if (id !== floor) return false;
     }
-    return `${w.workType.name} ${w.location.path} ${w.contractor?.name ?? ""}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase());
+    return matchesWorkSearch(w, search, catalog.byWorkTypeId.get(w.workTypeId));
   });
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const current = Math.min(page, pages);
   const shown = filtered.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
-  const error = list.error || groups.error || locations.error;
+  const error = list.error || groups.error || locations.error || catalog.error;
   return <section className="space-y-4" aria-labelledby="work-sequence-heading">
     <div><h2 id="work-sequence-heading" className="text-lg font-semibold">Ажлын технологийн дараалал</h2>
       <p className="text-muted-foreground mt-1 text-sm">Лавлах сангийн ажлын бүлгийн дарааллаар, бүлэг дотроо давхрын дарааллаар харуулав. Гүйцэтгэгчтэй болон гүйцэтгэгчгүй бүх ажил багтана. Нэг бүлэг доторх ажлууд заавал нэг нэгнийхээ дараа хийгдэхийг энэ жагсаалт илэрхийлэхгүй.</p></div>
-    {list.isLoading || groups.isLoading || locations.isLoading ? <LoadingRows rows={5} /> : error ? <ErrorState message={(error as Error).message} onRetry={() => { void list.refetch(); void groups.refetch(); void locations.refetch(); }} /> : <>
+    {list.isLoading || groups.isLoading || locations.isLoading || catalog.isLoading ? <LoadingRows rows={5} /> : error ? <ErrorState message={(error as Error).message} onRetry={() => { void list.refetch(); void groups.refetch(); void locations.refetch(); void catalog.refetch(); }} /> : <>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <label className="space-y-1 text-sm"><span>Ажил, байршил, гүйцэтгэгч хайх</span><Input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Ажлын нэр…" /></label>
+        <label className="space-y-1 text-sm"><span>Код, ажил, байршил, гүйцэтгэгч хайх</span><Input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="WT-000024, цутгалт, А1…" /></label>
         <label className="space-y-1 text-sm"><span>Ажлын бүлэг</span><select className={SELECT} value={group} onChange={(e) => { setGroup(e.target.value); setPage(1); }}><option value="">Бүх бүлэг</option>{groupNames.map((name) => <option key={name} value={name}>{name}</option>)}</select></label>
         <label className="space-y-1 text-sm"><span>Давхар</span><select className={SELECT} value={floor} onChange={(e) => { setFloor(e.target.value); setPage(1); }}><option value="">Бүх байршил</option>{locations.data?.data.filter((l) => l.level === "floor").map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select></label>
         <label className="space-y-1 text-sm"><span>Гүйцэтгэгчийн оноолт</span><select className={SELECT} value={assignment} onChange={(e) => { setAssignment(e.target.value); setPage(1); }}><option value="">Бүх ажил</option><option value="missing">Гүйцэтгэгчгүй</option><option value="assigned">Гүйцэтгэгчтэй</option></select></label>
@@ -70,7 +73,7 @@ export function BlockWorkSequence({ blockId }: { blockId: string }) {
       {groupNames.some((name) => !ranks.has(name)) && <p className="rounded-lg border p-3 text-sm">Дараалал тохируулаагүй бүлгүүд жагсаалтын сүүлд байна.</p>}
       {!shown.length ? <EmptyState title="Ажил олдсонгүй" description="Шүүлтүүр эсвэл хайлтаа өөрчилнө үү." /> : <div className="space-y-3">{shown.map((w, index) => <article key={w.id} className="space-y-3 rounded-xl border bg-card p-4">
         {(index === 0 || shown[index - 1].workType.groupName !== w.workType.groupName) && <h3 className="border-b pb-2 font-semibold">{w.workType.groupName}{!ranks.has(w.workType.groupName) && " · Дараалал тохируулаагүй"}</h3>}
-        <div className="flex flex-wrap justify-between gap-3"><div><Link href={`/work-items/${w.id}`} className="font-medium hover:underline">{w.workType.name}</Link><p className="text-muted-foreground mt-1 text-sm">{w.location.path}</p></div>
+        <div className="flex flex-wrap justify-between gap-3"><div><Link href={`/work-items/${w.id}`} className="font-medium hover:underline">{w.workType.name}</Link><WorkCatalogIdentity entry={catalog.byWorkTypeId.get(w.workTypeId)} /><p className="text-muted-foreground mt-1 text-sm">{w.location.path}</p></div>
           <p className="text-sm">Эхлэх: {w.plannedStartDate ? formatDate(w.plannedStartDate) : "Тохируулаагүй"}<br />Дуусах: {formatDate(w.plannedEndDate)}</p></div>
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm"><p>Гүйцэтгэгч: {w.contractor?.name ?? "Оноогоогүй"}</p><div className="flex items-center gap-2"><span>Батлагдсан явц</span><ProgressBar value={w.percentage} className="w-20" /><span>{w.percentage}%</span></div></div>
         <WorkDependency id={w.id} />

@@ -119,6 +119,27 @@ export interface Location {
   sequenceNumber: number;
 }
 
+export interface WorkCatalogEntry {
+  id: string;
+  workTypeId: Uuid | null;
+  level: LocationLevel | null;
+  inferredLevel: LocationLevel | null;
+  locationLevelOverride: LocationLevel | null;
+  inUse: boolean;
+  systemCode: string;
+  sourceKey: string;
+  sourceRow: number;
+  sequenceNumber: number;
+  groupName: string;
+  subgroupNumber: string;
+  typeName: string;
+  name: string;
+  unit: string | null;
+  locationDescription: string | null;
+  floorDescription: string | null;
+  description: string | null;
+}
+
 export interface WorkTypeGroup {
   id: Uuid;
   name: string;
@@ -812,7 +833,7 @@ export interface ImportError {
  *
  * Материалын төсөвт хамаарахгүй: тэнд гүйцэтгэл гэж байхгүй.
  */
-export type ImportMode = "replace" | "update";
+export type ImportMode = "prices" | "replace" | "update";
 
 /** Төсвийн шинэ тоо нь мэдээлсэн хэмжээнээс БАГА болсон ажил. */
 export interface ImportConflict {

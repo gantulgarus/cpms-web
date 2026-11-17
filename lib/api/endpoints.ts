@@ -42,6 +42,7 @@ import type {
   ChecklistTemplate,
   ListEnvelope,
   Location,
+  LocationLevel,
   ManagedUser,
   QueueCounts,
   QueueType,
@@ -57,6 +58,7 @@ import type {
   WorkType,
   WorkTypeGroup,
   WorkTypeInput,
+  WorkCatalogEntry,
 } from "./types";
 
 export * from "./types";
@@ -145,7 +147,7 @@ export const blocks = {
     projectId: Uuid,
     body: {
       name: string;
-      buildingNo: string;
+      buildingNo?: string;
       startDate: string;
       designId?: Uuid;
       purpose?: string;
@@ -403,6 +405,12 @@ export const users = {
 };
 
 export const referenceData = {
+  catalog: () => request<{ data: WorkCatalogEntry[] }>("GET", "/work-catalog"),
+  deleteCatalog: (id: string) => request<void>("DELETE", `/work-catalog/${id}`),
+
+  updateCatalog: (id: string, body: { name: string; unit: string | null; description: string | null; level?: LocationLevel | null }) =>
+    request<Item<WorkCatalogEntry>>("PATCH", `/work-catalog/${id}`, { body }).then((r) => r.data),
+
   groups: () => request<ListEnvelope<WorkTypeGroup>>("GET", "/work-type-groups"),
 
   createGroup: (body: { name: string }) =>
@@ -787,7 +795,7 @@ export const budgetImports = {
    * `types` нь хоёр төсөвтэй файлаас нэгийг нь л оруулах боломж: нэг
    * хэсэг нь эвдэрсэн байхад нөгөөг нь хүлээлгэх шаардлагагүй.
    */
-  apply: (id: Uuid, types: BudgetImportType[], prune = false, mode: ImportMode = "replace") =>
+  apply: (id: Uuid, types: BudgetImportType[], prune = false, mode: ImportMode = "prices") =>
     request<ImportEnvelope>("POST", `/imports/${id}/apply`, { body: { types, prune, mode } }),
 
   discard: (id: Uuid) => request<Item<BudgetImport>>("DELETE", `/imports/${id}`).then((r) => r.data),

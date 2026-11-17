@@ -3,9 +3,7 @@
 /**
  * Шинэ блок үүсгэх — загвараас хувилах дэлгэц.
  *
- * Хэрэглэгч гурван зүйл л оруулна: нэр, барилгын дугаар, эхлэх огноо. Үлдсэнийг
- * загвар хийнэ — 3,000 орчим ажлын нэгж автоматаар үүснэ. Захиалагчийн 49
- * орон сууцны барилга ердөө 9 загвартай тул энэ дэлгэц 49 удаа ажиллана.
+ * Төсөл, барилгын нэр, эхлэх огноог сонгоод загварын ажлуудыг үүсгэнэ.
  *
  * Үүсгэлт хоёр алхамтай: эхлээд блок (шуурхай), дараа нь загвар буулгах ажил
  * (удаан, `jobId`-аар хянагдана). Poll хийх зам жинхэнэ backend дээр ч ижил.
@@ -57,13 +55,14 @@ export default function NewBlockPage() {
   const [unitsPerFloor, setUnitsPerFloor] = useState("9");
   const [purpose, setPurpose] = useState("Орон сууцны бүс");
   const [name, setName] = useState("");
-  const [buildingNo, setBuildingNo] = useState("");
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [startDate, setStartDate] = useState(today());
   const [job, setJob] = useState<Job | null>(null);
   /** Ажил эхлэхгүй удаж байна уу — дараалал боловсруулагчийн шинж. */
   const [stalled, setStalled] = useState(false);
 
-  const { project, isLoading: projectLoading } = useProject();
+  const { project, projects, select, isLoading: projectLoading, error: projectError } = useProject();
+  const selectedProject = projectId === null ? project : projects.find((item) => item.id === projectId);
 
   const designsQuery = useQuery({ queryKey: ["designs"], queryFn: () => blockDesigns.list() });
   const designs = designsQuery.data?.data ?? [];
@@ -72,11 +71,10 @@ export default function NewBlockPage() {
   const create = useMutation({
     mutationFn: async () => {
       // 1. Блок үүснэ — шуурхай.
-      if (!project) throw new Error("Төсөл олдсонгүй.");
+      if (!selectedProject) throw new Error("Төсөл сонгоно уу.");
 
-      const block = await blocks.create(project.id, {
+      const block = await blocks.create(selectedProject.id, {
         name: name.trim(),
-        buildingNo: buildingNo.trim(),
         // Загваргүй бол хэмжээг гараар авна — байршил тэр дор нь үүснэ.
         designId: designId || undefined,
         purpose: designId ? undefined : purpose.trim(),
@@ -117,6 +115,7 @@ export default function NewBlockPage() {
       return block;
     },
     onSuccess: (block) => {
+      select(block.projectId);
       qc.invalidateQueries({ queryKey: ["blocks"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
       toast.success(`${block.name} үүслээ. Одоо ажлын тохиргоогоо гүйцээнэ үү.`);
@@ -131,7 +130,7 @@ export default function NewBlockPage() {
   });
 
   const ready =
-    Boolean(project && name.trim() && startDate) &&
+    Boolean(selectedProject && name.trim() && startDate) &&
     (Boolean(designId) || Number(floors) > 0) &&
     !create.isPending;
 
@@ -140,12 +139,17 @@ export default function NewBlockPage() {
       <PageHeader
         title="Шинэ барилга үүсгэх"
         crumbs={[{ label: "Төслүүд", href: "/" }, { label: "Шинэ барилга" }]}
-        description="Стандарт загвараас хувилна, эсвэл хоосон үүсгээд загварыг дараа буулгана."
+        description="Загвараас лавлахын ажлуудыг үүсгээд тоо хэмжээг нөхнө. Төсвөөр зөвхөн нэгж үнэ оруулна."
       />
 
       {designsQuery.isLoading || projectLoading ? (
         <LoadingRows rows={3} />
-      ) : !project ? (
+      ) : projectError ? (
+        <ErrorState
+          message={(projectError as Error).message}
+          onRetry={() => qc.invalidateQueries({ queryKey: ["projects"] })}
+        />
+      ) : projects.length === 0 ? (
         <NoProjectState />
       ) : designsQuery.error ? (
         <ErrorState
@@ -155,6 +159,26 @@ export default function NewBlockPage() {
       ) : (
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
+            <Card>
+              <CardContent className="pt-6">
+                <FormField label="Төсөл" required>
+                  <select
+                    aria-label="Төсөл"
+                    value={selectedProject?.id ?? ""}
+                    onChange={(event) => setProjectId(event.target.value)}
+                    disabled={create.isPending}
+                    className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+                  >
+                    <option value="" disabled>Төсөл сонгоно уу</option>
+                    {projects.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}{item.companyName ? ` · ${item.companyName}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+              </CardContent>
+            </Card>
             <section>
               <h2 className="mb-3 text-sm font-medium">1. Зураг төслийн загвар сонгох</h2>
               <div className="space-y-2">
@@ -240,24 +264,14 @@ export default function NewBlockPage() {
                       disabled={create.isPending}
                     />
                   </FormField>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <FormField label="Ерөнхий төлөвлөгөөний дугаар">
-                      <Input
-                        value={buildingNo}
-                        onChange={(e) => setBuildingNo(e.target.value)}
-                        placeholder="19"
-                        disabled={create.isPending}
-                      />
-                    </FormField>
-                    <FormField label="Эхлэх огноо" required hint="Ажлын огноо эндээс тооцогдоно.">
-                      <Input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        disabled={create.isPending}
-                      />
-                    </FormField>
-                  </div>
+                  <FormField label="Эхлэх огноо" required hint="Ажлын огноо эндээс тооцогдоно.">
+                    <Input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      disabled={create.isPending}
+                    />
+                  </FormField>
                 </CardContent>
               </Card>
             </section>
@@ -294,8 +308,7 @@ export default function NewBlockPage() {
                         <AlertTriangle className="mt-0.5 size-4 shrink-0" />
                         <span>
                           {selected.missingQuantities} ажлын төрөлд тоо хэмжээ бүртгэгдээгүй.
-                          Тэдгээрт үлдэгдэл ажил бодогдохгүй — захиалагчаас тоо хэмжээ авсны дараа
-                          загвараа гүйцээнэ.
+                          Барилга үүссэний дараа «Тоо хэмжээ нөхөх» хэсгээр хэмжээг оруулна.
                         </span>
                       </div>
                     )}

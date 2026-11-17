@@ -29,6 +29,8 @@ import {
 } from "lucide-react";
 
 import { BlockWorkSequence } from "@/components/block-work-sequence";
+import { WorkCatalogIdentity } from "@/components/work-catalog-identity";
+import { useWorkCatalog } from "@/lib/api/use-work-catalog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { MyWorkList } from "@/components/my-work-list";
 import { BlockSetupProgress } from "@/components/block-setup-progress";
@@ -227,6 +229,9 @@ function BlockProgressContent() {
         }
         actions={
           <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setView("sequence")}>
+              Ажил хайх
+            </Button>
             {/* Загварт байхгүй ажил (нэмэлт хийц, гэрээний өөрчлөлт) бодит
                 амьдрал дээр байнга гардаг — хоосон блокийн функц биш. */}
             {me?.canEditPlan && (
@@ -608,6 +613,7 @@ function GroupDetail({
   meta?: { total: number; page: number; pageSize: number };
   onPage: (updater: (page: number) => number) => void;
 }) {
+  const catalog = useWorkCatalog();
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-1">
@@ -651,10 +657,11 @@ function GroupDetail({
             <TableBody>
               {query.data.data.map((w) => (
                 <TableRow key={w.id}>
-                  <TableCell className="font-medium">
+                  <TableCell className="min-w-64 max-w-md whitespace-normal align-top font-medium">
                     <Link href={`/work-items/${w.id}`} className="hover:underline">
                       {w.workType.name}
                     </Link>
+                    <WorkCatalogIdentity entry={catalog.byWorkTypeId.get(w.workTypeId)} />
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">{w.location.path}</TableCell>
                   <TableCell className="text-right tabular-nums">

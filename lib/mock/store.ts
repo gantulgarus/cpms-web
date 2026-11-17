@@ -854,6 +854,7 @@ export const MOCK_IDS = { projectId: PROJECT_ID, blockId: SEED_BLOCK_ID };
 // Блок үүсгэх + загвар буулгах
 // ---------------------------------------------------------------------------
 export interface CreateBlockInput {
+  projectId?: string;
   name: string;
   buildingNo: string;
   startDate: string;
@@ -887,7 +888,7 @@ export function createBlock(input: CreateBlockInput): Block | null {
 
   const block: Block = {
     id: mockId("blk"),
-    projectId: PROJECT_ID,
+    projectId: input.projectId ?? PROJECT_ID,
     buildingNo: input.buildingNo,
     name: input.name,
     purpose: spec?.purpose ?? input.purpose ?? "—",
