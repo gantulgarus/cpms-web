@@ -971,7 +971,8 @@ export const myWork = {
 };
 
 export const siteEngineerAssignments = {
+  assignInspectorSubgroup: (blockId: Uuid, workTypeGroupId: Uuid, subgroupNumber: string, inspectorId: string | null) => request<{ data: { updated: number } }>("POST", `/blocks/${blockId}/inspector-subgroup-assignments`, { body: { workTypeGroupId, subgroupNumber, inspectorId } }).then((r) => r.data),
   forBlock: (blockId: Uuid) => request<{ data: import("./types").SiteEngineerAssignmentSummary }>("GET", `/blocks/${blockId}/site-engineer-assignments`).then((r) => r.data),
-  assign: (blockId: Uuid, workTypeGroupId: Uuid, siteEngineerId: number | string | null) =>
-    request<{ data: { saved: boolean } }>("POST", `/blocks/${blockId}/site-engineer-assignments`, { body: { workTypeGroupId, siteEngineerId } }),
+  assign: (blockId: Uuid, workTypeGroupId: Uuid, siteEngineerId: number | string | null, subgroupNumber?: string) =>
+    request<{ data: { saved: boolean } }>("POST", `/blocks/${blockId}/site-engineer-assignments`, { body: { workTypeGroupId, siteEngineerId, ...(subgroupNumber !== undefined ? { subgroupNumber } : {}) } }),
 };

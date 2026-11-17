@@ -19,7 +19,6 @@ import { toast } from "sonner";
 
 import { PriorityContractorAssignment } from "@/components/priority-contractor-assignment";
 import { BulkAssignmentPanel } from "@/components/bulk-assignment-panel";
-import { SiteEngineerAssignmentPanel } from "@/components/site-engineer-assignment-panel";
 import { InspectorAssignmentPanel } from "@/components/inspector-assignment-panel";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/page-header";
@@ -224,10 +223,6 @@ export default function AssignmentsPage() {
           </TabsContent>
           {me?.canAssignInspectors && <TabsContent value="site-engineers" keepMounted>
             <BulkAssignmentPanel key={`${blockId}:site`} blockId={blockId} blockName={block.data?.name ?? "Барилга"} mode="site" />
-            <details className="rounded-xl border p-4">
-              <summary className="cursor-pointer text-sm font-medium">Бүлэг бүрийн инженерийг харах, өөрчлөх эсвэл оноолтыг авах</summary>
-              <div className="mt-4"><SiteEngineerAssignmentPanel key={blockId} blockId={blockId} /></div>
-            </details>
           </TabsContent>}
           {me?.canAssignInspectors && <TabsContent value="inspectors" keepMounted><InspectorAssignmentPanel key={blockId} blockId={blockId} /></TabsContent>}
         </Tabs>

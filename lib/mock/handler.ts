@@ -1077,6 +1077,8 @@ function filterWorkItems(items: WorkItem[], q: URLSearchParams): WorkItem[] {
   if (contractorId === "none") rows = rows.filter((w) => !w.contractor);
   else if (contractorId) rows = rows.filter((w) => w.contractor?.id === contractorId);
 
+  const subgroup = q.get("subgroupNumber");
+  if (subgroup) rows = rows.filter((work) => { const entry = catalogEntries.find((entry) => entry.workTypeId === work.workTypeId); return subgroup === "__none__" ? !entry : entry?.subgroupNumber === subgroup; });
   // `inspectorId=none` — хяналтын инженер оноогдоогүй · `me` — өөрийн ажил.
   const inspectorId = q.get("inspectorId");
   if (inspectorId === "none") rows = rows.filter((w) => !w.inspector);
@@ -1901,7 +1903,9 @@ const siteEngineerRules = new Map<string, string>();
 let siteEngineerDemoSeeded = false;
 function siteEngineerFor(item: WorkItem): MockUser | undefined {
   const groupId = getDb().workTypes.find((w) => w.id === item.workTypeId)?.groupId;
-  const id = siteEngineerRules.get(`${item.blockId}:${groupId}`);
+  const subgroup = catalogEntries.find((entry) => entry.workTypeId === item.workTypeId)?.subgroupNumber ?? "";
+  const key = `${item.blockId}:${groupId}:${subgroup}`;
+  const id = siteEngineerRules.has(key) ? siteEngineerRules.get(key) : siteEngineerRules.get(`${item.blockId}:${groupId}`);
   return mockUsers.find((u) => u.id === id);
 }
 function validSiteEngineer(user: MockUser | undefined, blockId: string): user is MockUser {
@@ -4180,14 +4184,27 @@ export function handleMock(
     }
 
     // Ажлын бүлэг бүр хэнд оноогдсон — "юу онооход үлдсэн бэ".
+    if (c === "inspector-subgroup-assignments" && method === "POST") {
+      if (!session.canAssignInspectors) return fail(403, "Forbidden", "Танд хяналтын инженер оноох эрх байхгүй.");
+      const input = (body ?? {}) as { workTypeGroupId?: string; subgroupNumber?: string | null; inspectorId?: string | number | null };
+      if (!("subgroupNumber" in input) || !("inspectorId" in input)) return fail(422, "ValidationError", "Дэд бүлэг, инженер сонгоно уу.");
+      const inspector = input.inspectorId === null ? null : mockUsers.find((user) => String(user.id) === String(input.inspectorId));
+      if (input.inspectorId !== null && (!inspector?.isActive || !INSPECTOR_ROLES.includes(inspector.role))) return fail(422, "ValidationError", "Батлах эрхтэй инженер сонгоно уу.");
+      const items = db.workItems.filter((work) => work.blockId === b && db.workTypes.find((type) => type.id === work.workTypeId)?.groupId === input.workTypeGroupId && (catalogEntries.find((entry) => entry.workTypeId === work.workTypeId)?.subgroupNumber ?? "") === (input.subgroupNumber ?? ""));
+      if (!items.length) return fail(422, "ValidationError", "Тухайн дэд бүлгийн ажил алга.");
+      for (const work of items) work.inspector = inspector ? { id: inspector.id, name: inspector.name, position: inspector.position ?? null } : null;
+      return ok({ data: { updated: items.length } });
+    }
+
     if (c === "site-engineer-assignments") {
       if (!session.canAssignInspectors) return fail(403, "Forbidden", "Танд талбайн инженер хуваарилах эрх байхгүй.");
       if (method === "POST") {
-        const input = body as { workTypeGroupId?: string; siteEngineerId?: number | string | null };
+        const input = body as { workTypeGroupId?: string; siteEngineerId?: number | string | null; subgroupNumber?: string };
         const group = db.groups.find((g) => g.id === input?.workTypeGroupId);
         if (!group || !("siteEngineerId" in (input ?? {}))) return fail(422, "ValidationError", "Ажлын бүлэг, инженер сонгоно уу.");
-        const key = `${b}:${group.id}`;
-        if (input.siteEngineerId === null) siteEngineerRules.delete(key);
+        if (input.subgroupNumber !== undefined && !db.workItems.some((work) => work.blockId === b && db.workTypes.find((type) => type.id === work.workTypeId)?.groupId === group.id && (catalogEntries.find((entry) => entry.workTypeId === work.workTypeId)?.subgroupNumber ?? "") === input.subgroupNumber)) return fail(422, "ValidationError", "Энэ барилгад тухайн дэд бүлгийн ажил алга.");
+        const key = `${b}:${group.id}${input.subgroupNumber !== undefined ? `:${input.subgroupNumber}` : ""}`;
+        if (input.siteEngineerId === null) { if (input.subgroupNumber !== undefined) siteEngineerRules.set(key, ""); else siteEngineerRules.delete(key); }
         else {
           const user = mockUsers.find((u) => String(u.id) === String(input.siteEngineerId));
           if (!validSiteEngineer(user, b)) return fail(422, "ValidationError", "Энэ барилгыг хариуцах идэвхтэй талбайн инженер сонгоно уу.");
@@ -4196,13 +4213,17 @@ export function handleMock(
         return ok({ data: { saved: true } });
       }
       const shape = (u: MockUser) => ({ id: u.id, name: u.name, position: u.position ?? null });
-      const groups = db.groups.map((g) => {
-        const items = db.workItems.filter((w) => w.blockId === b && db.workTypes.find((t) => t.id === w.workTypeId)?.groupId === g.id);
-        const user = mockUsers.find((u) => u.id === siteEngineerRules.get(`${b}:${g.id}`));
-        return { groupId: g.id, groupName: g.name, workItems: items.length,
-          pendingCheck: items.filter((w) => w.reviewState === "pending_check").length,
-          siteEngineer: user ? shape(user) : null, needsAssignment: !validSiteEngineer(user, b) };
-      }).filter((g) => g.workItems > 0);
+      const groups = db.groups.flatMap((g) => {
+        const allItems = db.workItems.filter((work) => work.blockId === b && db.workTypes.find((type) => type.id === work.workTypeId)?.groupId === g.id);
+        const subgroupOf = (work: WorkItem) => catalogEntries.find((entry) => entry.workTypeId === work.workTypeId)?.subgroupNumber ?? "";
+        return [...new Set(allItems.map(subgroupOf))].map((subgroupNumber) => {
+          const items = allItems.filter((work) => subgroupOf(work) === subgroupNumber);
+          const user = siteEngineerFor(items[0]);
+          return { groupId: g.id, groupName: g.name, subgroupNumber, typeName: catalogEntries.find((entry) => entry.workTypeId === items[0].workTypeId)?.typeName ?? null, workItems: items.length,
+            pendingCheck: items.filter((work) => work.reviewState === "pending_check").length,
+            siteEngineer: user ? shape(user) : null, needsAssignment: !validSiteEngineer(user, b) };
+        });
+      });
       return ok({ data: { groups, engineers: mockUsers.filter((u) => validSiteEngineer(u, b)).map(shape) } });
     }
 

@@ -443,6 +443,7 @@ export interface ExtensionRequest {
 }
 
 export interface WorkItemFilters {
+  subgroupNumber?: string;
   locationId?: Uuid;
   includeDescendants?: boolean;
   workTypeId?: Uuid;
@@ -1187,6 +1188,8 @@ export interface MyWorkEnvelope extends ListEnvelope<MyWorkItem> {
 
 export interface SiteEngineerAssignmentSummary {
   groups: {
+    subgroupNumber?: string;
+    typeName?: string | null;
     groupId: Uuid;
     groupName: string;
     workItems: number;
