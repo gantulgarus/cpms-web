@@ -131,15 +131,15 @@ function EditCatalog({ entry, onClose, create = false }: { entry: WorkCatalogEnt
     <FormField label="Ажлын код"><Input value={entry.systemCode} disabled /></FormField>
     {([
       ["groupName", "Бүлэг", 255], ["subgroupNumber", "Дэд бүлэг", 50], ["typeName", "Ажлын төрөл", 255],
-      ["locationDescription", "Байршил", 5000], ["floorDescription", "Давхар", 5000],
+      ["locationDescription", "Байршлын тайлбар", 5000], ["floorDescription", "Давхар", 5000],
     ] as const).map(([key, label, maxLength]) => <FormField key={key} label={label} required={["groupName", "subgroupNumber", "typeName"].includes(key)}>
       <Input aria-label={label} value={fields[key]} maxLength={maxLength} onChange={(event) => setFields({ ...fields, [key]: event.target.value })} />
     </FormField>)}
     <FormField label="Дэс дараалал" required><Input type="number" min={1} max={2147483647} value={fields.sequenceNumber} onChange={(event) => setFields({ ...fields, sequenceNumber: Number(event.target.value) })} /></FormField>
     <FormField label="Хийгдэх ажлын нэр" required><Input value={name} maxLength={255} onChange={(e) => setName(e.target.value)} /></FormField>
     <FormField label="Хэмжих нэгж" hint={entry.inUse ? "Төлөвлөгөөнд ашигласан тул нэгж өөрчлөх боломжгүй." : "Тодорхойгүй бол хоосон үлдээнэ."}><Input value={unit} disabled={entry.inUse} maxLength={20} onChange={(e) => setUnit(e.target.value)} /></FormField>
-    {needsClarification && <FormField label="Байршил тодруулах" hint={entry.inUse ? "Төлөвлөгөөнд ашигласан тул байршлын түвшин өөрчлөх боломжгүй." : "Эх мэдээлэл тодорхойгүй тул нэг удаа тодруулна уу."}>
-      <select aria-label="Байршил тодруулах" value={level} disabled={entry.inUse} onChange={(event) => setLevel(event.target.value as LocationLevel | "")} className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm">
+    {needsClarification && <FormField label="Ажил үүсгэх түвшин" hint={entry.inUse ? "Төлөвлөгөөнд ашигласан тул байршлын түвшин өөрчлөх боломжгүй." : "Барилгад нэг удаа, давхарт эсвэл айлд үүсгэхийг сонгоно уу."}>
+      <select aria-label="Ажил үүсгэх түвшин" value={level} disabled={entry.inUse} onChange={(event) => setLevel(event.target.value as LocationLevel | "")} className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm">
         {!entry.workTypeId && <option value="">Сонгоно уу</option>}
         {Object.entries(LEVEL_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
       </select>
