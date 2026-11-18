@@ -6,6 +6,8 @@
  * mock хийвэл хуудаслалтын алдааг нуух тул ашиггүй байх байсан.
  */
 import catalogSource from "../reference/work-catalog-20261116.json";
+import { sortWorkPlan } from "../work-sequence";
+import { orderWorkDependencies, type WorkExecutionPlan } from "../work-execution";
 import { inferWorkLocation, matchesCatalogFloor } from "../reference/infer-work-location";
 import type { WorkCatalogEntry } from "@/lib/api/types";
 
@@ -1929,6 +1931,36 @@ const mockProjects: Record<string, string | null>[] = [
   },
 ];
 
+const executionOrders = new Map<string, number>();
+const executionLinks = new Map<string, string[]>();
+const executionSnapshots = new Map<string, { snapshot: string; version: string }>();
+let nextExecutionVersion = 0;
+
+function executionPlanFor(blockId: string): WorkExecutionPlan {
+  const db = getDb();
+  const works = sortWorkPlan(db.workItems.filter((work) => work.blockId === blockId), catalogEntries, db.locations);
+  const order = works.sort((first, second) => {
+    const firstOrder = executionOrders.get(first.id);
+    const secondOrder = executionOrders.get(second.id);
+    if (firstOrder === undefined && secondOrder !== undefined) return -1;
+    if (firstOrder !== undefined && secondOrder === undefined) return 1;
+    return (firstOrder ?? 0) - (secondOrder ?? 0);
+  }).map((work) => work.id);
+  const known = new Set(order);
+  const predecessors: Record<string, string[]> = {};
+  for (const id of [...order].sort()) {
+    const previous = (executionLinks.get(id) ?? []).filter((previousId) => known.has(previousId)).sort();
+    if (previous.length) predecessors[id] = previous;
+  }
+  const snapshot = JSON.stringify({ order, predecessors });
+  let saved = executionSnapshots.get(blockId);
+  if (saved?.snapshot !== snapshot) {
+    saved = { snapshot, version: (++nextExecutionVersion).toString(16).padStart(64, "0") };
+    executionSnapshots.set(blockId, saved);
+  }
+  return { order, predecessors, version: saved!.version, hasOrder: order.some((id) => executionOrders.has(id)) };
+}
+
 const siteEngineerRules = new Map<string, string>();
 let siteEngineerDemoSeeded = false;
 function siteEngineerFor(item: WorkItem): MockUser | undefined {
@@ -3473,6 +3505,41 @@ export function handleMock(
       return fail(403, "Forbidden", "Танд энэ блокийг харах эрх байхгүй.");
     }
 
+    if (c === "execution-plan") {
+      const current = executionPlanFor(b);
+      if (method === "GET" && !segments[3]) {
+        const visible = new Set(inScope(blockItems).map((work) => work.id));
+        return ok({ data: { ...current, order: current.order.filter((id) => visible.has(id)), predecessors: Object.fromEntries(Object.entries(current.predecessors).filter(([id]) => visible.has(id)).map(([id, previous]) => [id, previous.filter((previousId) => visible.has(previousId))])) } });
+      }
+      if (!session.canEditPlan) return fail(403, "Forbidden", "Танд ажлын төлөвлөгөө засах эрх байхгүй.");
+      const input = (body ?? {}) as { version?: string; workItemId?: string; relativeToId?: string; position?: string; links?: { workItemId: string; predecessorIds: string[] }[] };
+      if (input.version !== current.version) return fail(409, "Conflict", "Төлөвлөгөө өөрчлөгдсөн байна. Дахин ачаалаад оролдоно уу.");
+      const known = new Set(current.order);
+      if (method === "POST" && segments[3] === "move") {
+        if (!known.has(input.workItemId ?? "") || !known.has(input.relativeToId ?? "") || input.workItemId === input.relativeToId || !["before", "after"].includes(input.position ?? "")) return fail(422, "ValidationError", "Энэ барилгын хоёр өөр ажил сонгоно уу.");
+        const order = current.order.filter((id) => id !== input.workItemId);
+        order.splice(order.indexOf(input.relativeToId!) + (input.position === "after" ? 1 : 0), 0, input.workItemId!);
+        const ranks = new Map(order.map((id, index) => [id, index]));
+        if (Object.entries(current.predecessors).some(([id, previous]) => previous.some((previousId) => ranks.get(previousId)! >= ranks.get(id)!))) return fail(422, "ValidationError", "Өмнөх ажил дараагийн ажлынхаа урд байрлах ёстой.");
+        order.forEach((id, index) => executionOrders.set(id, index + 1));
+        return ok({ data: executionPlanFor(b) });
+      }
+      if (method === "POST" && segments[3] === "dependencies") {
+        if (!Array.isArray(input.links) || !input.links.length || input.links.length > 2000 || new Set(input.links.map((link) => link.workItemId)).size !== input.links.length) return fail(422, "ValidationError", "Ажлын холбоосоо шалгана уу.");
+        const predecessors = { ...current.predecessors };
+        for (const link of input.links) {
+          if (!known.has(link.workItemId) || !Array.isArray(link.predecessorIds) || link.predecessorIds.length > 2000 || link.predecessorIds.some((id) => !known.has(id) || id === link.workItemId)) return fail(422, "ValidationError", "Ажил өөрөөсөө эсвэл өөр барилгын ажлаас хамаарах боломжгүй.");
+          predecessors[link.workItemId] = [...new Set(link.predecessorIds)];
+        }
+        const order = orderWorkDependencies(current.order, predecessors);
+        if (!order) return fail(422, "ValidationError", "Ажил хооронд тойрог хамаарал үүсэхээр байна.");
+        for (const link of input.links) executionLinks.set(link.workItemId, predecessors[link.workItemId]);
+        order.forEach((id, index) => executionOrders.set(id, index + 1));
+        return ok({ data: executionPlanFor(b) });
+      }
+      return fail(405, "MethodNotAllowed", "Энэ үйлдэл дэмжигдэхгүй.");
+    }
+
     if (!c && method === "DELETE") {
       if (session.role !== "admin") {
         return fail(403, "Forbidden", "Блок устгах эрх зөвхөн админд байна.");
@@ -4424,6 +4491,10 @@ export function handleMock(
         const qty = Number(p?.plannedQty) || 0;
         const skipped: { name: string; reason: string }[] = [];
         let created = 0;
+        if (ids.some((id) => !db.workTypes.some((type) => type.id === id))) return fail(422, "ValidationError", "Ажлын төрөл олдсонгүй.");
+        const existingOrder = executionPlanFor(b).order;
+        existingOrder.forEach((id, index) => executionOrders.set(id, index + 1));
+        let planOrder = existingOrder.length;
 
         for (const id of ids) {
           const wt = db.workTypes.find((x) => x.id === id);
@@ -4495,6 +4566,7 @@ export function handleMock(
             };
             db.workItems.push(item);
             db.byId.set(item.id, item);
+            executionOrders.set(item.id, ++planOrder);
             created++;
           }
         }

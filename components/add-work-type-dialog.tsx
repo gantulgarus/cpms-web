@@ -118,6 +118,8 @@ export function AddWorkTypeDialog({
       reset();
       qc.invalidateQueries({ queryKey: ["summary"] });
       qc.invalidateQueries({ queryKey: ["work-items"] });
+      qc.invalidateQueries({ queryKey: ["assignment-priority", blockId] });
+      qc.invalidateQueries({ queryKey: ["execution-plan", blockId] });
       qc.invalidateQueries({ queryKey: ["assignments"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
       onDone?.();
@@ -240,7 +242,7 @@ export function AddWorkTypeDialog({
                         >
                           {on && <Check className="size-3" />}
                         </span>
-                        <span className="min-w-0 flex-1 whitespace-normal break-words">{t.name}</span>
+                        <span className="min-w-0 flex-1 whitespace-normal break-words">{t.name}{on && <span className="text-muted-foreground ml-2 text-xs">Сонголт {[...picked].indexOf(t.id) + 1}</span>}</span>
                         <span className="text-muted-foreground shrink-0 text-xs">{t.unit}</span>
                       </button>
                     );
@@ -252,6 +254,7 @@ export function AddWorkTypeDialog({
         </div>
       </FormField>
 
+      <p className="text-muted-foreground text-xs">Ажлуудыг сонгосон дарааллаар гүйцэтгэх төлөвлөгөөний төгсгөлд нэмнэ.</p>
       <FormField label="Тоо хэмжээ (нэг байршилд)" hint="Хоосон бол дараа нь оруулж болно.">
         <Input
           type="number"

@@ -14,6 +14,7 @@
     "scripts/verify-my-work.ts",
     "scripts/verify-site-engineers.ts",
     "scripts/verify-assignment-priority.ts",
-    "scripts/verify-work-dates.ts"
+    "scripts/verify-work-dates.ts",
+    "scripts/verify-work-execution.ts"
   ]
 }

@@ -423,6 +423,12 @@ export const referenceData = {
  * Тэдгээр нь `plannedQty = 0` болж үүсэх бөгөөд үлдэгдэл 0 тул гүйцэтгэл
  * оруулах боломжгүй болдог.
  */
+export const workExecution = {
+  get: (blockId: Uuid) => request<Item<import("../work-execution").WorkExecutionPlan>>("GET", `/blocks/${blockId}/execution-plan`).then((response) => response.data),
+  move: (blockId: Uuid, body: { workItemId: string; relativeToId: string; position: "before" | "after"; version: string }) => request<Item<import("../work-execution").WorkExecutionPlan>>("POST", `/blocks/${blockId}/execution-plan/move`, { body }).then((response) => response.data),
+  setDependencies: (blockId: Uuid, body: { version: string; links: import("../work-execution").WorkDependencyLink[] }) => request<Item<import("../work-execution").WorkExecutionPlan>>("POST", `/blocks/${blockId}/execution-plan/dependencies`, { body }).then((response) => response.data),
+};
+
 export const plan = {
   setDates: (blockId: Uuid, body: { workTypeId: Uuid; locationIds: Uuid[]; plannedStartDate: string; plannedEndDate: string; overwriteManual: boolean }) => request<Item<{ updated: number; skipped: number }>>("POST", `/blocks/${blockId}/work-items/set-dates`, { body }).then((r) => r.data),
   setActualDates: (id: Uuid, body: { actualStartDate: string | null; actualEndDate: string | null }) => request<Item<WorkItem>>("PATCH", `/work-items/${id}/actual-dates`, { body }).then((r) => r.data),

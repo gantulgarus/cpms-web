@@ -159,6 +159,8 @@ export default function WorkItemDetailPage() {
   /** Явц/шалгалт нэмэгдэхэд дүн, жагсаалт, нэгтгэл бүгд хуучирна. */
   const refreshAll = () => {
     qc.invalidateQueries({ queryKey: ["work-items", "my-work"] });
+    qc.invalidateQueries({ queryKey: ["assignment-priority"] });
+    qc.invalidateQueries({ queryKey: ["execution-plan"] });
     qc.invalidateQueries({ queryKey: ["work-item", workItemId] });
     qc.invalidateQueries({ queryKey: ["progress", workItemId] });
     qc.invalidateQueries({ queryKey: ["inspections", workItemId] });
@@ -173,6 +175,8 @@ export default function WorkItemDetailPage() {
     mutationFn: () => plan.deleteWorkItem(workItemId),
     onSuccess: () => {
       toast.success("Ажил устгагдлаа");
+      qc.invalidateQueries({ queryKey: ["assignment-priority"] });
+      qc.invalidateQueries({ queryKey: ["execution-plan"] });
       qc.invalidateQueries({ queryKey: ["summary"] });
       qc.invalidateQueries({ queryKey: ["work-items"] });
       router.push(item ? `/blocks/${item.blockId}` : "/blocks");
