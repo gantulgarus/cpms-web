@@ -1,0 +1,37 @@
+import assert from "node:assert/strict";
+import { handleMock } from "../lib/mock/handler";
+import { getDb, MOCK_IDS } from "../lib/mock/store";
+import type { WorkItem } from "../lib/api/types";
+
+const call = (method: string, path: string, payload?: unknown) => handleMock(method, path.split("/"), "", payload);
+call("POST", "auth/login", { email: "admin@cpms.test" });
+const db = getDb();
+const block = (call("POST", `projects/${MOCK_IDS.projectId}/blocks`, { name: "Хугацааны тест", floors: 2, unitsPerFloor: 1, startDate: "2026-11-01" }).body as { data: { id: string } }).data;
+const type = db.workTypes.find((type) => type.level === "floor")!;
+assert.equal(call("POST", `blocks/${block.id}/work-items`, { workTypeIds: [type.id], plannedQty: 10 }).status, 201);
+const items = db.workItems.filter((work) => work.blockId === block.id && work.workTypeId === type.id);
+assert.ok(items.length >= 2);
+const first = items[0]; const second = items[1];
+assert.equal(call("PATCH", `work-items/${first.id}`, { plannedStartDate: "2026-11-01", plannedEndDate: "2026-11-10" }).status, 200);
+assert.equal(first.scheduleManual, true);
+call("POST", `blocks/${block.id}/schedule`, { taktDays: 12 });
+assert.equal(first.plannedEndDate, "2026-11-10", "Automatic schedules preserve manual dates");
+const batch = call("POST", `blocks/${block.id}/work-items/set-dates`, { workTypeId: type.id, locationIds: [first.locationId, second.locationId], plannedStartDate: "2026-11-02", plannedEndDate: "2026-11-11", overwriteManual: false });
+assert.equal(batch.status, 200);
+assert.deepEqual((batch.body as { data: { updated: number; skipped: number } }).data, { updated: 1, skipped: 1 });
+assert.equal(first.plannedEndDate, "2026-11-10");
+assert.equal(second.plannedEndDate, "2026-11-11");
+assert.equal(call("PATCH", `work-items/${first.id}/actual-dates`, { actualStartDate: "2026-11-01", actualEndDate: "2026-11-12" }).status, 422);
+// The fixture represents a fully reported quantity still awaiting final approval.
+first.reportedQty = 10;
+assert.equal(call("PATCH", `work-items/${first.id}/actual-dates`, { actualStartDate: "2026-11-01", actualEndDate: "2026-11-12" }).status, 200);
+const saved = (call("GET", `work-items/${first.id}`).body as { data: WorkItem }).data;
+assert.equal(saved.actualEndDate, "2026-11-12");
+assert.equal(saved.actualDurationDays, 12);
+assert.equal(saved.completionDelayDays, 2);
+assert.equal(saved.approvedCompletedAt ?? null, null, "Physical completion is separate from approval");
+assert.equal(call("PATCH", `work-items/${first.id}/actual-dates`, { actualStartDate: "2099-11-01", actualEndDate: null }).status, 422);
+assert.equal(call("PATCH", `work-items/${first.id}/actual-dates`, { actualStartDate: "2026-11-12", actualEndDate: "2026-11-01" }).status, 422);
+call("POST", "auth/login", { email: "site_engineer@cpms.test" });
+assert.equal(call("POST", `blocks/${block.id}/work-items/set-dates`, { workTypeId: type.id, locationIds: [first.locationId], plannedStartDate: "2026-11-02", plannedEndDate: "2026-11-13" }).status, 403);
+console.log("PASS: selected locations, protected manual schedules, actual-date validation, duration/delay and separate approval.");

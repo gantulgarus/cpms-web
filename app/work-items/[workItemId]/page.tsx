@@ -42,6 +42,7 @@ import { DeadlineExtensionAction } from "@/components/deadline-extension-action"
 import { IssuePanel } from "@/components/issue-panel";
 import { PhotoGallery } from "@/components/photo-gallery";
 import { downscale, PhotoPicker, type PickedPhoto } from "@/components/photo-picker";
+import { WorkDatesPanel } from "@/components/work-dates-panel";
 import { PlanQuantityDialog } from "@/components/plan-quantity-dialog";
 import { ErrorState, LoadingRows } from "@/components/states";
 import { ReviewStateBadge, ToneBadge } from "@/components/tone-badge";
@@ -62,6 +63,7 @@ import { type Me, useMe } from "@/lib/api/use-me";
 import { useProject } from "@/lib/api/use-project";
 import {
   formatDate,
+  todayInProjectZone,
   formatDateTime,
   formatQty,
   INSPECTION_ACTION,
@@ -238,6 +240,7 @@ export default function WorkItemDetailPage() {
         <WorkCatalogIdentity entry={catalog.byWorkTypeId.get(item.workTypeId)} />
       </div>
 
+      <WorkDatesPanel item={item} canPlan={Boolean(me?.canEditPlan)} canRecordActual={Boolean(me?.canEditPlan || me?.canReportProgress)} />
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="min-w-0 space-y-6 lg:col-span-2">
           {/* Хугацаа хэтэрсэн бол шалтгааныг нь бүртгүүлж, огноог сунгах
@@ -514,7 +517,7 @@ function QuantityCard({
             </dd>
           </div>
           <Detail
-            label="Хугацаа"
+            label="Төлөвлөсөн хугацаа"
             value={`${item.plannedStartDate ?? "—"} — ${item.plannedEndDate ?? "—"}`}
           />
         </dl>
@@ -535,6 +538,10 @@ function Detail({ label, value }: { label: string; value: string }) {
 // ---------------------------------------------------------------------------
 
 function ReportProgressCard({ item, onDone }: { item: WorkItem; onDone: () => void }) {
+  const today = todayInProjectZone();
+  const [actualStart, setActualStart] = useState(item.actualStartDate ?? item.actualStartSuggestion ?? today);
+  const [finished, setFinished] = useState(false);
+  const [actualEnd, setActualEnd] = useState(today);
   const [qty, setQty] = useState("");
   const [workers, setWorkers] = useState("");
   const [remarks, setRemarks] = useState("");
@@ -559,6 +566,7 @@ function ReportProgressCard({ item, onDone }: { item: WorkItem; onDone: () => vo
 
   const reset = () => {
     setQty("");
+    setFinished(false);
     setWorkers("");
     setRemarks("");
     picked.forEach((p) => URL.revokeObjectURL(p.previewUrl));
@@ -580,6 +588,8 @@ function ReportProgressCard({ item, onDone }: { item: WorkItem; onDone: () => vo
      */
     mutationFn: async () => {
       const entry = await workItems.addProgress(item.id, {
+        actualStartDate: actualStart,
+        ...(finished && Number(qty) + 0.001 >= remaining ? { actualEndDate: actualEnd } : {}),
         completedQty: Number(qty),
         workersCount: workers ? Number(workers) : undefined,
         remarks: remarks.trim() || undefined,
@@ -700,6 +710,11 @@ function ReportProgressCard({ item, onDone }: { item: WorkItem; onDone: () => vo
           <Textarea rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} />
         </FormField>
 
+        <label className="block space-y-1 text-sm"><span>Бодитоор эхэлсэн огноо</span><Input type="date" max={today} value={actualStart} onChange={(event) => setActualStart(event.target.value)} /><span className="text-muted-foreground block text-xs">Анхны гүйцэтгэлээс санал болгосон огноог бодит эхэлсэн өдөртэй тулгаж баталгаажуулна уу.</span></label>
+        {Number(qty) > 0 && Number(qty) + 0.001 >= remaining && <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={finished} onChange={(event) => setFinished(event.target.checked)} />Энэ ажил бодитоор бүрэн дууссан</label>
+          {finished && <label className="block space-y-1 text-sm"><span>Бодитоор дууссан огноо</span><Input type="date" min={actualStart} max={today} value={actualEnd} onChange={(event) => setActualEnd(event.target.value)} /><span className="text-muted-foreground block text-xs">Хяналтын инженерийн баталсан огнооноос тусдаа бүртгэнэ.</span></label>}
+        </div>}
         <PhotoPicker
           picked={picked}
           type={photoType}
@@ -748,7 +763,7 @@ function ReportProgressCard({ item, onDone }: { item: WorkItem; onDone: () => vo
         <Button
           className="w-full"
           disabled={
-            !qty ||
+            !qty || !actualStart || actualStart > today || (finished && Number(qty) + 0.001 >= remaining && (!actualEnd || actualEnd < actualStart || actualEnd > today)) ||
             invalid ||
             remaining <= 0 ||
             submit.isPending ||

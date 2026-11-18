@@ -48,10 +48,11 @@ export function FloorDurationDialog({
     onSuccess: (res) => {
       toast.success(
         `${res.updated} ажлын огноо шинэчлэгдлээ` +
-          (res.frozen ? ` · ${res.frozen} батлагдсан ажил хэвээр` : ""),
+          (res.frozen ? ` · ${res.frozen} хамгаалагдсан ажил хэвээр` : ""),
       );
       onOpenChange(false);
       qc.invalidateQueries({ queryKey: ["work-items"] });
+      for (const key of ["work-item", "assignment-priority", "block-report"]) void qc.invalidateQueries({ queryKey: [key] });
       qc.invalidateQueries({ queryKey: ["summary"] });
       qc.invalidateQueries({ queryKey: ["block", blockId] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
@@ -66,8 +67,8 @@ export function FloorDurationDialog({
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Давхрын хугацаа"
-      submitLabel="Хуваарь дахин татах"
+      title="Анхны автомат хуваарь"
+      submitLabel="Автомат хуваарь тооцох"
       submitDisabled={!valid}
       pending={run.isPending}
       onSubmit={() => run.mutate()}
@@ -105,7 +106,7 @@ export function FloorDurationDialog({
         </p>
         <p>Бямба, ням тооцоонд орохгүй.</p>
         <p>
-          <strong>Батлагдсан ажлын огноо хөндөгдөхгүй</strong> — эс бөгөөс хуваарь татах бүрд
+          <strong>Гараар төлөвлөсөн, эхэлсэн болон батлагдсан ажлын огноо хөндөгдөхгүй</strong> — эс бөгөөс хуваарь татах бүрд
           хоцролт арилах болно.
         </p>
       </div>

@@ -190,20 +190,7 @@ export const workTypes = {
 export const workItems = {
   listForBlock: (blockId: Uuid, filters: WorkItemFilters = {}) =>
     request<ListEnvelope<WorkItem>>("GET", `/blocks/${blockId}/work-items`, {
-      query: {
-        locationId: filters.locationId,
-        includeDescendants: filters.includeDescendants,
-        workTypeId: filters.workTypeId,
-        workTypeGroupId: filters.workTypeGroupId,
-        contractorId: filters.contractorId,
-        inspectorId: filters.inspectorId,
-        status: filters.status,
-        reviewState: filters.reviewState,
-        overdueDays: filters.overdueDays,
-        search: filters.search,
-        page: filters.page,
-        pageSize: filters.pageSize,
-      },
+      query: { ...filters },
     }),
 
   get: (id: Uuid) => request<Item<WorkItem>>("GET", `/work-items/${id}`).then((r) => r.data),
@@ -437,6 +424,8 @@ export const referenceData = {
  * оруулах боломжгүй болдог.
  */
 export const plan = {
+  setDates: (blockId: Uuid, body: { workTypeId: Uuid; locationIds: Uuid[]; plannedStartDate: string; plannedEndDate: string; overwriteManual: boolean }) => request<Item<{ updated: number; skipped: number }>>("POST", `/blocks/${blockId}/work-items/set-dates`, { body }).then((r) => r.data),
+  setActualDates: (id: Uuid, body: { actualStartDate: string | null; actualEndDate: string | null }) => request<Item<WorkItem>>("PATCH", `/work-items/${id}/actual-dates`, { body }).then((r) => r.data),
   updateWorkItem: (
     id: Uuid,
     body: { plannedQty?: number; plannedStartDate?: string; plannedEndDate?: string },

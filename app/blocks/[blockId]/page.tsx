@@ -28,7 +28,7 @@ import {
   Wallet,
 } from "lucide-react";
 
-import { BlockWorkSequence } from "@/components/block-work-sequence";
+import { BlockWorkPlan } from "@/components/block-work-plan";
 import { WorkCatalogIdentity } from "@/components/work-catalog-identity";
 import { useWorkCatalog } from "@/lib/api/use-work-catalog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -146,6 +146,7 @@ function BlockProgressContent() {
   const filters = useMemo<WorkItemFilters>(
     () => ({
       ...(active?.filter ?? {}),
+      sort: "workCode",
       reviewState: reviewState || undefined,
       page,
       pageSize: PAGE_SIZE,
@@ -224,26 +225,19 @@ function BlockProgressContent() {
         crumbs={[{ label: "Барилгууд", href: "/blocks" }, { label: blockQuery.data?.name ?? "Барилга" }]}
         description={
           blockQuery.data
-            ? `${blockQuery.data.floors} давхар · ${blockQuery.data.unitCount} айл · барилга №${blockQuery.data.buildingNo} · давхар тутам ${blockQuery.data.taktDays ?? 5} хоног`
+            ? `${blockQuery.data.floors} давхар · ${blockQuery.data.unitCount} айл · барилга №${blockQuery.data.buildingNo}`
             : undefined
         }
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => setView("sequence")}>
-              Ажил хайх
+            <Button variant="outline" onClick={() => setView("plan")}>
+              <CalendarClock className="size-4" /> Ажлын төлөвлөгөө
             </Button>
             {/* Загварт байхгүй ажил (нэмэлт хийц, гэрээний өөрчлөлт) бодит
                 амьдрал дээр байнга гардаг — хоосон блокийн функц биш. */}
             {me?.canEditPlan && (
               <Button variant="outline" onClick={() => setAddingWork(true)}>
                 <Plus className="size-4" /> Ажил нэмэх
-              </Button>
-            )}
-            {/* Давхрын хугацаа. Огноо буруу бол хоцролтын тоо бүхэлдээ
-                утгагүй болох тул засах зам байх ёстой. */}
-            {me?.canEditPlan && (
-              <Button variant="outline" onClick={() => setEditingDuration(true)}>
-                <CalendarClock className="size-4" /> Хуваарь
               </Button>
             )}
             {/* Тоо хэмжээгүй ажил байхад л гарна — байхгүй бол шуугиан. */}
@@ -333,7 +327,7 @@ function BlockProgressContent() {
           me={me}
           onAdd={() => setAddingWork(true)}
           onQuantities={() => setFixingQuantities(true)}
-          onSchedule={() => setEditingDuration(true)}
+          onSchedule={() => setView("plan")}
           onInspectors={() => {
             setView("progress");
             setFocus({ key: "inspectors", label: "Хяналтын инженер оноох ажлууд", filter: { inspectorId: "none" } });
@@ -378,9 +372,18 @@ function BlockProgressContent() {
       <Tabs value={view} onValueChange={(value) => setView(String(value))} className="mt-6">
         <TabsList className="mb-3 h-auto!" aria-label="Барилгын ажлын харагдац">
           <TabsTrigger value="progress" className="min-h-10 px-4">Гүйцэтгэлийн тойм</TabsTrigger>
-          <TabsTrigger value="sequence" className="min-h-10 px-4">Ажлын дараалал</TabsTrigger>
+          <TabsTrigger value="plan" className="min-h-10 px-4">Ажлын төлөвлөгөө</TabsTrigger>
         </TabsList>
-        <TabsContent value="sequence"><BlockWorkSequence key={blockId} blockId={blockId} /></TabsContent>
+        <TabsContent value="plan">
+          <div className="space-y-5">
+            <BlockWorkPlan key={blockId} blockId={blockId} />
+            {me?.canEditPlan && <details className="rounded-xl border p-4">
+              <summary className="cursor-pointer text-sm font-medium">Нэмэлт · Анхны автомат хуваарь</summary>
+              <p className="text-muted-foreground my-3 text-sm">Эхлээгүй, гараар төлөвлөөгүй ажлуудын огноог давхрын хэмнэлээр тооцно. Гараар төлөвлөсөн, гүйцэтгэл мэдээлсэн болон батлагдсан ажлуудыг алгасана.</p>
+              <Button variant="outline" onClick={() => setEditingDuration(true)}>Автомат хуваарь тооцох</Button>
+            </details>}
+          </div>
+        </TabsContent>
         <TabsContent value="progress">
       {/* Ажилгүй блок бол мухардмал төлөв болох ёсгүй — гарцыг нь тэр
           дор нь харуулна. */}

@@ -484,6 +484,8 @@ function applyExtension(req: ExtensionRequest, decidedBy: string): void {
   if (!item) return;
 
   item.plannedEndDate = req.requestedEndDate;
+  item.scheduleManual = true;
+  refreshActualDates(item);
 
   const today = new Date().toISOString().slice(0, 10);
   const since = (date?: string | null) =>
@@ -1001,7 +1003,7 @@ function applyPlannedQty(item: WorkItem, qty: number): void {
   item.status =
     item.acceptedQty >= qty && qty > 0
       ? "completed"
-      : item.reportedQty > 0
+      : item.reportedQty > 0 || item.actualStartDate
         ? "in_progress"
         : "not_started";
 }
@@ -1100,6 +1102,15 @@ function filterWorkItems(items: WorkItem[], q: URLSearchParams): WorkItem[] {
       (w) =>
         w.name.toLowerCase().includes(search) || w.location.path.toLowerCase().includes(search),
     );
+  }
+  if (q.get("sort") === "workCode") {
+    const codeIds = new Map(catalogEntries.map((entry) => [entry.workTypeId, Number(entry.id)]));
+    rows = [...rows].sort((a, b) => {
+      const first = codeIds.get(a.workTypeId);
+      const second = codeIds.get(b.workTypeId);
+      if (first !== second) return first === undefined ? 1 : second === undefined ? -1 : first - second;
+      return a.workTypeId.localeCompare(b.workTypeId) || a.locationId.localeCompare(b.locationId) || a.id.localeCompare(b.id);
+    });
   }
   return rows;
 }
@@ -1356,7 +1367,23 @@ function applyStage(item: WorkItem) {
   item.stagePool = item.nextStage ? stagePool(item, item.nextStage) : 0;
 }
 
+function validWorkDate(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+}
+function actualDatesError(item: WorkItem, start: unknown, end: unknown, reportingQty = 0): MockResponse | null {
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ulaanbaatar" });
+  if ((start !== null && !validWorkDate(start)) || (end !== null && !validWorkDate(end)) || (typeof start === "string" && start > today) || (typeof end === "string" && end > today) || (end && (!start || String(end) < String(start)))) return fail(422, "ValidationError", "Бодит эхлэх, дуусах огноогоо шалгана уу.");
+  if (end && (item.plannedQty <= 0 || item.reportedQty + reportingQty + 0.001 < item.plannedQty)) return fail(422, "ValidationError", "Бүх тоо хэмжээний гүйцэтгэлийг мэдээлсний дараа дууссан огноог оруулна уу.");
+  return null;
+}
+function refreshActualDates(item: WorkItem) {
+  item.actualDurationDays = item.actualStartDate && item.actualEndDate ? Math.round((Date.parse(item.actualEndDate) - Date.parse(item.actualStartDate)) / 86400000) + 1 : null;
+  item.completionDelayDays = item.actualEndDate && item.plannedEndDate ? Math.max(0, Math.round((Date.parse(item.actualEndDate) - Date.parse(item.plannedEndDate)) / 86400000)) : null;
+}
+
 function recalc(item: WorkItem) {
+  if (item.reportedQty + 0.001 < item.plannedQty) item.actualEndDate = null;
+  refreshActualDates(item);
   item.remainingQty = round(Math.max(item.plannedQty - item.acceptedQty, 0));
   item.percentage =
     item.plannedQty > 0 ? Math.round((item.acceptedQty / item.plannedQty) * 100) : 0;
@@ -1365,14 +1392,17 @@ function recalc(item: WorkItem) {
   item.status =
     item.plannedQty > 0 && item.acceptedQty >= item.plannedQty
       ? "completed"
-      : item.reportedQty > 0
+      : item.reportedQty > 0 || item.actualStartDate
         ? "in_progress"
         : "not_started";
 
   // Дууссан ажил хоцорсонд тооцогдохгүй — backend-ийн `getOverdueDaysAttribute`
   // мөн адил 0 буцаадаг. Энэ мөр байхгүй үед самбар «99 хоцорсон» гээд
   // дараалал 98 мөр нээж, хоёр тоо зөрдөг байв.
-  if (item.status === "completed") item.overdueDays = 0;
+  if (item.status === "completed") {
+    item.overdueDays = 0;
+    item.approvedCompletedAt = [...(extraInspections.get(item.id) ?? []), ...inspectionsFor(item)].filter((inspection) => inspection.stage === "final_approval" && inspection.acceptedQty > 0).map((inspection) => inspection.inspectedAt).sort().at(-1) ?? null;
+  } else item.approvedCompletedAt = null;
 }
 
 // ---------------------------------------------------------------------------
@@ -3758,6 +3788,9 @@ export function handleMock(
             acceptedVariancePercent: null,
           },
           schedule: {
+            actualStartedItems: items.filter((work) => work.actualStartDate).length,
+            actualFinishedItems: items.filter((work) => work.actualEndDate).length,
+            actualLateItems: items.filter((work) => work.actualEndDate && work.plannedEndDate && work.actualEndDate > work.plannedEndDate).length,
             plannedStart: block.startDate ?? null,
             plannedEnd: null,
             baselineEnd: null,
@@ -4322,7 +4355,7 @@ export function handleMock(
       for (const w of blockItems) {
         // Батлагдсан ажлын огноог хойшлуулж болдог бол хоцролт бүрийг арилгах
         // боломжтой болно — хэмжилт утгагүй болно.
-        if (w.acceptedQty > 0) {
+        if (w.acceptedQty > 0 || w.scheduleManual || w.actualStartDate || w.reportedQty > 0 || (extraProgress.get(w.id)?.length ?? 0) > 0) {
           frozen++;
           continue;
         }
@@ -4340,6 +4373,7 @@ export function handleMock(
 
         w.plannedStartDate = win.plannedStartDate;
         w.plannedEndDate = win.plannedEndDate;
+        w.baselineEndDate = win.plannedEndDate;
         w.overdueDays =
           w.status !== "completed" && win.plannedEndDate < new Date().toISOString().slice(0, 10)
             ? Math.round((Date.now() - Date.parse(`${win.plannedEndDate}T00:00:00Z`)) / 86_400_000)
@@ -4348,6 +4382,22 @@ export function handleMock(
       }
 
       return ok({ data: { taktDays: takt, updated, frozen } });
+    }
+
+    if (c === "work-items" && segments[3] === "set-dates" && method === "POST") {
+      if (!session.canEditPlan) return fail(403, "Forbidden", "Танд хугацаа төлөвлөх эрх байхгүй.");
+      const input = (body ?? {}) as { workTypeId?: string; locationIds?: string[]; plannedStartDate?: string; plannedEndDate?: string; overwriteManual?: boolean };
+      if (!validWorkDate(input.plannedStartDate) || !validWorkDate(input.plannedEndDate) || input.plannedEndDate < input.plannedStartDate || !Array.isArray(input.locationIds) || !input.locationIds.length || new Set(input.locationIds).size !== input.locationIds.length || input.locationIds.some((id) => !db.locations.some((location) => location.id === id && location.blockId === b))) return fail(422, "ValidationError", "Огноо, байршил сонголтоо шалгана уу.");
+      const targets = blockItems.filter((work) => work.workTypeId === input.workTypeId && input.locationIds!.includes(work.locationId));
+      if (!targets.length) return fail(422, "ValidationError", "Сонгосон байршилд энэ ажил алга.");
+      let updated = 0; let skipped = 0;
+      for (const work of targets) {
+        if (work.acceptedQty > 0 || (work.scheduleManual && !input.overwriteManual)) { skipped++; continue; }
+        if (!work.reportedQty && !work.actualStartDate && !(work.extendedDays ?? 0)) work.baselineEndDate = input.plannedEndDate;
+        work.plannedStartDate = input.plannedStartDate; work.plannedEndDate = input.plannedEndDate; work.scheduleManual = true;
+        refreshActualDates(work); updated++;
+      }
+      return ok({ data: { updated, skipped } });
     }
 
     if (c === "work-items") {
@@ -4727,6 +4777,16 @@ export function handleMock(
       return fail(403, "Forbidden", "Энэ ажил таны хариуцлагад байхгүй.");
     }
 
+    if (c === "actual-dates" && method === "PATCH") {
+      if (!session.canEditPlan && !session.canReportProgress) return fail(403, "Forbidden", "Танд бодит огноо бүртгэх эрх байхгүй.");
+      const input = body as { actualStartDate: string | null; actualEndDate: string | null };
+      const error = actualDatesError(item, input?.actualStartDate, input?.actualEndDate);
+      if (error) return error;
+      item.actualStartDate = input.actualStartDate; item.actualEndDate = input.actualEndDate;
+      recalc(item);
+      return ok({ data: item });
+    }
+
     if (!c) {
       // Буруу нэмсэн ажлыг устгах. Гүйцэтгэл орсон бол хориглоно —
       // түүх алга болно.
@@ -4747,6 +4807,13 @@ export function handleMock(
 
       if (method === "PATCH") {
         const p = body as Partial<WorkItem>;
+        if (p.plannedStartDate !== undefined || p.plannedEndDate !== undefined) {
+          if (!session.canEditPlan) return fail(403, "Forbidden", "Танд хугацаа төлөвлөх эрх байхгүй.");
+          const start = p.plannedStartDate ?? item.plannedStartDate; const end = p.plannedEndDate ?? item.plannedEndDate;
+          if (!validWorkDate(start) || !validWorkDate(end) || end < start) return fail(422, "ValidationError", "Эхлэх, дуусах огноогоо шалгана уу.");
+          if (item.acceptedQty > 0) return fail(409, "Conflict", "Батлагдсан гүйцэтгэлтэй ажлын хугацааг дахин төлөвлөх боломжгүй.");
+        }
+
 
         if (p.plannedQty !== undefined) {
           if (!session.canEditPlan) {
@@ -4766,6 +4833,10 @@ export function handleMock(
         // `plannedQty`-г дээр тусад нь боловсруулсан тул дахин бичихгүй.
         const rest = { ...p };
         delete rest.plannedQty;
+        if (p.plannedStartDate !== undefined || p.plannedEndDate !== undefined) {
+          if (!item.reportedQty && !item.actualStartDate && !(item.extendedDays ?? 0)) item.baselineEndDate = p.plannedEndDate ?? item.plannedEndDate;
+          item.scheduleManual = true;
+        }
         Object.assign(item, rest);
         recalc(item);
       }
@@ -4776,7 +4847,7 @@ export function handleMock(
        * 200 мөр тутамд нэмэлт тооцоо явна.
        */
       const engineer = siteEngineerFor(item);
-      return ok({ data: { ...item, holdPointReason: holdPointReason(item),
+      return ok({ data: { ...item, actualStartSuggestion: item.actualStartDate ?? [...(extraProgress.get(item.id) ?? []), ...progressFor(item)].map((entry) => entry.recordedAt.slice(0, 10)).sort()[0] ?? null, holdPointReason: holdPointReason(item),
         siteEngineer: engineer ? { id: engineer.id, name: engineer.name, position: engineer.position ?? null } : null,
         canCheckThisWorkItem: session.canCheck && (session.role !== "site_engineer" || (engineer?.id === session.id && validSiteEngineer(engineer, item.blockId))),
       } });
@@ -4788,6 +4859,8 @@ export function handleMock(
           completedQty?: number;
           remarks?: string;
           workersCount?: number;
+          actualStartDate?: string;
+          actualEndDate?: string | null;
         };
         const qty = Number(payload?.completedQty);
         if (!Number.isFinite(qty) || qty <= 0)
@@ -4809,6 +4882,12 @@ export function handleMock(
         const hold = holdPointReason(item);
         if (hold) return fail(422, "ValidationError", hold);
 
+        if (payload.actualStartDate !== undefined || payload.actualEndDate !== undefined) {
+          const start = payload.actualStartDate ?? item.actualStartDate ?? null;
+          const error = actualDatesError(item, start, payload.actualEndDate ?? null, qty);
+          if (error) return error;
+          item.actualStartDate = start; item.actualEndDate = payload.actualEndDate ?? null;
+        }
         const entry: ProgressEntry = {
           id: mockId(`pe-${item.id}`),
           workItemId: item.id,

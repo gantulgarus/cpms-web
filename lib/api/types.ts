@@ -244,6 +244,7 @@ export interface RoleOption {
 // WorkItem — гол нөөц
 // ---------------------------------------------------------------------------
 export interface WorkItem {
+  code?: string | null;
   id: Uuid;
   blockId: Uuid;
   /**
@@ -282,6 +283,13 @@ export interface WorkItem {
 
   plannedStartDate?: IsoDate;
   plannedEndDate?: IsoDate;
+  scheduleManual?: boolean;
+  actualStartDate?: IsoDate | null;
+  actualEndDate?: IsoDate | null;
+  actualStartSuggestion?: IsoDate | null;
+  approvedCompletedAt?: string | null;
+  actualDurationDays?: number | null;
+  completionDelayDays?: number | null;
   status: WorkStatus;
   reviewState: ReviewState;
   /** Ажлын төрөл хэдэн шаттай вэ — 1 бол талбайн шалгалт алгасна. */
@@ -443,6 +451,7 @@ export interface ExtensionRequest {
 }
 
 export interface WorkItemFilters {
+  sort?: "workCode";
   subgroupNumber?: string;
   locationId?: Uuid;
   includeDescendants?: boolean;
@@ -477,6 +486,8 @@ export interface ProgressEntry {
 }
 
 export interface CreateProgressRequest {
+  actualStartDate?: string;
+  actualEndDate?: string | null;
   completedQty: number;
   recordedAt?: IsoDate;
   workersCount?: number;
@@ -1097,6 +1108,9 @@ export interface BlockReport {
   };
 
   schedule: {
+    actualStartedItems?: number;
+    actualFinishedItems?: number;
+    actualLateItems?: number;
     plannedStart: IsoDate | null;
     plannedEnd: IsoDate | null;
     /** Анхны амлалт — сунгалтын дараа ч ХӨДӨЛДӨГГҮЙ. */

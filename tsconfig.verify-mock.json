@@ -13,6 +13,7 @@
     "scripts/verify-mock.ts",
     "scripts/verify-my-work.ts",
     "scripts/verify-site-engineers.ts",
-    "scripts/verify-assignment-priority.ts"
+    "scripts/verify-assignment-priority.ts",
+    "scripts/verify-work-dates.ts"
   ]
 }

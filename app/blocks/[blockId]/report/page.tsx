@@ -164,6 +164,9 @@ export default function BlockReportPage() {
             </div>
             <Row label="Сунгагдсан ажил" value={String(s.extendedItems)} muted />
             <Row label="Хугацаа хэтэрсэн ажил" value={String(s.overdueItems)} muted />
+            <Row label="Бодит эхэлсэн огноотой ажил" value={String(s.actualStartedItems ?? 0)} muted />
+            <Row label="Бодит дууссан огноотой ажил" value={String(s.actualFinishedItems ?? 0)} muted />
+            <Row label="Хоцорч дууссан ажил" value={String(s.actualLateItems ?? 0)} muted />
           </CardContent>
         </Card>
 
